@@ -69,7 +69,7 @@ const printOrder = (order) => {
         <style>
           body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
           .header { text-align: center; border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-          .shop-name { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; italic; }
+          .shop-name { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
           .info { margin-bottom: 30px; line-height: 1.6; }
           .info-label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
           .info-value { font-size: 14px; font-weight: bold; margin-bottom: 15px; }
@@ -119,7 +119,7 @@ const printOrder = (order) => {
   setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
 }
 
-// --- CÁC HÀNH ĐỘNG KHÁC (GIỮ NGUYÊN) ---
+// --- CÁC HÀNH ĐỘNG KHÁC ---
 const updateStatus = async (id, next) => {
   try {
     await updateDoc(doc(db, "orders", id), { status: next })
@@ -133,6 +133,19 @@ const deleteOrder = async (id, name) => {
     await deleteDoc(doc(db, "orders", id))
     await fetchData()
     showToast("Đã xóa đơn hàng!")
+  }
+}
+
+// --- MỚI: LOGIC XÓA TƯ VẤN ---
+const deleteContact = async (id, name) => {
+  if (confirm(`Xóa yêu cầu tư vấn của ${name}?`)) {
+    try {
+      await deleteDoc(doc(db, "contacts", id))
+      await fetchData()
+      showToast("Đã xóa yêu cầu tư vấn!")
+    } catch (e) {
+      showToast("Lỗi khi xóa!", "error")
+    }
   }
 }
 
@@ -251,12 +264,21 @@ onMounted(fetchData)
             </div>
 
             <div v-if="activeTab === 'contacts'" class="overflow-x-auto">
-               <table class="w-full text-left">
+              <table class="w-full text-left">
                 <tbody class="divide-y divide-slate-50">
                   <tr v-for="item in contacts" :key="item.id" class="hover:bg-red-50/30 group transition-all">
                     <td class="p-6">
-                      <div class="text-xs font-black text-slate-800 uppercase">{{ item.name }}</div>
-                      <div class="text-[10px] font-bold text-blue-600 mt-1 italic">{{ item.phone }}</div>
+                      <div class="flex items-center gap-3">
+                        <button @click="deleteContact(item.id, item.name)" class="opacity-0 group-hover:opacity-100 p-2 text-red-300 hover:text-red-600 transition-all">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        <div>
+                          <div class="text-xs font-black text-slate-800 uppercase">{{ item.name }}</div>
+                          <div class="text-[10px] font-bold text-blue-600 mt-1 italic">{{ item.phone }}</div>
+                        </div>
+                      </div>
                     </td>
                     <td class="p-6">
                       <p class="text-[10px] font-medium text-slate-500 italic border-l-2 border-slate-200 pl-4">{{ item.message }}</p>
