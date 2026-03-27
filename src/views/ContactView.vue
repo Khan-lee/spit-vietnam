@@ -48,8 +48,8 @@
           </div>
 
           <div class="rounded-[2.5rem] overflow-hidden grayscale hover:grayscale-0 transition-all duration-700 shadow-xl border-4 border-white h-80 bg-slate-200 relative group">
-            <iframe src="https://www.google.com/maps/search/361+L%C3%AA+Tr%E1%BB%8Dng+T%E1%BA%A5n,+S%C6%A1n+K%E1%BB%B3,+T%C3%A2n+Ph%C3%BA,+TP.+HCM/@10.8058993,106.6151258,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" class="w-full h-full border-0 transition-transform duration-700 group-hover:scale-105" allowfullscreen="" loading="lazy"></iframe>
-            <a href="https://www.google.com/maps/search/361+L%C3%AA+Tr%E1%BB%8Dng+T%E1%BA%A5n,+S%C6%A1n+K%E1%BB%B3,+T%C3%A2n+Ph%C3%BA,+TP.+HCM/@10.8058993,106.6151258,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" target="_blank" class="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-lg border border-white opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-red-600 hover:text-white flex items-center gap-2">
+            <iframe src="https://www.google.com/maps/search/361+l%C3%AA+tr%E1%BB%8Dng+t%E1%BA%A5n+s%C6%A1n+k%E1%BB%B3+t%C3%A2n+ph%C3%BA+tp.+hcm/@10.8046464,106.6173419,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" class="w-full h-full border-0 transition-transform duration-700 group-hover:scale-105" allowfullscreen="" loading="lazy"></iframe>
+            <a href="https://www.google.com/maps/search/361+l%C3%AA+tr%E1%BB%8Dng+t%E1%BA%A5n+s%C6%A1n+k%E1%BB%B3+t%C3%A2n+ph%C3%BA+tp.+hcm/@10.8046464,106.6173419,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" target="_blank" class="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-lg border border-white opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-red-600 hover:text-white flex items-center gap-2">
               <span>Mở trong Maps</span><span class="text-xs">↗</span>
             </a>
           </div>
@@ -68,10 +68,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { db } from '../firebase' // Nhập kết nối database của Khang
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router' // Import route để nhận tham số từ Footer
+import { db } from '../firebase' 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
+const route = useRoute() // Khởi tạo route
 const isSubmitting = ref(false)
 const formData = ref({
   name: '',
@@ -79,31 +81,41 @@ const formData = ref({
   message: ''
 })
 
+// Logic tự động điền tin nhắn dựa trên Query Params từ Footer
+onMounted(() => {
+  const reason = route.query.reason
+  if (reason === 'support') {
+    formData.value.message = "Tôi cần hỗ trợ kỹ thuật về giải pháp công nghiệp SPIT..."
+  } else if (reason === 'policy') {
+    formData.value.message = "Tôi muốn tìm hiểu chi tiết về chính sách đổi trả sản phẩm..."
+  }
+})
+
 const submitContact = async () => {
-  // 1. Kiểm tra dữ liệu đầu vào
+  // Kiểm tra dữ liệu
   if (!formData.value.name.trim() || !formData.value.phone.trim() || !formData.value.message.trim()) {
-    alert("Bạn ơi, điền đủ thông tin rồi mới gửi được nhé!")
+    alert("Khang ơi, điền đủ thông tin rồi mình mới gửi được nhé! 😊")
     return
   }
 
   isSubmitting.value = true
   
   try {
-    // 2. Gửi dữ liệu lên bảng "contacts" trong Firebase
+    // Gửi lên bảng "contacts" trong Firebase
     await addDoc(collection(db, "contacts"), {
       name: formData.value.name,
       phone: formData.value.phone,
       message: formData.value.message,
-      createdAt: serverTimestamp() // Lưu thời gian gửi để dễ quản lý
+      createdAt: serverTimestamp() 
     })
 
-    alert("Yêu cầu của bạn đã được lưu vào hệ thống. Mình sẽ phản hồi sớm!")
+    alert("Yêu cầu của bạn đã được gửi thành công! Đội ngũ SPIT sẽ phản hồi sớm nhất.")
     
-    // 3. Xóa trắng form
+    // Xóa form sau khi thành công
     formData.value = { name: '', phone: '', message: '' }
   } catch (error) {
     console.error("Lỗi gửi Firebase:", error)
-    alert("Có lỗi kỹ thuật rồi, Khang kiểm tra lại console nhé.")
+    alert("Có lỗi kỹ thuật rồi. Khang check lại kết nối Firebase nhé!")
   } finally {
     isSubmitting.value = false
   }
