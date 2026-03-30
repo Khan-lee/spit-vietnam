@@ -28,15 +28,23 @@ onMounted(() => {
   })
 })
 
+// Tìm đến hàm handleLogin trong AdminView.vue và cập nhật đường dẫn:
 const handleLogin = async () => {
   if (!passwordInput.value) return
   try {
     loginError.value = false; isSubmitting.value = true
     await setPersistence(auth, browserSessionPersistence)
     await signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
-    passwordInput.value = '' 
-  } catch (error) { loginError.value = true } 
-  finally { isSubmitting.value = false }
+    
+    // CẬP NHẬT: Điều hướng vào dashboard sau khi đăng nhập thành công
+    router.push('/admin/dashboard') 
+    
+    passwordInput.value = ''
+  } catch (error) {
+    loginError.value = true
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const handleLogout = async () => {

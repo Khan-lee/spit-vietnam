@@ -13,15 +13,14 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     
-    // TRANG QUẢN LÝ SẢN PHẨM
+    // ĐỔI ĐƯỜNG DẪN TẠI ĐÂY (Lối đi bí mật cho Khang)
     { 
-      path: '/admin', 
+      path: '/spit-system-manager', 
       name: 'admin', 
       component: () => import('../views/AdminView.vue'),
       meta: { requiresAuth: true } 
     },
 
-    // TRANG THỐNG KÊ & LỊCH SỬ ĐƠN HÀNG (MỚI)
     { 
       path: '/admin/dashboard', 
       name: 'AdminDashboard', 
@@ -32,7 +31,7 @@ const router = createRouter({
   scrollBehavior() { return { top: 0 } }
 })
 
-// LOGIC BẢO MẬT (Navigation Guard)
+// Navigation Guard giữ nguyên để bảo vệ trang quản trị
 router.beforeEach((to, from, next) => {
   const auth = getAuth()
   if (to.meta.requiresAuth) {
@@ -40,7 +39,6 @@ router.beforeEach((to, from, next) => {
       if (user) {
         next()
       } else {
-        // Nếu chưa đăng nhập, đá về trang login
         next({ name: 'login' }) 
       }
     })
