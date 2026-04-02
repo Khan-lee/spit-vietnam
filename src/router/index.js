@@ -13,6 +13,13 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     
+    // --- CẬP NHẬT: ROUTE DANH SÁCH BÀI VIẾT (TẤT CẢ BÀI VIẾT) ---
+    { 
+      path: '/tin-tuc', 
+      name: 'posts-list', 
+      component: () => import('../views/PostsView.vue') 
+    },
+
     // ROUTE CHI TIẾT BÀI VIẾT
     { 
       path: '/post/:id', 
@@ -21,7 +28,6 @@ const router = createRouter({
     },
 
     // --- HỆ THỐNG QUẢN TRỊ (SPIT SYSTEM MANAGER) ---
-    // Đã cập nhật từ /admin sang /spit-system-manager
     { 
       path: '/spit-system-manager', 
       name: 'admin', 
