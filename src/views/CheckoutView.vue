@@ -9,8 +9,17 @@ const cartItems = ref([])
 const totalPrice = ref(0)
 const isProcessing = ref(false)
 
-// Thông tin khách hàng
-const customer = ref({ name: '', phone: '', address: '', note: '' })
+// THÔNG TIN KHÁCH HÀNG (ĐÃ THÊM CÁC TRƯỜNG DOANH NGHIỆP MỚI)
+const customer = ref({ 
+  name: '', 
+  phone: '', 
+  address: '', 
+  note: '',
+  // --- PHẦN MỚI ---
+  companyName: '',
+  taxCode: '',
+  contractEmail: ''
+})
 
 onMounted(() => {
   const savedCart = JSON.parse(localStorage.getItem('spit_cart')) || []
@@ -25,12 +34,17 @@ const handleCheckout = async () => {
   try {
     isProcessing.value = true
 
-    // 1. Lưu đơn hàng vào collection "orders"
+    // 1. Lưu đơn hàng vào collection "orders" (ĐÃ CẬP NHẬT TRƯỜNG MỚI)
     const orderData = {
       customerName: customer.value.name,
       phone: customer.value.phone,
       address: customer.value.address,
       note: customer.value.note,
+      // --- DỮ LIỆU DOANH NGHIỆP MỚI ---
+      companyName: customer.value.companyName,
+      taxCode: customer.value.taxCode,
+      contractEmail: customer.value.contractEmail,
+      // ----------------------------
       items: cartItems.value,
       totalPrice: totalPrice.value,
       status: 'pending',
@@ -38,19 +52,19 @@ const handleCheckout = async () => {
     }
     await addDoc(collection(db, "orders"), orderData)
 
-    // 2. Cập nhật số lượng tồn kho (Stock) cho từng sản phẩm
+    // 2. Cập nhật số lượng tồn kho (Stock) cho từng sản phẩm (GIỮ NGUYÊN)
     const updatePromises = cartItems.value.map(item => {
       const productRef = doc(db, "products", item.id)
       return updateDoc(productRef, {
-        stock: increment(-item.quantity) // Trừ đi số lượng đã mua
+        stock: increment(-item.quantity)
       })
     })
     await Promise.all(updatePromises)
 
-    // 3. Xóa giỏ hàng và hoàn tất
+    // 3. Xóa giỏ hàng và hoàn tất (GIỮ NGUYÊN)
     localStorage.removeItem('spit_cart')
     window.dispatchEvent(new Event('cart-updated'))
-    alert("Đặt hàng thành công! Cảm ơn Khang đã ủng hộ.")
+    alert("Đặt hàng thành công! Đơn hàng của bạn đã được ghi nhận hệ thống.")
     router.push('/')
 
   } catch (error) {
@@ -65,12 +79,23 @@ const handleCheckout = async () => {
 <template>
   <div class="min-h-screen bg-slate-50 py-12 px-6">
     <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10">
+      
       <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
         <h2 class="text-xl font-black uppercase italic mb-6 text-slate-900">Thông tin giao hàng</h2>
         <div class="space-y-4">
           <input v-model="customer.name" placeholder="Họ và tên *" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-100 text-sm font-bold" />
           <input v-model="customer.phone" placeholder="Số điện thoại *" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-100 text-sm font-bold" />
-          <textarea v-model="customer.address" placeholder="Địa chỉ giao hàng" rows="3" class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-sm font-medium resize-none"></textarea>
+          <textarea v-model="customer.address" placeholder="Địa chỉ giao hàng" rows="2" class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-sm font-medium resize-none"></textarea>
+          
+          <div class="pt-4 border-t border-dashed border-slate-200 mt-2 space-y-3">
+            <p class="text-[9px] font-black uppercase text-slate-400 tracking-widest">Thông tin doanh nghiệp (Nếu có)</p>
+            <input v-model="customer.companyName" placeholder="Tên công ty" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-100 text-xs font-bold" />
+            <div class="grid grid-cols-2 gap-3">
+              <input v-model="customer.taxCode" placeholder="Mã số thuế" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-100 text-xs font-bold" />
+              <input v-model="customer.contractEmail" type="email" placeholder="Email nhận hợp đồng" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-blue-100 text-xs font-bold" />
+            </div>
+          </div>
+
           <textarea v-model="customer.note" placeholder="Ghi chú thêm..." class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-sm font-medium"></textarea>
         </div>
       </div>
@@ -91,11 +116,12 @@ const handleCheckout = async () => {
             <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Tổng cộng</span>
             <span class="text-3xl font-black text-red-500 italic">{{ totalPrice.toLocaleString() }}đ</span>
           </div>
-          <button @click="handleCheckout" :disabled="isProcessing" class="w-full py-5 bg-blue-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 active:scale-95 transition-all">
+          <button @click="handleCheckout" :disabled="isProcessing" class="w-full py-5 bg-blue-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-900/20">
             {{ isProcessing ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN ĐẶT HÀNG' }}
           </button>
         </div>
       </div>
+
     </div>
   </div>
 </template>

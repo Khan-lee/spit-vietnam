@@ -52,7 +52,7 @@ const fetchData = async () => {
   }
 }
 
-// --- LOGIC IN HÓA ĐƠN ---
+// --- LOGIC IN HÓA ĐƠN (ĐÃ CẬP NHẬT THÊM THÔNG TIN DOANH NGHIỆP) ---
 const printOrder = (order) => {
   const printWindow = window.open('', '_blank');
   const itemsHtml = order.items.map(item => `
@@ -73,6 +73,7 @@ const printOrder = (order) => {
           .info { margin-bottom: 30px; line-height: 1.6; }
           .info-label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
           .info-value { font-size: 14px; font-weight: bold; margin-bottom: 15px; }
+          .company-box { margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; }
           table { width: 100%; border-collapse: collapse; }
           .total { margin-top: 30px; text-align: right; border-top: 2px solid #000; pt: 20px; }
           .total-label { font-size: 12px; font-weight: 900; text-transform: uppercase; }
@@ -92,7 +93,17 @@ const printOrder = (order) => {
           <div class="info-value">${order.phone}</div>
           <div class="info-label">Địa chỉ</div>
           <div class="info-value">${order.address || 'Tại cửa hàng'}</div>
-          ${order.note ? `<div class="info-label">Ghi chú</div><div class="info-value">${order.note}</div>` : ''}
+          
+          ${order.companyName ? `
+            <div class="company-box">
+              <div class="info-label">Thông tin doanh nghiệp</div>
+              <div class="info-value" style="margin-bottom: 5px;">${order.companyName}</div>
+              ${order.taxCode ? `<div style="font-size: 11px;"><strong>MST:</strong> ${order.taxCode}</div>` : ''}
+              ${order.contractEmail ? `<div style="font-size: 11px;"><strong>Email:</strong> ${order.contractEmail}</div>` : ''}
+            </div>
+          ` : ''}
+          
+          ${order.note ? `<div class="info-label" style="margin-top:15px;">Ghi chú</div><div class="info-value">${order.note}</div>` : ''}
         </div>
         <table>
           <thead>
@@ -119,7 +130,7 @@ const printOrder = (order) => {
   setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
 }
 
-// --- CÁC HÀNH ĐỘNG KHÁC ---
+// --- CÁC HÀNH ĐỘNG KHÁC (GIỮ NGUYÊN) ---
 const updateStatus = async (id, next) => {
   try {
     await updateDoc(doc(db, "orders", id), { status: next })
@@ -136,7 +147,6 @@ const deleteOrder = async (id, name) => {
   }
 }
 
-// --- MỚI: LOGIC XÓA TƯ VẤN ---
 const deleteContact = async (id, name) => {
   if (confirm(`Xóa yêu cầu tư vấn của ${name}?`)) {
     try {
@@ -160,7 +170,7 @@ const clearCompletedOrders = async () => {
   }
 }
 
-// --- THỐNG KÊ (COMPUTED) ---
+// --- THỐNG KÊ (COMPUTED - GIỮ NGUYÊN) ---
 const totalRevenue = computed(() => orders.value.filter(o => o.status === 'completed').reduce((s, o) => s + (o.totalPrice || 0), 0))
 const lowStock = computed(() => products.value.filter(p => p.stock <= 5))
 const topSelling = computed(() => {
