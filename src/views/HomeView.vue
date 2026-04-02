@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
+// Import thêm NewsSection để hiển thị bài viết từ Firestore
+import NewsSection from '../components/NewsSection.vue' 
 
 const products = ref([])
 const isLoading = ref(true)
@@ -37,6 +39,8 @@ onMounted(fetchProducts)
         </div>
       </div>
     </section>
+
+    <NewsSection />
 
     <div class="py-12 px-6 md:px-12">
       <h2 class="text-2xl font-black text-center text-slate-800 mb-8 uppercase italic tracking-tight">Danh mục sản phẩm SPIT VIETNAM</h2>

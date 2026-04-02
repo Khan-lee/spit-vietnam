@@ -13,25 +13,44 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     
-    // ĐỔI ĐƯỜNG DẪN TẠI ĐÂY (Lối đi bí mật cho Khang)
+    // ROUTE CHI TIẾT BÀI VIẾT
+    { 
+      path: '/post/:id', 
+      name: 'post-detail', 
+      component: () => import('../views/PostDetailView.vue') 
+    },
+
+    // --- HỆ THỐNG QUẢN TRỊ (SPIT SYSTEM MANAGER) ---
+    // Đã cập nhật từ /admin sang /spit-system-manager
     { 
       path: '/spit-system-manager', 
       name: 'admin', 
       component: () => import('../views/AdminView.vue'),
       meta: { requiresAuth: true } 
     },
-
     { 
-      path: '/admin/dashboard', 
+      path: '/spit-system-manager/dashboard', 
       name: 'AdminDashboard', 
       component: () => import('../views/AdminDashboard.vue'),
+      meta: { requiresAuth: true } 
+    },
+    { 
+      path: '/spit-system-manager/posts', 
+      name: 'AdminPosts', 
+      component: () => import('../views/AdminPostsView.vue'),
+      meta: { requiresAuth: true } 
+    },
+    { 
+      path: '/spit-system-manager/settings', 
+      name: 'AdminSettings', 
+      component: () => import('../views/AdminSettingsView.vue'),
       meta: { requiresAuth: true } 
     }
   ],
   scrollBehavior() { return { top: 0 } }
 })
 
-// Navigation Guard giữ nguyên để bảo vệ trang quản trị
+// Guard bảo vệ các trang Admin
 router.beforeEach((to, from, next) => {
   const auth = getAuth()
   if (to.meta.requiresAuth) {

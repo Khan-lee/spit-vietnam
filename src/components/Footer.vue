@@ -3,8 +3,10 @@
     <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
       
       <div class="space-y-6">
-        <div class="flex items-center gap-2">
-          <span class="text-red-600 font-black text-xl italic uppercase">SPIT</span>
+        <div class="flex items-center gap-3">
+          <div class="h-8 flex items-center">
+            <img src="../assets/noBG_logo.png" alt="SPIT" class="h-full w-auto brightness-0 invert object-contain" />
+          </div>
           <span class="font-bold text-lg uppercase tracking-tight">Vietnam</span>
         </div>
         <p class="text-slate-400 text-sm leading-relaxed max-w-xs">
@@ -12,7 +14,7 @@
         </p>
 
         <div class="flex items-center gap-4 pt-2">
-          <a href="https://www.facebook.com/vnspit" target="_blank" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all group">
+          <a :href="config.facebook || 'https://www.facebook.com/vnspit'" target="_blank" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all group">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-white"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
           </a>
           <a href="https://www.youtube.com/channel/UCevP--LZsdjHn3EQwgesoFA" target="_blank" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center hover:bg-red-600 transition-all group">
@@ -30,6 +32,9 @@
           <li>
             <RouterLink to="/contact?reason=policy" class="hover:text-white transition-colors duration-200">Chính sách đổi trả</RouterLink>
           </li>
+          <li v-if="config.shippingFee" class="text-[11px] text-slate-500 italic">
+            Phí vận chuyển: {{ Number(config.shippingFee).toLocaleString() }} VNĐ
+          </li>
         </ul>
       </div>
 
@@ -38,11 +43,19 @@
         <ul class="space-y-4 text-sm text-slate-400">
           <li class="flex items-start gap-3 group">
             <span class="text-red-600">📍</span>
-            <span class="hover:text-white transition-colors leading-relaxed">361 Lê Trọng Tấn, Sơn Kỳ, Tân Phú, TP. HCM</span>
+            <span class="hover:text-white transition-colors leading-relaxed">
+              {{ config.address || '361 Lê Trọng Tấn, Sơn Kỳ, Tân Phú, TP. HCM' }}
+            </span>
           </li>
           <li class="flex items-center gap-3 font-bold text-white">
             <span class="text-red-600">📞</span>
-            <a href="tel:1900xxxx" class="hover:text-red-500 transition-colors">Hotline: 1900 xxxx</a>
+            <a :href="'tel:' + config.hotline" class="hover:text-red-500 transition-colors">
+              Hotline: {{ config.hotline || '1900 xxxx' }}
+            </a>
+          </li>
+          <li v-if="config.email" class="flex items-center gap-3 text-slate-400">
+            <span class="text-red-600">✉️</span>
+            <a :href="'mailto:' + config.email" class="hover:text-white transition-colors text-xs">{{ config.email }}</a>
           </li>
         </ul>
       </div>
@@ -50,10 +63,19 @@
 
     <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-600">
       <p class="italic">© 2026 SPIT VIETNAM. All rights reserved.</p>
+      <p>Designed by Khang Le</p>
     </div>
   </footer>
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router'
+
+// PHẦN MỚI: Nhận dữ liệu từ App.vue truyền xuống
+const props = defineProps({
+  config: {
+    type: Object,
+    default: () => ({})
+  }
+})
 </script>

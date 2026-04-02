@@ -37,7 +37,7 @@ const handleLogin = async () => {
     await signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
     
     // CẬP NHẬT: Điều hướng vào dashboard sau khi đăng nhập thành công
-    router.push('/admin/dashboard') 
+    router.push('/admin/dashboard')
     
     passwordInput.value = ''
   } catch (error) {

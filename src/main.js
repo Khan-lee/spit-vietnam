@@ -1,8 +1,12 @@
 import { createApp } from 'vue'
-import './style.css'
+import { createHead } from '@unhead/vue/client' // Kiểm tra kỹ chữ 'H' viết hoa
 import App from './App.vue'
-import router from './router' // Thêm dòng này
+import router from './router'
+import './style.css'
 
 const app = createApp(App)
-app.use(router) // Kích hoạt điều hướng
+const head = createHead()
+
+app.use(head)
+app.use(router)
 app.mount('#app')

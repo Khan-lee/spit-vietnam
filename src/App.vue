@@ -2,15 +2,26 @@
 import { ref, onMounted, computed } from 'vue'
 import { RouterView, RouterLink, useRoute } from 'vue-router'
 import Footer from './components/Footer.vue'
+// THÊM IMPORT FIREBASE
+import { db } from './firebase'
+import { doc, onSnapshot } from 'firebase/firestore'
 
 const route = useRoute()
 
-// 1. Tự động ẩn Header/Footer ở trang Admin và Login
-const isHideLayout = computed(() => {
-  return route.path.startsWith('/admin') || route.path === '/login'
+// --- PHẦN MỚI: QUẢN LÝ CẤU HÌNH HỆ THỐNG ---
+const webConfig = ref({
+  announcement: '',
+  hotline: '',
+  email: ''
 })
 
-// 2. Quản lý trạng thái giỏ hàng
+// --- 1. Tự động ẩn Header/Footer ở trang Admin và Login ---
+const isHideLayout = computed(() => {
+  // Cập nhật path để khớp với tiền tố mới của bạn
+  return route.path.startsWith('/spit-system-manager') || route.path.startsWith('/admin') || route.path === '/login'
+})
+
+// --- 2. Quản lý trạng thái giỏ hàng (GIỮ NGUYÊN) ---
 const cartItems = ref([])
 const isCartOpen = ref(false)
 const searchQuery = ref('')
@@ -23,10 +34,10 @@ const updateCart = () => {
 const cartCount = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
 const totalPrice = computed(() => cartItems.value.reduce((total, item) => total + (item.price * item.quantity), 0))
 
-// 3. Các hàm bổ trợ cho giỏ hàng (CẦN THIẾT ĐỂ GIỎ HÀNG HOẠT ĐỘNG)
+// --- 3. Các hàm bổ trợ cho giỏ hàng (GIỮ NGUYÊN) ---
 const saveCart = () => {
   localStorage.setItem('spit_cart', JSON.stringify(cartItems.value))
-  window.dispatchEvent(new Event('cart-updated')) // Thông báo cho các component khác
+  window.dispatchEvent(new Event('cart-updated'))
 }
 
 const changeQuantity = (productId, delta) => {
@@ -47,12 +58,28 @@ onMounted(() => {
   updateCart()
   window.addEventListener('storage', updateCart)
   window.addEventListener('cart-updated', updateCart)
+
+  // THÊM: Lắng nghe thay đổi settings thời gian thực
+  onSnapshot(doc(db, "settings", "website"), (docSnap) => {
+    if (docSnap.exists()) {
+      webConfig.value = docSnap.data()
+    }
+  })
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-white font-sans text-slate-900 flex flex-col">
     
+    <div v-if="!isHideLayout && webConfig.announcement" 
+         class="bg-red-600 text-white py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] relative z-[60]">
+      <div class="container mx-auto px-4 overflow-hidden whitespace-nowrap">
+        <span class="inline-block animate-marquee">
+          {{ webConfig.announcement }} — {{ webConfig.announcement }} — {{ webConfig.announcement }}
+        </span>
+      </div>
+    </div>
+
     <header v-if="!isHideLayout" class="flex justify-between items-center px-6 md:px-12 py-4 bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 shadow-sm">
       <div class="flex items-center gap-3 group cursor-pointer">
         <div class="bg-red-600 text-white px-3 py-1 font-black rounded italic uppercase text-xl transition-transform group-hover:-skew-x-12">SPIT</div>
@@ -68,7 +95,7 @@ onMounted(() => {
       <div class="flex items-center gap-4 md:gap-8">
         <div class="relative hidden md:block group">
           <input v-model="searchQuery" type="text" placeholder="Tìm kiếm thiết bị..." 
-                 class="bg-slate-100 py-2.5 px-6 pr-12 rounded-full text-[11px] font-bold outline-none w-48 lg:w-64 focus:w-80 transition-all border border-transparent focus:border-red-100 shadow-inner" />
+                  class="bg-slate-100 py-2.5 px-6 pr-12 rounded-full text-[11px] font-bold outline-none w-48 lg:w-64 focus:w-80 transition-all border border-transparent focus:border-red-100 shadow-inner" />
         </div>
         
         <button @click="isCartOpen = true" class="relative group p-2 hover:bg-slate-50 rounded-full transition-colors">
@@ -125,12 +152,21 @@ onMounted(() => {
       </RouterView>
     </main>
 
-    <Footer v-if="!isHideLayout" />
+    <Footer v-if="!isHideLayout" :config="webConfig" />
   </div>
 </template>
 
 <style>
-/* CSS cho hiệu ứng trượt giỏ hàng */
+/* Hiệu ứng chạy chữ cho Announcement */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 15s linear infinite;
+}
+
 .slide-enter-active, .slide-leave-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 
