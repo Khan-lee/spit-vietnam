@@ -26,6 +26,27 @@
             </div>
 
             <div class="space-y-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Địa chỉ Email</label>
+              <input v-model="formData.email" type="email" placeholder="example@gmail.com" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Tên công ty</label>
+                <input v-model="formData.companyName" type="text" placeholder="Công ty TNHH SPIT" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Mã số thuế</label>
+                <input v-model="formData.taxCode" type="text" placeholder="031xxxxxxx" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Địa chỉ công ty</label>
+              <input v-model="formData.companyAddress" type="text" placeholder="Địa chỉ đăng ký kinh doanh" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+            </div>
+
+            <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Nội dung yêu cầu</label>
               <textarea v-model="formData.message" rows="5" placeholder="Bạn cần tư vấn về thiết bị nào?" class="w-full bg-slate-50 border-none rounded-3xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none resize-none"></textarea>
             </div>
@@ -48,8 +69,8 @@
           </div>
 
           <div class="rounded-[2.5rem] overflow-hidden grayscale hover:grayscale-0 transition-all duration-700 shadow-xl border-4 border-white h-80 bg-slate-200 relative group">
-            <iframe src="https://www.google.com/maps/search/361+l%C3%AA+tr%E1%BB%8Dng+t%E1%BA%A5n+s%C6%A1n+k%E1%BB%B3+t%C3%A2n+ph%C3%BA+tp.+hcm/@10.8046464,106.6173419,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" class="w-full h-full border-0 transition-transform duration-700 group-hover:scale-105" allowfullscreen="" loading="lazy"></iframe>
-            <a href="https://www.google.com/maps/search/361+l%C3%AA+tr%E1%BB%8Dng+t%E1%BA%A5n+s%C6%A1n+k%E1%BB%B3+t%C3%A2n+ph%C3%BA+tp.+hcm/@10.8046464,106.6173419,15z/data=!3m1!4b1?entry=ttu&g_ep=EgoyMDI2MDMyMy4xIKXMDSoASAFQAw%3D%3D" target="_blank" class="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-lg border border-white opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-red-600 hover:text-white flex items-center gap-2">
+            <iframe src="https://maps.app.goo.gl/nCgkaFYfcskHCTZm9" class="w-full h-full border-0 transition-transform duration-700 group-hover:scale-105" allowfullscreen="" loading="lazy"></iframe>
+            <a href="https://maps.app.goo.gl/nCgkaFYfcskHCTZm9" target="_blank" class="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-lg border border-white opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-red-600 hover:text-white flex items-center gap-2">
               <span>Mở trong Maps</span><span class="text-xs">↗</span>
             </a>
           </div>
@@ -69,19 +90,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router' // Import route để nhận tham số từ Footer
+import { useRoute } from 'vue-router'
 import { db } from '../firebase' 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
-const route = useRoute() // Khởi tạo route
+const route = useRoute()
 const isSubmitting = ref(false)
 const formData = ref({
   name: '',
   phone: '',
+  email: '',            // THÊM MỚI
+  companyName: '',
+  taxCode: '',
+  companyAddress: '',
   message: ''
 })
 
-// Logic tự động điền tin nhắn dựa trên Query Params từ Footer
 onMounted(() => {
   const reason = route.query.reason
   if (reason === 'support') {
@@ -92,7 +116,6 @@ onMounted(() => {
 })
 
 const submitContact = async () => {
-  // Kiểm tra dữ liệu
   if (!formData.value.name.trim() || !formData.value.phone.trim() || !formData.value.message.trim()) {
     alert("Khang ơi, điền đủ thông tin rồi mình mới gửi được nhé! 😊")
     return
@@ -101,18 +124,28 @@ const submitContact = async () => {
   isSubmitting.value = true
   
   try {
-    // Gửi lên bảng "contacts" trong Firebase
     await addDoc(collection(db, "contacts"), {
       name: formData.value.name,
       phone: formData.value.phone,
+      email: formData.value.email,           // THÊM MỚI
+      companyName: formData.value.companyName,
+      taxCode: formData.value.taxCode,
+      companyAddress: formData.value.companyAddress,
       message: formData.value.message,
       createdAt: serverTimestamp() 
     })
 
     alert("Yêu cầu của bạn đã được gửi thành công! Đội ngũ SPIT sẽ phản hồi sớm nhất.")
     
-    // Xóa form sau khi thành công
-    formData.value = { name: '', phone: '', message: '' }
+    formData.value = { 
+      name: '', 
+      phone: '', 
+      email: '',                             // THÊM MỚI
+      companyName: '', 
+      taxCode: '', 
+      companyAddress: '', 
+      message: '' 
+    }
   } catch (error) {
     console.error("Lỗi gửi Firebase:", error)
     alert("Có lỗi kỹ thuật rồi. Khang check lại kết nối Firebase nhé!")

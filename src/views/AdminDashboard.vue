@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBa
 import { db } from '../firebase'
 import AdminSidebar from '../components/AdminSidebar.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import * as XLSX from 'xlsx'
 
 // --- TRẠNG THÁI DỮ LIỆU ---
 const orders = ref([])
@@ -66,6 +67,52 @@ const conversionRate = computed(() => {
   return ((orders.value.length / contacts.value.length) * 100).toFixed(1)
 })
 
+// --- 1. LOGIC XUẤT EXCEL (CẬP NHẬT CỘT EMAIL) ---
+const exportToExcel = (data, fileName) => {
+  if (data.length === 0) return showToast("Không có dữ liệu!", "error")
+  const cleanData = data.map(({ id, createdAt, items, ...rest }) => ({
+    'ID': id,
+    'Ngày': createdAt?.toDate().toLocaleString('vi-VN') || '',
+    'Khách hàng': rest.customerName || rest.name || '',
+    'SĐT': rest.phone || '',
+    'Email': rest.email || rest.contractEmail || '', // THÊM CỘT EMAIL
+    'Tổng tiền': rest.totalPrice ? `${rest.totalPrice.toLocaleString()}đ` : '',
+    'Nội dung/Công ty': rest.message || rest.companyName || ''
+  }))
+  const worksheet = XLSX.utils.json_to_sheet(cleanData)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data")
+  XLSX.writeFile(workbook, `SPIT_${fileName}_${new Date().getTime()}.xlsx`)
+  showToast("Đã xuất báo cáo! 📊")
+}
+
+// --- 2. LOGIC GỬI EMAIL NHANH (CẬP NHẬT THÔNG MINH) ---
+const sendQuickEmail = (item) => {
+  const email = item.email || item.contractEmail // Ưu tiên email mới từ form contact
+  
+  if (email) {
+    const subject = encodeURIComponent(`[SPIT Vietnam] Phản hồi yêu cầu tư vấn`)
+    const body = encodeURIComponent(`Chào ${item.name},\n\nChúng tôi đã nhận được yêu cầu tư vấn của bạn thông qua hệ thống SPIT Vietnam.\n\nNội dung: "${item.message || 'Yêu cầu tư vấn'}"\n\nChúng tôi sẽ liên hệ lại sớm nhất.\n\nTrân trọng!`)
+    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
+  } else {
+    // Nếu không có email (dữ liệu cũ), gợi ý gọi điện luôn cho Khang đỡ phải check tay
+    if (confirm("Yêu cầu này không có Email. Bạn có muốn gọi điện trực tiếp cho " + item.name + " không?")) {
+      window.location.href = `tel:${item.phone}`
+    }
+  }
+}
+
+// --- 3. QUẢN LÝ KHO TRỰC TIẾP ---
+const updateStock = async (productId, newStock) => {
+  try {
+    const val = parseInt(newStock)
+    if (isNaN(val)) return
+    await updateDoc(doc(db, "products", productId), { stock: val })
+    showToast("Cập nhật kho thành công!")
+    fetchData()
+  } catch (e) { showToast("Lỗi cập nhật!", "error") }
+}
+
 // --- LOGIC IN HÓA ĐƠN ---
 const printOrder = (order) => {
   const printWindow = window.open('', '_blank');
@@ -76,36 +123,7 @@ const printOrder = (order) => {
     </tr>
   `).join('');
 
-  const html = `
-    <html>
-      <head>
-        <title>Hóa đơn - ${order.customerName}</title>
-        <style>
-          body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
-          .header { text-align: center; border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-          .shop-name { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
-          .info { margin-bottom: 30px; line-height: 1.6; }
-          .info-label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
-          .info-value { font-size: 14px; font-weight: bold; margin-bottom: 15px; }
-          .company-box { margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; }
-          table { width: 100%; border-collapse: collapse; }
-          .total { margin-top: 30px; text-align: right; border-top: 2px solid #000; padding-top: 20px; }
-          .total-label { font-size: 12px; font-weight: 900; text-transform: uppercase; }
-          .total-value { font-size: 24px; font-weight: 900; color: #ef4444; }
-        </style>
-      </head>
-      <body>
-        <div class="header"><div class="shop-name">SPIT VIETNAM</div><div style="font-size: 10px; font-weight: bold;">HÓA ĐƠN BÁN HÀNG</div></div>
-        <div class="info">
-          <div class="info-label">Khách hàng</div><div class="info-value">${order.customerName}</div>
-          <div class="info-label">Điện thoại</div><div class="info-value">${order.phone}</div>
-          ${order.companyName ? `<div class="company-box"><div class="info-label">Doanh nghiệp</div><div class="info-value">${order.companyName}</div><div>MST: ${order.taxCode || 'N/A'}</div></div>` : ''}
-        </div>
-        <table><thead><tr><th style="text-align: left;">Sản phẩm</th><th style="text-align: right;">Thành tiền</th></tr></thead><tbody>${itemsHtml}</tbody></table>
-        <div class="total"><span class="total-label">Tổng cộng: </span><span class="total-value">${order.totalPrice.toLocaleString()}đ</span></div>
-      </body>
-    </html>
-  `;
+  const html = `<html><head><title>Hóa đơn</title><style>body { font-family: sans-serif; padding: 40px; color: #1e293b; }.header { text-align: center; border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px; }.shop-name { font-size: 24px; font-weight: 900; text-transform: uppercase; }.info { margin-bottom: 30px; }.total { margin-top: 30px; text-align: right; border-top: 2px solid #000; padding-top: 20px; font-size: 24px; font-weight: 900; color: #ef4444; }</style></head><body><div class="header"><div class="shop-name">SPIT VIETNAM</div></div><div class="info"><div>Khách hàng: ${order.customerName}</div><div>SĐT: ${order.phone}</div></div><table>${itemsHtml}</table><div class="total">Tổng: ${order.totalPrice.toLocaleString()}đ</div></body></html>`;
   printWindow.document.write(html);
   printWindow.document.close();
   setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
@@ -125,6 +143,16 @@ const deleteOrder = async (id, name) => {
     await deleteDoc(doc(db, "orders", id))
     await fetchData()
     showToast("Đã xóa đơn hàng!")
+  }
+}
+
+const deleteContact = async (id, name) => {
+  if (confirm(`Bạn có chắc chắn muốn xóa yêu cầu tư vấn của ${name}?`)) {
+    try {
+      await deleteDoc(doc(db, "contacts", id))
+      await fetchData()
+      showToast("Đã xóa yêu cầu tư vấn!")
+    } catch (e) { showToast("Lỗi khi xóa dữ liệu!", "error") }
   }
 }
 
@@ -171,6 +199,12 @@ onMounted(fetchData)
           </div>
           <div class="flex gap-3">
             <input v-model="searchQuery" type="text" placeholder="Tìm tên, SĐT, mã đơn..." class="text-[10px] font-bold px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 ring-blue-500 w-64 bg-white shadow-sm" />
+            
+            <button @click="exportToExcel(activeTab === 'orders' ? filteredOrders : contacts, activeTab)" 
+                    class="text-[9px] font-black text-emerald-600 uppercase italic bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all shadow-sm">
+              📥 Báo cáo
+            </button>
+
             <button @click="clearCompletedOrders" class="text-[9px] font-black text-red-500 uppercase italic bg-red-50 px-4 py-2 rounded-full border border-red-100 hover:bg-red-500 hover:text-white transition-all">Dọn đơn rác</button>
             <button @click="fetchData" class="text-[9px] font-black text-blue-600 uppercase italic bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">Làm mới</button>
           </div>
@@ -195,7 +229,9 @@ onMounted(fetchData)
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
               <h3 class="text-red-600 font-black uppercase text-[10px] mb-4 flex items-center gap-2 italic">⚠️ Cảnh báo kho</h3>
               <div v-for="p in lowStock" :key="p.id" class="flex justify-between items-center bg-slate-50 p-3 rounded-xl mb-2 text-[10px] font-bold uppercase">
-                <span class="truncate w-32">{{ p.name }}</span> <span class="text-red-600 font-black">Còn {{ p.stock }}</span>
+                <span class="truncate w-24">{{ p.name }}</span> 
+                <input type="number" v-model="p.stock" @change="updateStock(p.id, p.stock)" 
+                       class="w-12 bg-white border border-slate-200 rounded px-1 text-center text-red-600 font-black focus:outline-none" />
               </div>
             </div>
 
@@ -265,15 +301,21 @@ onMounted(fetchData)
             <div v-if="activeTab === 'contacts'" class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
               <table class="w-full text-left">
                 <tbody class="divide-y divide-slate-50">
-                  <tr v-for="item in contacts" :key="item.id" class="hover:bg-red-50/30 group transition-all">
+                  <tr v-for="item in contacts" :key="item.id" class="hover:bg-red-50/10 group transition-all">
                     <td class="p-6">
-                      <div class="text-xs font-black text-slate-800 uppercase">{{ item.name }}</div>
+                      <div class="flex items-center gap-2">
+                        <div class="text-xs font-black text-slate-800 uppercase italic">{{ item.name }}</div>
+                        <span v-if="item.companyName" class="text-[7px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">B2B</span>
+                      </div>
                       <div class="text-[10px] font-bold text-blue-600 mt-1">{{ item.phone }}</div>
+                      <div v-if="item.email" class="text-[9px] font-medium text-slate-400 italic mt-0.5 truncate w-32">{{ item.email }}</div>
                     </td>
                     <td class="p-6">
-                      <p class="text-[10px] font-medium text-slate-500 italic border-l-2 border-slate-200 pl-4">{{ item.message }}</p>
+                      <p class="text-[10px] font-medium text-slate-500 italic border-l-2 border-slate-200 pl-4 leading-relaxed">{{ item.message }}</p>
+                      <p class="text-[8px] text-slate-300 font-bold mt-2 uppercase tracking-tighter">{{ item.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
                     </td>
                     <td class="p-6 text-right">
+                       <button @click="sendQuickEmail(item)" class="opacity-0 group-hover:opacity-100 p-2 text-blue-400 hover:text-blue-600 transition-all">📧</button>
                        <button @click="deleteContact(item.id, item.name)" class="opacity-0 group-hover:opacity-100 p-2 text-red-300 hover:text-red-600 transition-all">🗑️</button>
                     </td>
                   </tr>
@@ -286,15 +328,3 @@ onMounted(fetchData)
     </div>
   </div>
 </template>
-
-<style scoped>
-.toast-enter-active, .toast-leave-active { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.toast-enter-from { transform: translateX(100%) scale(0.5); opacity: 0; }
-.toast-leave-to { transform: translateX(100%) translateY(-20px); opacity: 0; }
-
-/* Custom Scrollbar cho đẹp */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
-</style>
