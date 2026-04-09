@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "contact": "Contact",
+    "search": "Search products..."
+  },
+  "product": {
+    "view_detail": "View Detail",
+    "add": "Add",
+    "add_to_cart": "Add to Cart 🛒",
+    "in_stock": "In Stock",
+    "out_of_stock": "Out of Stock",
+    "specs": "Specs & Features",
+    "processing": "Processing...",
+    "unavailable": "Out of Stock"
+  },
+"footer": {
+  "about_text": "Leading provider of industrial solutions and precision mechanical tools in Vietnam. Prestige creates the brand.",
+  "policies": "Policies",
+  "tech_support": "Technical Support",
+  "return_policy": "Return Policy",
+  "shipping_fee": "Shipping Fee"
+},
+"home": {
+  "hero_title": "Absolute Precision <br> <span class='text-red-600'>Industrial</span> Solutions",
+  "hero_subtitle": "Leading supplier of precision mechanical tools and factory equipment for SPIT VIETNAM.",
+  "new_products": "New Arrival",
+  "category_title": "SPIT VIETNAM Product Categories",
+  "all_cats": "All"
+},
+"news": {
+    "all_posts_title": "All",
+    "all_posts_subtitle": "Posts",
+    "title": "News &",
+    "subTitle": "Technical",
+    "desc": "Industrial solutions from SPIT VIETNAM",
+    "viewAll": "View all posts",
+    "readMore": "Read more",
+    "tag": "NEWS"
+  }
+}

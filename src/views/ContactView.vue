@@ -80,7 +80,7 @@
               <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 text-xl shadow-sm transition-transform group-hover:scale-110">📞</div>
               <h3 class="text-sm font-black uppercase tracking-widest text-slate-900">Đường dây nóng</h3>
             </div>
-            <p class="text-slate-900 text-2xl font-black italic pl-16">1900 xxxx</p>
+            <p class="text-slate-900 text-2xl font-black italic pl-16">0906826959</p>
           </div>
         </div>
       </div>

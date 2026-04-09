@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue' // Thêm computed
 import { useRouter } from 'vue-router'
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth'
 import { db, auth } from '../firebase'
-// --- PHẦN THÊM MỚI ---
 import AdminSidebar from '../components/AdminSidebar.vue'
 
 const router = useRouter()
@@ -15,7 +14,9 @@ const loginError = ref(false)
 const passwordInput = ref('')
 const ADMIN_EMAIL = 'spitsaigon@gmail.com'
 
-// --- GIỮ NGUYÊN LOGIC CŨ ---
+// --- BIẾN TÌM KIẾM ---
+const searchQuery = ref('')
+
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -28,17 +29,13 @@ onMounted(() => {
   })
 })
 
-// Tìm đến hàm handleLogin trong AdminView.vue và cập nhật đường dẫn:
 const handleLogin = async () => {
   if (!passwordInput.value) return
   try {
     loginError.value = false; isSubmitting.value = true
     await setPersistence(auth, browserSessionPersistence)
     await signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
-    
-    // CẬP NHẬT: Điều hướng vào dashboard sau khi đăng nhập thành công
     router.push('/admin/dashboard')
-    
     passwordInput.value = ''
   } catch (error) {
     loginError.value = true
@@ -53,9 +50,22 @@ const handleLogout = async () => {
 }
 
 const products = ref([])
-const name = ref(''); const brand = ref(''); const category = ref('');
-const price = ref(0); const image = ref(''); const description = ref('');
-const stock = ref(0); const editingId = ref(null)
+const editingId = ref(null)
+
+// --- CẬP NHẬT BIẾN ĐA NGÔN NGỮ ---
+const name_vi = ref(''); const name_en = ref('');
+const category_vi = ref(''); const category_en = ref('');
+const description_vi = ref(''); const description_en = ref('');
+const brand = ref(''); const price = ref(0); const stock = ref(0);
+const image = ref('');
+
+// Logic lọc sản phẩm theo tên hoặc hãng
+const filteredProducts = computed(() => {
+  return products.value.filter(p => 
+    (p.name_vi?.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    (p.brand?.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  )
+})
 
 const fetchProducts = async () => {
   const querySnapshot = await getDocs(collection(db, "products"))
@@ -63,39 +73,66 @@ const fetchProducts = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!name.value || !brand.value || !price.value) return alert("Thiếu thông tin!")
+  if (!name_vi.value || !brand.value || !price.value) return alert("Thiếu thông tin quan trọng!")
+  
   try {
     isSubmitting.value = true
     const data = {
-      name: name.value, brand: brand.value, category: category.value,
-      price: Number(price.value), stock: Number(stock.value),
+      name_vi: name_vi.value,
+      name_en: name_en.value || name_vi.value,
+      category_vi: category_vi.value,
+      category_en: category_en.value || category_vi.value,
+      description_vi: description_vi.value,
+      description_en: description_en.value || description_vi.value,
+      brand: brand.value,
+      price: Number(price.value),
+      stock: Number(stock.value),
       image: image.value || 'https://via.placeholder.com/200',
-      description: description.value, updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp()
     }
+
     if (editingId.value) {
       await updateDoc(doc(db, "products", editingId.value), data)
     } else {
       await addDoc(collection(db, "products"), { ...data, createdAt: serverTimestamp() })
     }
     resetForm(); fetchProducts()
-  } catch (e) { alert("Lỗi kết nối!") }
-  finally { isSubmitting.value = false }
+    alert("Cập nhật hàng hóa thành công!")
+  } catch (e) { 
+    alert("Lỗi kết nối Firebase!") 
+  } finally { 
+    isSubmitting.value = false 
+  }
 }
 
 const startEdit = (p) => {
-  editingId.value = p.id; name.value = p.name; brand.value = p.brand;
-  category.value = p.category; price.value = p.price; image.value = p.image;
-  description.value = p.description || ''; stock.value = p.stock || 0;
+  editingId.value = p.id;
+  name_vi.value = p.name_vi || p.name || '';
+  name_en.value = p.name_en || '';
+  category_vi.value = p.category_vi || p.category || '';
+  category_en.value = p.category_en || '';
+  description_vi.value = p.description_vi || p.description || '';
+  description_en.value = p.description_en || '';
+  brand.value = p.brand || '';
+  price.value = p.price || 0;
+  stock.value = p.stock || 0;
+  image.value = p.image || '';
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const confirmDelete = async (id, pName) => {
-  if (confirm(`Xóa ${pName}?`)) { await deleteDoc(doc(db, id)); fetchProducts() }
+  if (confirm(`Xóa ${pName}?`)) { 
+    await deleteDoc(doc(db, "products", id)); 
+    fetchProducts() 
+  }
 }
 
 const resetForm = () => {
-  editingId.value = null; name.value = ''; brand.value = ''; category.value = ''; 
-  price.value = 0; image.value = ''; description.value = ''; stock.value = 0;
+  editingId.value = null;
+  name_vi.value = ''; name_en.value = '';
+  category_vi.value = ''; category_en.value = '';
+  description_vi.value = ''; description_en.value = '';
+  brand.value = ''; price.value = 0; stock.value = 0; image.value = '';
 }
 </script>
 
@@ -114,6 +151,7 @@ const resetForm = () => {
             </div>
             <input v-model="passwordInput" type="password" @keyup.enter="handleLogin" placeholder="••••••••" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-blue-500 text-center font-bold" />
             <button @click="handleLogin" :disabled="isSubmitting" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs">LOGIN</button>
+            <p v-if="loginError" class="text-red-500 text-[10px] font-bold text-center mt-4 uppercase">Sai mật khẩu hệ thống</p>
           </div>
         </div>
 
@@ -123,42 +161,94 @@ const resetForm = () => {
             <button @click="handleLogout" class="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-all">Đăng xuất</button>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            <div class="xl:col-span-5">
               <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6">
+                <div v-if="image" class="mb-6 flex justify-center">
+                   <img :src="image" class="w-32 h-32 object-contain rounded-2xl border-2 border-dashed border-slate-200 p-2 shadow-inner" @error="image = 'https://via.placeholder.com/200'" />
+                </div>
+
                 <div class="space-y-4">
-                  <input v-model="name" placeholder="Tên sản phẩm" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" />
-                  <div class="grid grid-cols-2 gap-2">
-                    <input v-model="brand" placeholder="Hãng" class="p-3 bg-slate-50 rounded-xl outline-none text-sm" />
-                    <input v-model="category" placeholder="Loại" class="p-3 bg-slate-50 rounded-xl outline-none text-sm" />
+                  <div class="grid grid-cols-1 gap-2">
+                    <input v-model="name_vi" placeholder="Tên sản phẩm (VI)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-bold border border-transparent focus:border-blue-200" />
+                    <input v-model="name_en" placeholder="Product Name (EN)" class="w-full p-3 bg-slate-100/50 rounded-xl outline-none text-sm italic border border-transparent focus:border-blue-200" />
                   </div>
+
                   <div class="grid grid-cols-2 gap-2">
-                    <input v-model="price" type="number" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-red-600" />
+                    <input v-model="brand" placeholder="Hãng / Brand" class="p-3 bg-slate-50 rounded-xl outline-none text-sm" />
+                    <div class="space-y-1">
+                      <input v-model="category_vi" placeholder="Loại (VI)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm" />
+                      <input v-model="category_en" placeholder="Category (EN)" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic" />
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="relative">
+                      <input v-model="price" type="number" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-red-600 pl-8" />
+                      <span class="absolute left-3 top-3.5 text-[10px] font-bold text-red-400">₫</span>
+                    </div>
                     <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" />
                   </div>
+
                   <input v-model="image" placeholder="Link ảnh (URL)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm" />
-                  <textarea v-model="description" rows="4" placeholder="Mô tả..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm"></textarea>
-                  <button @click="handleSubmit" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all uppercase text-[10px]">XÁC NHẬN</button>
+
+                  <div class="space-y-2">
+                    <textarea v-model="description_vi" rows="3" placeholder="Mô tả chi tiết (VI)..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm leading-relaxed"></textarea>
+                    <textarea v-model="description_en" rows="3" placeholder="Technical Description (EN)..." class="w-full p-3 bg-slate-100/50 rounded-xl outline-none text-sm italic leading-relaxed"></textarea>
+                  </div>
+
+                  <button @click="handleSubmit" :disabled="isSubmitting" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all uppercase text-[10px] tracking-[0.2em]">
+                    {{ isSubmitting ? 'ĐANG XỬ LÝ...' : (editingId ? 'CẬP NHẬT SẢN PHẨM' : 'XÁC NHẬN THÊM MỚI') }}
+                  </button>
+                  <button v-if="editingId" @click="resetForm" class="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest">Hủy chỉnh sửa</button>
                 </div>
               </div>
             </div>
 
-            <div class="lg:col-span-2 bg-white rounded-4xl shadow-xl overflow-hidden border border-slate-100">
+            <div class="xl:col-span-7 bg-white rounded-4xl shadow-xl overflow-hidden border border-slate-100">
+              <div class="p-5 border-b border-slate-50">
+                <input v-model="searchQuery" placeholder="Tìm kiếm tên sản phẩm hoặc hãng..." class="w-full px-4 py-2 bg-slate-50 rounded-full text-xs outline-none border border-transparent focus:border-slate-200" />
+              </div>
+
               <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sản phẩm</th>
+                    <th class="p-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá bán</th>
+                    <th class="p-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
+                  </tr>
+                </thead>
                 <tbody class="divide-y divide-slate-50">
-                  <tr v-for="p in products" :key="p.id" class="hover:bg-blue-50/30">
+                  <tr v-for="p in filteredProducts" :key="p.id" class="hover:bg-blue-50/30 transition-colors group">
                     <td class="p-5 flex items-center gap-4">
-                      <img :src="p.image" class="w-12 h-12 rounded-xl object-contain bg-slate-50 border p-1" />
+                      <div class="relative">
+                        <img :src="p.image" class="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-100 p-1 shadow-sm group-hover:scale-110 transition-transform" />
+                      </div>
                       <div>
-                        <div class="text-sm font-black text-slate-800">{{ p.name }}</div>
-                        <div class="text-[9px] font-black text-blue-500 uppercase">TỒN: {{ p.stock || 0 }}</div>
+                        <div class="text-sm font-black text-slate-800 leading-tight">{{ p.name_vi || p.name }}</div>
+                        <div class="text-[10px] font-medium text-slate-400 italic mb-1">{{ p.name_en }}</div>
+                        <div class="inline-flex items-center gap-2">
+                           <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
+                           <span class="text-[8px] font-bold text-slate-300 uppercase">{{ p.brand }}</span>
+                        </div>
                       </div>
                     </td>
-                    <td class="p-5 text-right font-black text-sm italic">{{ p.price?.toLocaleString() }}đ</td>
-                    <td class="p-5 text-right">
-                      <button @click="startEdit(p)" class="text-blue-500 font-black text-[10px] uppercase mr-3">Sửa</button>
-                      <button @click="confirmDelete(p.id, p.name)" class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</button>
+                    <td class="p-5 text-right font-black text-sm italic text-slate-700">
+                      {{ p.price?.toLocaleString() }}<span class="text-[10px] ml-0.5">đ</span>
                     </td>
+                    <td class="p-5 text-right">
+                      <div class="flex justify-end gap-2">
+                        <button @click="startEdit(p)" class="p-2 hover:bg-blue-100 rounded-lg transition-colors group/btn">
+                          <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
+                        </button>
+                        <button @click="confirmDelete(p.id, p.name_vi || p.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                          <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredProducts.length === 0">
+                    <td colspan="3" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy sản phẩm nào...</td>
                   </tr>
                 </tbody>
               </table>

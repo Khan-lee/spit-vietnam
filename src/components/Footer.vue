@@ -10,7 +10,7 @@
           <span class="font-bold text-lg uppercase tracking-tight">Vietnam</span>
         </div>
         <p class="text-slate-400 text-sm leading-relaxed max-w-xs">
-          Nhà cung cấp giải pháp công nghiệp và dụng cụ cơ khí chính xác hàng đầu tại Việt Nam. Uy tín tạo nên thương hiệu.
+          {{ $t('footer.about_text') }}
         </p>
 
         <div class="flex items-center gap-4 pt-2">
@@ -24,33 +24,33 @@
       </div>
 
       <div class="space-y-6">
-        <h3 class="text-red-600 font-black text-[10px] uppercase tracking-[0.3em]">Chính sách</h3>
+        <h3 class="text-red-600 font-black text-[10px] uppercase tracking-[0.3em]">{{ $t('footer.policies') }}</h3>
         <ul class="space-y-4 text-sm font-bold text-slate-400">
           <li>
-            <RouterLink to="/contact?reason=support" class="hover:text-white transition-colors duration-200">Hỗ trợ kỹ thuật</RouterLink>
+            <RouterLink to="/contact?reason=support" class="hover:text-white transition-colors duration-200">{{ $t('footer.tech_support') }}</RouterLink>
           </li>
           <li>
-            <RouterLink to="/contact?reason=policy" class="hover:text-white transition-colors duration-200">Chính sách đổi trả</RouterLink>
+            <RouterLink to="/contact?reason=policy" class="hover:text-white transition-colors duration-200">{{ $t('footer.return_policy') }}</RouterLink>
           </li>
           <li v-if="config.shippingFee" class="text-[11px] text-slate-500 italic">
-            Phí vận chuyển: {{ Number(config.shippingFee).toLocaleString() }} VNĐ
+            {{ $t('footer.shipping_fee') }}: {{ Number(config.shippingFee).toLocaleString() }} VNĐ
           </li>
         </ul>
       </div>
 
       <div class="space-y-6">
-        <h3 class="text-red-600 font-black text-[10px] uppercase tracking-[0.3em]">Liên hệ</h3>
+        <h3 class="text-red-600 font-black text-[10px] uppercase tracking-[0.3em]">{{ $t('nav.contact') }}</h3>
         <ul class="space-y-4 text-sm text-slate-400">
           <li class="flex items-start gap-3 group">
             <span class="text-red-600">📍</span>
             <span class="hover:text-white transition-colors leading-relaxed">
-              {{ config.address || '361 Lê Trọng Tấn, Sơn Kỳ, Tân Phú, TP. HCM' }}
+              {{ config[`address_${locale}`] || config.address || '361 Le Trong Tan, Tan Phu, Ho Chi Minh City' }}
             </span>
           </li>
           <li class="flex items-center gap-3 font-bold text-white">
             <span class="text-red-600">📞</span>
             <a :href="'tel:' + config.hotline" class="hover:text-red-500 transition-colors">
-              Hotline: {{ config.hotline || '1900 xxxx' }}
+              Hotline/Zalo: {{ config.hotline || '1900 xxxx' }}
             </a>
           </li>
           <li v-if="config.email" class="flex items-center gap-3 text-slate-400">
@@ -70,8 +70,10 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n' // MỚI: Dùng để lấy locale hiện tại
 
-// PHẦN MỚI: Nhận dữ liệu từ App.vue truyền xuống
+const { locale } = useI18n()
+
 const props = defineProps({
   config: {
     type: Object,

@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "Trang Chủ",
+    "products": "Sản Phẩm",
+    "contact": "Liên Hệ",
+    "search": "Tìm sản phẩm..."
+  },
+  "product": {
+    "view_detail": "Xem chi tiết",
+    "add": "Thêm",
+    "add_to_cart": "Thêm vào giỏ hàng 🛒",
+    "in_stock": "Còn hàng",
+    "out_of_stock": "Hết hàng",
+    "specs": "Thông số & Đặc điểm",
+    "processing": "Đang xử lý...",
+    "unavailable": "Tạm hết hàng"
+  },
+  "footer": {
+  "about_text": "Nhà cung cấp giải pháp công nghiệp và dụng cụ cơ khí chính xác hàng đầu tại Việt Nam. Uy tín tạo nên thương hiệu.",
+  "policies": "Chính sách",
+  "tech_support": "Hỗ trợ kỹ thuật",
+  "return_policy": "Chính sách đổi trả",
+  "shipping_fee": "Phí vận chuyển"
+},
+"home": {
+  "hero_title": "Giải pháp <span class='text-red-600'>Công nghiệp</span> <br> Chính xác tuyệt đối",
+  "hero_subtitle": "Cung cấp dụng cụ cơ khí chính xác và thiết bị nhà máy hàng đầu cho SPIT VIETNAM.",
+  "new_products": "Sản phẩm mới",
+  "category_title": "Danh mục sản phẩm SPIT VIETNAM",
+  "all_cats": "Tất cả"
+},
+
+  "news": {
+    "all_posts_title": "Tất cả",
+    "all_posts_subtitle": "Bài viết",
+    "title": "Tin tức &",
+    "subTitle": "Kỹ thuật",
+    "desc": "Giải pháp công nghiệp từ SPIT VIETNAM",
+    "viewAll": "Xem tất cả bài viết",
+    "readMore": "Đọc thêm",
+    "tag": "TIN TỨC"
+  }
+}
+

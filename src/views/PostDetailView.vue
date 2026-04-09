@@ -4,51 +4,43 @@ import { useRoute } from 'vue-router'
 import { db } from '../firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { useHead } from '@unhead/vue'
+import { useI18n } from 'vue-i18n' // Thêm i18n để đồng bộ
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const post = ref(null)
 const isLoading = ref(true)
 
-// Hàm quản lý SEO chuyên sâu
-const updateSEO = (data) => {
-  const description = data.content ? data.content.substring(0, 160).replace(/\n/g, ' ') : ''
-  
-  useHead({
-    title: `${data.title} | SPIT VIETNAM`,
-    meta: [
-      { name: 'description', content: description },
-      // Open Graph / Facebook / Zalo
-      { property: 'og:title', content: data.title },
-      { property: 'og:description', content: description },
-      { property: 'og:image', content: data.image },
-      { property: 'og:type', content: 'article' },
-      { property: 'og:url', content: window.location.href },
-      // Twitter
-      { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:title', content: data.title },
-      { name: 'twitter:description', content: description },
-      { name: 'twitter:image', content: data.image }
-    ],
-    link: [
-      { rel: 'canonical', href: window.location.href }
-    ]
-  })
-}
+// 1. Khởi tạo useHead ngay tại setup (luồng đồng bộ)
+// Chúng ta dùng computed để tiêu đề tự cập nhật khi dữ liệu post được tải xong
+useHead({
+  title: computed(() => post.value 
+    ? `${locale.value === 'vi' ? (post.value.title_vi || post.value.title) : (post.value.title_en || post.value.title_vi)} | SPIT VIETNAM`
+    : 'Loading... | SPIT VIETNAM'
+  ),
+  meta: [
+    { 
+      name: 'description', 
+      content: computed(() => post.value?.content ? post.value.content.substring(0, 160) : '') 
+    },
+    { property: 'og:type', content: 'article' },
+    { property: 'og:url', content: window.location.href }
+  ]
+})
 
 const fetchPost = async () => {
   try {
-    // Truy vấn bằng slug/id từ URL
     const docRef = doc(db, "posts", route.params.id)
     const docSnap = await getDoc(docRef)
     
     if (docSnap.exists()) {
       post.value = docSnap.data()
-      updateSEO(post.value) // Kích hoạt SEO ngay khi có dữ liệu
+      // KHÔNG gọi updateSEO ở đây nữa vì useHead đã lắng nghe qua computed
     } else {
       console.error("Không tìm thấy bài viết!")
     }
   } catch (e) {
-    console.error("Lỗi SEO/Data:", e)
+    console.error("Lỗi Data:", e)
   } finally {
     isLoading.value = false
   }
@@ -68,13 +60,13 @@ onMounted(fetchPost)
       <div class="absolute inset-0 flex items-center justify-center text-center p-6">
         <div class="max-w-4xl">
           <span class="bg-red-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-full tracking-widest shadow-xl">
-            {{ post.category }}
+            {{ locale === 'vi' ? (post.category_vi || post.category) : (post.category_en || post.category) }}
           </span>
           <h1 class="text-3xl md:text-6xl font-black text-white uppercase italic mt-8 mb-6 leading-tight tracking-tighter">
-            {{ post.title }}
+            {{ locale === 'vi' ? (post.title_vi || post.title) : (post.title_en || post.title_vi) }}
           </h1>
           <p class="text-slate-400 text-xs font-black uppercase tracking-[0.3em]">
-            Cập nhật: {{ post.createdAt?.toDate().toLocaleDateString('vi-VN') }}
+            {{ locale === 'vi' ? 'Cập nhật' : 'Updated' }}: {{ post.createdAt?.toDate().toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US') }}
           </p>
         </div>
       </div>
@@ -84,12 +76,12 @@ onMounted(fetchPost)
       <div class="text-slate-700 leading-[2.2] text-lg whitespace-pre-line font-medium 
                   first-letter:text-6xl first-letter:font-black first-letter:text-red-600 
                   first-letter:mr-3 first-letter:float-left first-letter:leading-none">
-        {{ post.content }}
+        {{ locale === 'vi' ? (post.content_vi || post.content) : (post.content_en || post.content_vi) }}
       </div>
       
       <footer class="mt-20 pt-10 border-t border-slate-100 flex justify-between items-center">
         <router-link to="/" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 transition-all flex items-center gap-2">
-          ← Quay lại trang chủ
+          ← {{ locale === 'vi' ? 'Quay lại trang chủ' : 'Back to Home' }}
         </router-link>
         
         <div class="flex gap-4">
@@ -107,7 +99,6 @@ onMounted(fetchPost)
 </template>
 
 <style scoped>
-/* Khang có thể thêm các hiệu ứng mượt mà cho bài viết tại đây */
 article {
   animation: fadeIn 0.8s ease-out;
 }
