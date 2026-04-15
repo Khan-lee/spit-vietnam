@@ -1,7 +1,6 @@
 <template>
   <div class="min-h-screen bg-slate-50 py-20 px-6">
     <div class="max-w-7xl mx-auto">
-      
       <div class="mb-16 border-l-8 border-red-600 pl-8">
         <h1 class="text-5xl font-black uppercase italic tracking-tighter text-slate-900">
           Liên hệ <span class="text-red-600">Hợp tác</span>
@@ -32,27 +31,54 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Tên sản phẩm gia công</label>
+                <input v-model="formData.productName" type="text" placeholder="Ví dụ: Đá mài..." class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Đính kèm bản vẽ (PDF/Ảnh)</label>
+                <input @change="handleFileUpload" type="file" accept=".pdf,image/*" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-3 text-[10px] font-bold file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-red-50 file:text-red-600 hover:file:bg-red-100 transition-all outline-none cursor-pointer">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Số lượng</label>
+                <input v-model="formData.quantity" type="number" placeholder="100" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Vật liệu</label>
+                <input v-model="formData.material" type="text" placeholder="Thép, Nhôm..." class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none">
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Thời gian yêu cầu hoàn thành</label>
+              <input v-model="formData.deadline" type="date" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Tên công ty</label>
-                <input v-model="formData.companyName" type="text" placeholder="Công ty TNHH SPIT" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+                <input v-model="formData.companyName" type="text" placeholder="Công ty TNHH SPIT" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none">
               </div>
               <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Mã số thuế</label>
-                <input v-model="formData.taxCode" type="text" placeholder="031xxxxxxx" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+                <input v-model="formData.taxCode" type="text" placeholder="031xxxxxxx" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none">
               </div>
             </div>
 
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Địa chỉ công ty</label>
-              <input v-model="formData.companyAddress" type="text" placeholder="Địa chỉ đăng ký kinh doanh" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none">
+              <input v-model="formData.companyAddress" type="text" placeholder="Địa chỉ đăng ký kinh doanh" class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none">
             </div>
 
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Nội dung yêu cầu</label>
-              <textarea v-model="formData.message" rows="5" placeholder="Bạn cần tư vấn về thiết bị nào?" class="w-full bg-slate-50 border-none rounded-3xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none resize-none"></textarea>
+              <textarea v-model="formData.message" rows="4" placeholder="Ghi chú thêm cho SPIT..." class="w-full bg-slate-50 border-none rounded-3xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none resize-none"></textarea>
             </div>
 
             <button :disabled="isSubmitting" type="submit" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-red-600 transition-all shadow-xl shadow-red-100 active:scale-95 disabled:opacity-50">
-              {{ isSubmitting ? 'ĐANG GỬI...' : 'GỬI YÊU CẦU TƯ VẤN 🚀' }}
+              {{ isSubmitting ? 'ĐANG GỬI DỮ LIỆU...' : 'GỬI YÊU CẦU GIA CÔNG 🚀' }}
             </button>
           </form>
         </div>
@@ -60,27 +86,15 @@
         <div class="flex flex-col justify-center space-y-12">
           <div class="group cursor-default">
             <div class="flex items-center gap-4 mb-4">
-              <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 text-xl shadow-sm transition-transform group-hover:scale-110">📍</div>
+              <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 text-xl shadow-sm">📍</div>
               <h3 class="text-sm font-black uppercase tracking-widest text-slate-900">Văn phòng đại diện</h3>
             </div>
             <p class="text-slate-500 text-sm font-medium leading-loose pl-16">
               361 Lê Trọng Tấn, Sơn Kỳ, Tân Phú, TP. HCM
             </p>
           </div>
-
           <div class="rounded-[2.5rem] overflow-hidden grayscale hover:grayscale-0 transition-all duration-700 shadow-xl border-4 border-white h-80 bg-slate-200 relative group">
-            <iframe src="https://maps.app.goo.gl/nCgkaFYfcskHCTZm9" class="w-full h-full border-0 transition-transform duration-700 group-hover:scale-105" allowfullscreen="" loading="lazy"></iframe>
-            <a href="https://maps.app.goo.gl/nCgkaFYfcskHCTZm9" target="_blank" class="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-lg border border-white opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-red-600 hover:text-white flex items-center gap-2">
-              <span>Mở trong Maps</span><span class="text-xs">↗</span>
-            </a>
-          </div>
-
-          <div class="group cursor-default">
-            <div class="flex items-center gap-4 mb-4">
-              <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 text-xl shadow-sm transition-transform group-hover:scale-110">📞</div>
-              <h3 class="text-sm font-black uppercase tracking-widest text-slate-900">Đường dây nóng</h3>
-            </div>
-            <p class="text-slate-900 text-2xl font-black italic pl-16">0906826959</p>
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.1657683438076!2d106.6111005758385!3d10.800140258784305!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752be359c402ad%3A0xc0747040498a46b4!2zMzYxIEzDqiBUcuG7jW5nIFThuqVuLCBTxqWbiBLhu7ksIFTDom4gUGjDuiwgSOG7kyBDaMOtIE1pbmgsIFZp4buHdCBOYW0!5e0!3m2!1svi!2s!4v1711874225000!5m2!1svi!2s" class="w-full h-full border-0" allowfullscreen="" loading="lazy"></iframe>
           </div>
         </div>
       </div>
@@ -91,15 +105,22 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { db } from '../firebase' 
+import { db, storage } from '../firebase' 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const route = useRoute()
 const isSubmitting = ref(false)
+const selectedFile = ref(null)
+
 const formData = ref({
   name: '',
   phone: '',
-  email: '',            // THÊM MỚI
+  email: '',
+  productName: '',
+  quantity: '',
+  material: '',
+  deadline: '', // Đã có trong formData
   companyName: '',
   taxCode: '',
   companyAddress: '',
@@ -108,47 +129,48 @@ const formData = ref({
 
 onMounted(() => {
   const reason = route.query.reason
-  if (reason === 'support') {
-    formData.value.message = "Tôi cần hỗ trợ kỹ thuật về giải pháp công nghiệp SPIT..."
-  } else if (reason === 'policy') {
-    formData.value.message = "Tôi muốn tìm hiểu chi tiết về chính sách đổi trả sản phẩm..."
-  }
+  if (reason === 'support') formData.value.message = "Tôi cần hỗ trợ kỹ thuật..."
 })
 
+const handleFileUpload = (event) => {
+  selectedFile.value = event.target.files[0]
+}
+
 const submitContact = async () => {
-  if (!formData.value.name.trim() || !formData.value.phone.trim() || !formData.value.message.trim()) {
-    alert("Khang ơi, điền đủ thông tin rồi mình mới gửi được nhé! 😊")
+  if (!formData.value.name.trim() || !formData.value.phone.trim()) {
+    alert("Vui lòng điền Tên và Số điện thoại!")
     return
   }
 
   isSubmitting.value = true
-  
+  let fileUrl = ''
+
   try {
+    if (selectedFile.value && storage) {
+      const path = `blueprints/${Date.now()}_${selectedFile.value.name}`
+      const sRef = storageRef(storage, path)
+      const snapshot = await uploadBytes(sRef, selectedFile.value)
+      fileUrl = await getDownloadURL(snapshot.ref)
+    }
+
     await addDoc(collection(db, "contacts"), {
-      name: formData.value.name,
-      phone: formData.value.phone,
-      email: formData.value.email,           // THÊM MỚI
-      companyName: formData.value.companyName,
-      taxCode: formData.value.taxCode,
-      companyAddress: formData.value.companyAddress,
-      message: formData.value.message,
-      createdAt: serverTimestamp() 
+      ...formData.value,
+      drawingUrl: fileUrl,
+      createdAt: serverTimestamp()
     })
 
-    alert("Yêu cầu của bạn đã được gửi thành công! Đội ngũ SPIT sẽ phản hồi sớm nhất.")
+    alert("Yêu cầu đã được gửi thành công!")
     
+    // Reset form
     formData.value = { 
-      name: '', 
-      phone: '', 
-      email: '',                             // THÊM MỚI
-      companyName: '', 
-      taxCode: '', 
-      companyAddress: '', 
-      message: '' 
+      name: '', phone: '', email: '', productName: '', quantity: '', 
+      material: '', deadline: '', companyName: '', taxCode: '', 
+      companyAddress: '', message: '' 
     }
-  } catch (error) {
-    console.error("Lỗi gửi Firebase:", error)
-    alert("Có lỗi kỹ thuật rồi. Khang check lại kết nối Firebase nhé!")
+    selectedFile.value = null
+  } catch (err) {
+    console.error("Lỗi:", err)
+    alert("Lỗi hệ thống: " + err.message)
   } finally {
     isSubmitting.value = false
   }

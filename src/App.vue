@@ -11,12 +11,16 @@ import { doc, onSnapshot } from 'firebase/firestore'
 const route = useRoute()
 const { locale } = useI18n()
 
-const webConfig = ref({ announcement: '', hotline: '', email: '' })
+const webConfig = ref({ 
+  announcement: 'KHANG CUTE ĐẸP TRAI VIP PRO TOP 1 ZÚ TRỤ', 
+  announcement_vi: 'KHANG CUTE ĐẸP TRAI VIP PRO TOP 1 ZÚ TRỤ',
+  hotline: '', 
+  email: '' 
+})
 const cartItems = ref([])
 const isCartOpen = ref(false)
 const searchQuery = ref('')
 
-// GIỮ NGUYÊN: Logic thông báo đa ngôn ngữ
 const displayAnnouncement = computed(() => {
   if (locale.value === 'vi') {
     return webConfig.value.announcement_vi || webConfig.value.announcement 
@@ -25,12 +29,10 @@ const displayAnnouncement = computed(() => {
   }
 })
 
-// GIỮ NGUYÊN: Logic ẩn layout
 const isHideLayout = computed(() => {
   return route.path.startsWith('/spit-system-manager') || route.path.startsWith('/admin') || route.path === '/login'
 })
 
-// LOGIC CẬP NHẬT GIỎ HÀNG (GIỮ NGUYÊN & ĐẢM BẢO ĐỒNG BỘ)
 const updateCart = () => {
   const data = localStorage.getItem('spit_cart')
   cartItems.value = data ? JSON.parse(data) : []
@@ -38,7 +40,6 @@ const updateCart = () => {
 
 const cartCount = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
 
-// CÁC HÀM XỬ LÝ SỰ KIỆN TỪ CARTVIEW (TĂNG/GIẢM/XÓA)
 const changeQuantity = (productId, delta) => { 
   const item = cartItems.value.find(i => i.id === productId)
   if (item) {
@@ -58,7 +59,6 @@ const removeFromCart = (productId) => {
 
 const saveCart = () => {
   localStorage.setItem('spit_cart', JSON.stringify(cartItems.value))
-  // Bắn sự kiện để Header và các trang khác cập nhật số lượng badge (ví dụ: con số 4 đỏ đỏ)
   window.dispatchEvent(new Event('cart-updated'))
 }
 
@@ -67,14 +67,14 @@ onMounted(() => {
   window.addEventListener('storage', updateCart)
   window.addEventListener('cart-updated', updateCart)
   onSnapshot(doc(db, "settings", "website"), (docSnap) => {
-    if (docSnap.exists()) webConfig.value = docSnap.data()
+    if (docSnap.exists()) webConfig.value = { ...webConfig.value, ...docSnap.data() }
   })
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-white font-sans text-slate-900 flex flex-col">
-    <div v-if="!isHideLayout && displayAnnouncement" class="bg-red-600 text-white py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] relative z-[60]">
+    <div v-if="!isHideLayout" class="bg-[#0f172a] text-white py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] relative z-[60]">
       <div class="container mx-auto px-4 overflow-hidden whitespace-nowrap">
         <span class="inline-block animate-marquee">
           {{ displayAnnouncement }} — {{ displayAnnouncement }} — {{ displayAnnouncement }}
@@ -82,7 +82,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <Header 
+    <Header
       v-if="!isHideLayout" 
       :cartCount="cartCount" 
       v-model:searchQuery="searchQuery"
@@ -120,10 +120,8 @@ onMounted(() => {
   display: inline-block;
   animation: marquee 15s linear infinite;
 }
-
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-
 .cart-slide-enter-active, .cart-slide-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
