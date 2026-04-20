@@ -46,6 +46,13 @@ const router = createRouter({
       component: () => import('../views/AdminPostsView.vue'),
       meta: { requiresAuth: true } 
     },
+    // ROUTE MỚI: QUẢN LÝ KHUYẾN MÃI
+    { 
+      path: '/spit-system-manager/promotions', 
+      name: 'AdminPromotions', 
+      component: () => import('../views/admin/PromotionsAdmin.vue'),
+      meta: { requiresAuth: true } 
+    },
     { 
       path: '/spit-system-manager/settings', 
       name: 'AdminSettings', 

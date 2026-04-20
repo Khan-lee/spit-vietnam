@@ -12,8 +12,6 @@ const route = useRoute()
 const { locale } = useI18n()
 
 const webConfig = ref({ 
-  announcement: 'KHANG CUTE ĐẸP TRAI VIP PRO TOP 1 ZÚ TRỤ', 
-  announcement_vi: 'KHANG CUTE ĐẸP TRAI VIP PRO TOP 1 ZÚ TRỤ',
   hotline: '', 
   email: '' 
 })
@@ -22,8 +20,12 @@ const isCartOpen = ref(false)
 const searchQuery = ref('')
 
 const displayAnnouncement = computed(() => {
+  // SỬA LỖI TẠI ĐÂY: Ưu tiên dữ liệu chung 'announcement' được lưu từ Admin
+  // để tránh bị ghi đè bởi giá trị mặc định của 'announcement_vi'
+  const currentAnnouncement = webConfig.value.announcement || webConfig.value.announcement_vi
+  
   if (locale.value === 'vi') {
-    return webConfig.value.announcement_vi || webConfig.value.announcement 
+    return currentAnnouncement 
   } else {
     return webConfig.value.announcement_en || 'Professional Technology Solutions'
   }
@@ -74,7 +76,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-white font-sans text-slate-900 flex flex-col">
-    <div v-if="!isHideLayout" class="bg-[#0f172a] text-white py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] relative z-[60]">
+    <div v-if="!isHideLayout" class="bg-[#0f172a] text-white py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] relative z-60">
       <div class="container mx-auto px-4 overflow-hidden whitespace-nowrap">
         <span class="inline-block animate-marquee">
           {{ displayAnnouncement }} — {{ displayAnnouncement }} — {{ displayAnnouncement }}
@@ -118,7 +120,7 @@ onMounted(() => {
 }
 .animate-marquee {
   display: inline-block;
-  animation: marquee 15s linear infinite;
+  animation: marquee 30s linear infinite;
 }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
