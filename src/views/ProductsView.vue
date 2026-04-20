@@ -21,8 +21,9 @@ const fetchProducts = async () => {
   }
 }
 
+// CẬP NHẬT: Lấy danh mục hỗ trợ cả category_vi và category
 const categoryStats = computed(() => {
-  const uniqueCats = [...new Set(products.value.map(p => p.category).filter(Boolean))]
+  const uniqueCats = [...new Set(products.value.map(p => p.category_vi || p.category).filter(Boolean))]
   return ['Tất cả', ...uniqueCats]
 })
 
@@ -33,10 +34,15 @@ const brandStats = computed(() => {
 
 const filteredProducts = computed(() => {
   return products.value.filter(p => {
-    const matchCat = selectedCategory.value === 'Tất cả' || p.category === selectedCategory.value
+    // CẬP NHẬT: Logic lọc hỗ trợ cả trường dữ liệu mới
+    const currentCat = p.category_vi || p.category
+    const currentName = p.name_vi || p.name
+    
+    const matchCat = selectedCategory.value === 'Tất cả' || currentCat === selectedCategory.value
     const matchBrand = selectedBrand.value === 'Tất cả Hãng' || p.brand === selectedBrand.value
     const matchSearch = !props.searchQuery || 
-      [p.name, p.brand, p.category].some(f => f?.toLowerCase().includes(props.searchQuery.toLowerCase().trim()))
+      [currentName, p.brand, currentCat].some(f => f?.toLowerCase().includes(props.searchQuery.toLowerCase().trim()))
+    
     return matchCat && matchBrand && matchSearch
   })
 })
@@ -70,7 +76,7 @@ onMounted(fetchProducts)
           </button>
         </div>
 
-        <div class="hidden md:block w-[1px] h-4 bg-slate-200"></div>
+        <div class="hidden md:block w-px h-4 bg-slate-200"></div>
 
         <div class="flex items-center gap-2">
           <button 
@@ -89,7 +95,7 @@ onMounted(fetchProducts)
       </div>
 
       <div v-if="loading" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div v-for="n in 8" :key="n" class="aspect-[3/4] bg-slate-50 animate-pulse rounded-2xl"></div>
+        <div v-for="n in 8" :key="n" class="aspect-3/4 bg-slate-50 animate-pulse rounded-2xl"></div>
       </div>
 
       <div v-else>
@@ -108,10 +114,14 @@ onMounted(fetchProducts)
             </div>
 
             <div class="px-1">
-              <p class="text-[9px] font-bold text-red-600 uppercase mb-1">{{ product.category }}</p>
+              <p class="text-[9px] font-bold text-red-600 uppercase mb-1">
+                {{ product.category_vi || product.category }}
+              </p>
+              
               <h3 class="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
-                {{ product.name }}
+                {{ product.name_vi || product.name }}
               </h3>
+              
               <div class="text-base font-black text-slate-900">
                 {{ product.price?.toLocaleString() }} <span class="text-[10px] font-normal">đ</span>
               </div>
@@ -129,7 +139,6 @@ onMounted(fetchProducts)
 </template>
 
 <style scoped>
-/* Ẩn thanh scroll cho các trình duyệt */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 

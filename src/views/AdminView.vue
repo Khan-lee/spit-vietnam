@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue' // Thêm computed
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth'
-import { db, auth } from '../firebase'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' // MỚI: Thêm Storage
+import { db, auth, storage } from '../firebase' // MỚI: Thêm storage
 import AdminSidebar from '../components/AdminSidebar.vue'
 
 const router = useRouter()
@@ -58,6 +59,7 @@ const category_vi = ref(''); const category_en = ref('');
 const description_vi = ref(''); const description_en = ref('');
 const brand = ref(''); const price = ref(0); const stock = ref(0);
 const image = ref('');
+const imageFile = ref(null); // MỚI: Lưu file ảnh từ máy
 
 // Logic lọc sản phẩm theo tên hoặc hãng
 const filteredProducts = computed(() => {
@@ -66,6 +68,23 @@ const filteredProducts = computed(() => {
     (p.brand?.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
 })
+
+// MỚI: Logic xử lý chọn file
+const onFileChange = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    imageFile.value = file
+    image.value = URL.createObjectURL(file) // Preview ảnh ngay lập tức
+  }
+}
+
+// MỚI: Logic tải ảnh lên Firebase Storage
+const uploadImage = async () => {
+  if (!imageFile.value) return image.value
+  const fileRef = storageRef(storage, `products/${Date.now()}_${imageFile.value.name}`)
+  await uploadBytes(fileRef, imageFile.value)
+  return await getDownloadURL(fileRef)
+}
 
 const fetchProducts = async () => {
   const querySnapshot = await getDocs(collection(db, "products"))
@@ -77,6 +96,10 @@ const handleSubmit = async () => {
   
   try {
     isSubmitting.value = true
+    
+    // Tải ảnh lên trước khi lưu data vào Firestore
+    const finalImageUrl = await uploadImage()
+
     const data = {
       name_vi: name_vi.value,
       name_en: name_en.value || name_vi.value,
@@ -87,7 +110,7 @@ const handleSubmit = async () => {
       brand: brand.value,
       price: Number(price.value),
       stock: Number(stock.value),
-      image: image.value || 'https://via.placeholder.com/200',
+      image: finalImageUrl || 'https://via.placeholder.com/200',
       updatedAt: serverTimestamp()
     }
 
@@ -117,6 +140,7 @@ const startEdit = (p) => {
   price.value = p.price || 0;
   stock.value = p.stock || 0;
   image.value = p.image || '';
+  imageFile.value = null; // Reset file khi chuyển sang sản phẩm khác
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -133,6 +157,7 @@ const resetForm = () => {
   category_vi.value = ''; category_en.value = '';
   description_vi.value = ''; description_en.value = '';
   brand.value = ''; price.value = 0; stock.value = 0; image.value = '';
+  imageFile.value = null;
 }
 </script>
 
@@ -164,8 +189,17 @@ const resetForm = () => {
           <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
             <div class="xl:col-span-5">
               <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6">
-                <div v-if="image" class="mb-6 flex justify-center">
-                   <img :src="image" class="w-32 h-32 object-contain rounded-2xl border-2 border-dashed border-slate-200 p-2 shadow-inner" @error="image = 'https://via.placeholder.com/200'" />
+                
+                <div class="mb-6">
+                  <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 text-center">Hình ảnh sản phẩm</label>
+                  <div class="relative group w-full aspect-square max-w-50 mx-auto overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all flex items-center justify-center bg-slate-50">
+                    <input type="file" @change="onFileChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+                    <img v-if="image" :src="image" class="w-full h-full object-contain p-2" />
+                    <div v-else class="text-center p-4">
+                       <span class="text-2xl block">📷</span>
+                       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="space-y-4">
@@ -190,7 +224,7 @@ const resetForm = () => {
                     <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" />
                   </div>
 
-                  <input v-model="image" placeholder="Link ảnh (URL)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm" />
+                  <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
 
                   <div class="space-y-2">
                     <textarea v-model="description_vi" rows="3" placeholder="Mô tả chi tiết (VI)..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm leading-relaxed"></textarea>

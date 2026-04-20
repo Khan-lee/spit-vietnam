@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBa
 import { db } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import RevenueChart from '../components/RevenueChart.vue' // THÊM MỚI
 import * as XLSX from 'xlsx'
 
 // --- TRẠNG THÁI DỮ LIỆU ---
@@ -98,6 +99,27 @@ const totalRevenue = computed(() => {
     .reduce((s, o) => s + (Number(o.totalPrice) || 0), 0)
 })
 
+// LOGIC TÍNH DOANH THU THEO THÁNG (THÊM MỚI)
+const monthlyRevenueData = computed(() => {
+  const revenueArray = new Array(12).fill(0)
+  orders.value.forEach(order => {
+    if (order.status === 'completed' && order.totalPrice) {
+      const date = order.createdAt?.toDate ? order.createdAt.toDate() : new Date()
+      const month = date.getMonth()
+      revenueArray[month] += Number(order.totalPrice)
+    }
+  })
+  return {
+    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+    datasets: [{
+      label: 'Doanh thu (VNĐ)',
+      backgroundColor: '#10b981',
+      borderRadius: 8,
+      data: revenueArray
+    }]
+  }
+})
+
 const lowStock = computed(() => products.value.filter(p => p.stock <= 5))
 
 const topProducts = computed(() => {
@@ -182,6 +204,30 @@ const deleteContact = async (id, name) => {
   }
 }
 
+// --- HÀM CẬP NHẬT TRẠNG THÁI TƯ VẤN ---
+const updateContactStatus = async (id, status) => {
+  try {
+    await updateDoc(doc(db, "contacts", id), { status: status })
+    if (selectedContact.value && selectedContact.value.id === id) {
+      selectedContact.value.status = status
+    }
+    await fetchData() 
+    showToast("Đã cập nhật trạng thái tư vấn!")
+  } catch (e) {
+    showToast("Lỗi cập nhật!", "error")
+  }
+}
+
+const getContactStatusBadge = (status) => {
+  const badges = {
+    new: "bg-blue-50 text-blue-600 border-blue-200",
+    processing: "bg-amber-50 text-amber-600 border-amber-200",
+    quoted: "bg-purple-50 text-purple-600 border-purple-200",
+    closed: "bg-emerald-50 text-emerald-600 border-emerald-200"
+  }
+  return badges[status] || "bg-slate-50 text-slate-500 border-slate-200"
+}
+
 const handleClearData = async () => {
   if (activeTab.value === 'orders') {
     const completed = orders.value.filter(o => o.status === 'completed')
@@ -219,23 +265,32 @@ onMounted(fetchData)
     <AdminSidebar />
     
     <Transition name="toast">
-      <div v-if="toast.show" :class="['fixed top-10 right-10 z-[120] px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
+      <div v-if="toast.show" :class="['fixed top-10 right-10 z-120 px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
         <span>{{ toast.type === 'success' ? '✅' : '⚠️' }}</span> {{ toast.message }}
       </div>
     </Transition>
 
     <Transition name="fade">
-      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-110 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
         <div class="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
           <div class="bg-slate-900 p-8 text-white flex justify-between items-center">
             <div>
-              <h2 class="text-xl font-black uppercase italic tracking-tighter">Yêu cầu từ: {{ selectedContact.name }}</h2>
+              <div class="flex items-center gap-3">
+                <h2 class="text-xl font-black uppercase italic tracking-tighter">Yêu cầu từ: {{ selectedContact.name }}</h2>
+                <span :class="['text-[9px] px-2 py-0.5 rounded-full font-black uppercase border', getContactStatusBadge(selectedContact.status || 'new')]">
+                   {{ 
+                    selectedContact.status === 'processing' ? 'Đang xử lý' : 
+                    selectedContact.status === 'quoted' ? 'Đã báo giá' : 
+                    selectedContact.status === 'closed' ? 'Hoàn tất' : 'Mới' 
+                  }}
+                </span>
+              </div>
               <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: #{{ selectedContact.id.slice(0,8) }}</p>
             </div>
             <button @click="closeDetail" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all text-xl">✕</button>
           </div>
 
-          <div class="p-8 max-h-[65vh] overflow-y-auto custom-scroll grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="p-8 max-h-[60vh] overflow-y-auto custom-scroll grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="space-y-5">
               <h3 class="text-[10px] font-black text-blue-600 uppercase border-b pb-2">👤 Thông tin khách</h3>
               <div><p class="text-[9px] text-slate-400 font-black uppercase">Họ và tên</p><p class="text-sm font-black text-slate-800">{{ selectedContact.name }}</p></div>
@@ -273,13 +328,29 @@ onMounted(fetchData)
             </div>
           </div>
 
-          <div class="p-8 bg-slate-50 flex flex-wrap gap-3 justify-between border-t border-slate-100">
+          <div class="px-8 py-4 bg-slate-50/80 border-t border-slate-100 flex gap-2 items-center overflow-x-auto">
+            <span class="text-[9px] font-black uppercase text-slate-400 mr-2 shrink-0">Cập nhật:</span>
+            <button @click="updateContactStatus(selectedContact.id, 'processing')" 
+                    class="px-3 py-2 bg-white border border-amber-200 text-amber-600 text-[9px] font-black uppercase rounded-xl hover:bg-amber-50 shrink-0 shadow-sm">
+              Đang liên hệ
+            </button>
+            <button @click="updateContactStatus(selectedContact.id, 'quoted')" 
+                    class="px-3 py-2 bg-white border border-purple-200 text-purple-600 text-[9px] font-black uppercase rounded-xl hover:bg-purple-50 shrink-0 shadow-sm">
+              Đã báo giá
+            </button>
+            <button @click="updateContactStatus(selectedContact.id, 'closed')" 
+                    class="px-3 py-2 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-emerald-700 shrink-0 shadow-md">
+              Hoàn tất
+            </button>
+          </div>
+
+          <div class="p-8 bg-white flex flex-wrap gap-3 justify-between border-t border-slate-100">
             <div class="flex gap-2">
               <button @click="deleteContact(selectedContact.id, selectedContact.name)" class="px-4 py-3 bg-red-50 text-red-500 text-[10px] font-black uppercase rounded-2xl hover:bg-red-500 hover:text-white">Xóa 🗑️</button>
               <button v-if="selectedContact.drawingUrl" @click="viewBlueprint(selectedContact.drawingUrl)" class="px-6 py-3 bg-emerald-500 text-white text-[10px] font-black uppercase rounded-2xl">👁️ Xem bản vẽ</button>
               <button v-if="selectedContact.drawingUrl" @click="downloadBlueprint(selectedContact.drawingUrl, selectedContact.name)" class="px-6 py-3 bg-blue-500 text-white text-[10px] font-black uppercase rounded-2xl">📥 Tải</button>
             </div>
-            <button @click="sendQuickEmail(selectedContact)" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl">Phản hồi 📧</button>
+            <button @click="sendQuickEmail(selectedContact)" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl shadow-lg">Phản hồi 📧</button>
           </div>
         </div>
       </div>
@@ -313,8 +384,16 @@ onMounted(fetchData)
             </div>
 
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <h3 class="text-slate-900 font-black uppercase text-[10px] mb-4 italic flex justify-between">
+                📈 Biến động doanh thu 
+                <span class="text-[8px] text-slate-400 font-normal">Theo tháng</span>
+              </h3>
+              <RevenueChart :chartData="monthlyRevenueData" />
+            </div>
+
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
               <h3 class="text-red-600 font-black uppercase text-[10px] mb-4 italic">⚠️ Cảnh báo tồn kho</h3>
-              <div class="max-h-[160px] overflow-y-auto pr-2 custom-scroll">
+              <div class="max-h-40 overflow-y-auto pr-2 custom-scroll">
                 <div v-for="p in lowStock" :key="p.id" class="flex justify-between items-center bg-slate-50 p-3 rounded-xl mb-2 text-[10px] font-bold">
                   <span class="truncate w-24">{{ p.name }}</span> 
                   <input type="number" v-model="p.stock" @change="updateStock(p.id, p.stock)" class="w-12 bg-white border border-slate-200 rounded text-center text-red-600 font-black" />
@@ -379,8 +458,14 @@ onMounted(fetchData)
                   <tr v-for="item in contacts" :key="item.id" @click="openContactDetail(item)" class="hover:bg-blue-50/50 group transition-all cursor-pointer">
                     <td class="p-6">
                       <div class="flex items-center gap-2">
-                        <div class="text-xs font-black text-slate-800 uppercase italic">{{ item.name }}</div>
-                        <span v-if="item.companyName" class="text-[7px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">B2B</span>
+                        <div class="text-[11px] font-black text-slate-800 uppercase italic">{{ item.name }}</div>
+                        <span :class="['text-[8px] px-2 py-0.5 rounded-full font-bold uppercase border', getContactStatusBadge(item.status || 'new')]">
+                          {{ 
+                            item.status === 'processing' ? 'Đang xử lý' : 
+                            item.status === 'quoted' ? 'Đã báo giá' : 
+                            item.status === 'closed' ? 'Hoàn tất' : 'Mới' 
+                          }}
+                        </span>
                       </div>
                       <div class="text-[10px] font-bold text-blue-600 mt-1">{{ item.phone }}</div>
                     </td>
