@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { getAuth, onAuthStateChanged } from "firebase/auth"
+import NProgress from 'nprogress' // Thêm dòng này
+import 'nprogress/nprogress.css' // Thêm dòng này
+
+// Cấu hình NProgress (tùy chọn)
+NProgress.configure({ showSpinner: false, speed: 500 });
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,21 +18,9 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     
-    // --- CẬP NHẬT: ROUTE DANH SÁCH BÀI VIẾT (TẤT CẢ BÀI VIẾT) ---
-    { 
-      path: '/tin-tuc', 
-      name: 'posts-list', 
-      component: () => import('../views/PostsView.vue') 
-    },
+    { path: '/tin-tuc', name: 'posts-list', component: () => import('../views/PostsView.vue') },
+    { path: '/post/:id', name: 'post-detail', component: () => import('../views/PostDetailView.vue') },
 
-    // ROUTE CHI TIẾT BÀI VIẾT
-    { 
-      path: '/post/:id', 
-      name: 'post-detail', 
-      component: () => import('../views/PostDetailView.vue') 
-    },
-
-    // --- HỆ THỐNG QUẢN TRỊ (SPIT SYSTEM MANAGER) ---
     { 
       path: '/spit-system-manager', 
       name: 'admin', 
@@ -46,7 +39,6 @@ const router = createRouter({
       component: () => import('../views/AdminPostsView.vue'),
       meta: { requiresAuth: true } 
     },
-    // ROUTE MỚI: QUẢN LÝ KHUYẾN MÃI
     { 
       path: '/spit-system-manager/promotions', 
       name: 'AdminPromotions', 
@@ -63,20 +55,38 @@ const router = createRouter({
   scrollBehavior() { return { top: 0 } }
 })
 
-// Guard bảo vệ các trang Admin
-router.beforeEach((to, from, next) => {
-  const auth = getAuth()
+// Helper check auth để tránh bị lặp logic
+const getCurrentUser = () => {
+  return new Promise((resolve, reject) => {
+    const removeListener = onAuthStateChanged(
+      getAuth(),
+      (user) => {
+        removeListener();
+        resolve(user);
+      },
+      reject
+    );
+  });
+};
+
+// Guard bảo vệ các trang Admin và Hiệu ứng Loading
+router.beforeEach(async (to, from, next) => {
+  NProgress.start(); // Bắt đầu chạy thanh loading khi chuyển trang
+
   if (to.meta.requiresAuth) {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        next()
-      } else {
-        next({ name: 'login' }) 
-      }
-    })
+    const user = await getCurrentUser();
+    if (user) {
+      next();
+    } else {
+      next({ name: 'login' });
+    }
   } else {
-    next() 
+    next();
   }
-})
+});
+
+router.afterEach(() => {
+  NProgress.done(); // Kết thúc loading khi đã vào trang mới
+});
 
 export default router

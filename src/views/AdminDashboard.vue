@@ -4,7 +4,8 @@ import { collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, writeBa
 import { db } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
-import RevenueChart from '../components/RevenueChart.vue' // THÊM MỚI
+import RevenueChart from '../components/RevenueChart.vue'
+import OrderDetailModal from '../components/OrderDetailModal.vue' 
 import * as XLSX from 'xlsx'
 
 // --- TRẠNG THÁI DỮ LIỆU ---
@@ -17,7 +18,9 @@ const searchQuery = ref('')
 
 // TRẠNG THÁI MODAL CHI TIẾT
 const selectedContact = ref(null)
+const selectedOrder = ref(null) 
 const isModalOpen = ref(false)
+const isOrderModalOpen = ref(false) 
 
 const toast = ref({ show: false, message: '', type: 'success' })
 const showToast = (msg, type = 'success') => {
@@ -31,9 +34,18 @@ const openContactDetail = (item) => {
   isModalOpen.value = true
 }
 
+const openOrderDetail = (order) => {
+  selectedOrder.value = order
+  isOrderModalOpen.value = true
+}
+
 const closeDetail = () => {
   isModalOpen.value = false
-  setTimeout(() => { selectedContact.value = null }, 300)
+  isOrderModalOpen.value = false 
+  setTimeout(() => { 
+    selectedContact.value = null 
+    selectedOrder.value = null 
+  }, 300)
 }
 
 // --- FETCH DATA ---
@@ -99,7 +111,6 @@ const totalRevenue = computed(() => {
     .reduce((s, o) => s + (Number(o.totalPrice) || 0), 0)
 })
 
-// LOGIC TÍNH DOANH THU THEO THÁNG (THÊM MỚI)
 const monthlyRevenueData = computed(() => {
   const revenueArray = new Array(12).fill(0)
   orders.value.forEach(order => {
@@ -161,7 +172,7 @@ const sendQuickEmail = (item) => {
   if (email) {
     const subject = encodeURIComponent(`[SPIT Vietnam] Phản hồi yêu cầu tư vấn`)
     const body = encodeURIComponent(`Chào ${item.name},\n\nChúng tôi đã nhận được yêu cầu về sản phẩm ${item.productName || ''} của bạn...\n\nTrân trọng!`)
-    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
+    window.location.href = `mailto:${email}?subject=${subject}?body=${body}`
   } else {
     if (confirm("Gọi điện cho " + item.name + "?")) window.location.href = `tel:${item.phone}`
   }
@@ -204,7 +215,6 @@ const deleteContact = async (id, name) => {
   }
 }
 
-// --- HÀM CẬP NHẬT TRẠNG THÁI TƯ VẤN ---
 const updateContactStatus = async (id, status) => {
   try {
     await updateDoc(doc(db, "contacts", id), { status: status })
@@ -264,14 +274,22 @@ onMounted(fetchData)
   <div class="flex min-h-screen bg-slate-50 font-sans relative">
     <AdminSidebar />
     
+    <Transition name="fade">
+      <OrderDetailModal 
+        v-if="isOrderModalOpen && selectedOrder" 
+        :order="selectedOrder" 
+        @close="closeDetail" 
+      />
+    </Transition>
+
     <Transition name="toast">
-      <div v-if="toast.show" :class="['fixed top-10 right-10 z-120 px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
+      <div v-if="toast.show" :class="['fixed top-10 right-10 z-[120] px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
         <span>{{ toast.type === 'success' ? '✅' : '⚠️' }}</span> {{ toast.message }}
       </div>
     </Transition>
 
     <Transition name="fade">
-      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-110 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
         <div class="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
           <div class="bg-slate-900 p-8 text-white flex justify-between items-center">
             <div>
@@ -425,7 +443,7 @@ onMounted(fetchData)
             </div>
 
             <div v-if="activeTab === 'orders'" class="space-y-4">
-              <div v-for="order in filteredOrders" :key="order.id" class="bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm">
+              <div v-for="order in filteredOrders" :key="order.id" @click="openOrderDetail(order)" class="bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm cursor-pointer">
                 <div class="flex flex-wrap justify-between items-start gap-4">
                   <div class="flex gap-4">
                     <div :class="getStatusBadge(order.status)" class="w-12 h-12 flex items-center justify-center rounded-2xl text-xl shrink-0 border font-black italic uppercase">
@@ -434,7 +452,8 @@ onMounted(fetchData)
                     <div>
                       <div class="flex items-center gap-2">
                         <h4 class="text-xs font-black text-slate-800 uppercase italic">{{ order.customerName }}</h4>
-                        <span v-if="order.companyName" class="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-black italic">B2B</span>
+                        <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || 1 }}</span>
+                        <span v-if="order.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
                       </div>
                       <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">{{ order.phone }} • {{ order.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
                     </div>
@@ -442,10 +461,10 @@ onMounted(fetchData)
                   <div class="text-right">
                     <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
                     <div class="flex gap-2 mt-3 justify-end">
-                      <button v-if="order.status === 'pending'" @click="updateStatus(order.id, 'confirmed')" class="text-[9px] font-black text-blue-600 uppercase border border-blue-600 px-3 py-1.5 rounded-lg">Duyệt</button>
-                      <button v-if="order.status === 'confirmed'" @click="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg">Giao</button>
-                      <button v-if="order.status === 'shipping'" @click="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg">Xong</button>
-                      <button @click="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100">🗑️</button>
+                      <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" class="text-[9px] font-black text-blue-600 uppercase border border-blue-600 px-3 py-1.5 rounded-lg">Duyệt</button>
+                      <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg">Giao</button>
+                      <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg">Xong</button>
+                      <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100">🗑️</button>
                     </div>
                   </div>
                 </div>

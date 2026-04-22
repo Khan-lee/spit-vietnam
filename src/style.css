@@ -1,1 +1,9 @@
 @import "tailwindcss";
+/* Đổi màu thanh loading sang xanh blue của dự án */
+#nprogress .bar {
+  background: #2563eb !important; /* Màu blue-600 */
+  height: 3px !important;
+}
+#nprogress .peg {
+  box-shadow: 0 0 10px #2563eb, 0 0 5px #2563eb !important;
+}

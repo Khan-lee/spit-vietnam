@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-[100] flex justify-end">
+  <div class="fixed inset-0 z-[9999] flex justify-end">
     <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
     
     <div class="relative w-full max-w-md bg-white h-full shadow-2xl p-6 md:p-8 flex flex-col">
@@ -45,9 +45,9 @@
                 </div>
 
                 <div :class="['flex items-center bg-white border border-slate-200 rounded-lg shadow-sm', 
-                             item.isSoldOut ? 'pointer-events-none opacity-30' : '']">
+                               item.isSoldOut ? 'pointer-events-none opacity-30' : '']">
                   <button @click="changeQty(item.id, -1)" class="px-2 py-1 hover:text-[#e11d48]">-</button>
-                  <span class="px-2 text-[11px] font-black min-w-[24px] text-center">{{ item.quantity }}</span>
+                  <span class="px-2 text-[11px] font-black min-w-6 text-center">{{ item.quantity }}</span>
                   <button @click="changeQty(item.id, 1)" class="px-2 py-1 hover:text-[#e11d48]">+</button>
                 </div>
               </div>
