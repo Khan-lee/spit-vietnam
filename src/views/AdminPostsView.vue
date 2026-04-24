@@ -181,7 +181,7 @@ onMounted(fetchPosts)
                   <input 
                     v-model="newPost.slug" 
                     :readonly="!isEditingSlug || isEditing"
-                    class="bg-transparent border-none focus:ring-0 text-[10px] font-bold text-blue-600 p-0 min-w-[200px]"
+                    class="bg-transparent border-none focus:ring-0 text-[10px] font-bold text-blue-600 p-0 min-w-50"
                     :class="{'cursor-not-allowed text-slate-400': !isEditingSlug || isEditing}"
                   />
                 </div>

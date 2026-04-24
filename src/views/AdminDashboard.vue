@@ -283,13 +283,13 @@ onMounted(fetchData)
     </Transition>
 
     <Transition name="toast">
-      <div v-if="toast.show" :class="['fixed top-10 right-10 z-[120] px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
+      <div v-if="toast.show" :class="['fixed top-10 right-10 z-120 px-6 py-4 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 border-b-4 bg-white', toast.type === 'success' ? 'text-emerald-600 border-emerald-500' : 'text-red-600 border-red-500']">
         <span>{{ toast.type === 'success' ? '✅' : '⚠️' }}</span> {{ toast.message }}
       </div>
     </Transition>
 
     <Transition name="fade">
-      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div v-if="isModalOpen && selectedContact" class="fixed inset-0 z-110 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
         <div class="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
           <div class="bg-slate-900 p-8 text-white flex justify-between items-center">
             <div>

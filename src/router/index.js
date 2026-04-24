@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { getAuth, onAuthStateChanged } from "firebase/auth"
-import NProgress from 'nprogress' // Thêm dòng này
-import 'nprogress/nprogress.css' // Thêm dòng này
+import NProgress from 'nprogress'
+import 'nprogress/nprogress.css'
 
-// Cấu hình NProgress (tùy chọn)
+// Cấu hình NProgress
 NProgress.configure({ showSpinner: false, speed: 500 });
 
 const router = createRouter({
@@ -21,6 +21,7 @@ const router = createRouter({
     { path: '/tin-tuc', name: 'posts-list', component: () => import('../views/PostsView.vue') },
     { path: '/post/:id', name: 'post-detail', component: () => import('../views/PostDetailView.vue') },
 
+    // --- ADMIN ROUTES ---
     { 
       path: '/spit-system-manager', 
       name: 'admin', 
@@ -45,6 +46,13 @@ const router = createRouter({
       component: () => import('../views/admin/PromotionsAdmin.vue'),
       meta: { requiresAuth: true } 
     },
+    // MỤC MỚI CẬP NHẬT: QUẢN LÝ NHÃN HÀNG
+    { 
+      path: '/spit-system-manager/brands', 
+      name: 'AdminBrands', 
+      component: () => import('../views/admin/BrandManager.vue'),
+      meta: { requiresAuth: true } 
+    },
     { 
       path: '/spit-system-manager/settings', 
       name: 'AdminSettings', 
@@ -55,7 +63,7 @@ const router = createRouter({
   scrollBehavior() { return { top: 0 } }
 })
 
-// Helper check auth để tránh bị lặp logic
+// Helper check auth
 const getCurrentUser = () => {
   return new Promise((resolve, reject) => {
     const removeListener = onAuthStateChanged(
@@ -71,7 +79,7 @@ const getCurrentUser = () => {
 
 // Guard bảo vệ các trang Admin và Hiệu ứng Loading
 router.beforeEach(async (to, from, next) => {
-  NProgress.start(); // Bắt đầu chạy thanh loading khi chuyển trang
+  NProgress.start();
 
   if (to.meta.requiresAuth) {
     const user = await getCurrentUser();
@@ -86,7 +94,7 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach(() => {
-  NProgress.done(); // Kết thúc loading khi đã vào trang mới
+  NProgress.done();
 });
 
 export default router

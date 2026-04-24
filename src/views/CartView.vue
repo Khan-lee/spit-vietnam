@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-[9999] flex justify-end">
+  <div class="fixed inset-0 z-9999 flex justify-end">
     <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
     
     <div class="relative w-full max-w-md bg-white h-full shadow-2xl p-6 md:p-8 flex flex-col">
@@ -67,7 +67,7 @@
         <button 
           @click="handleProceed"
           :disabled="isCartEmpty || hasSoldOutInCart"
-          class="w-full py-5 rounded-3xl font-black uppercase text-[12px] tracking-[0.1em] transition-all duration-300 flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-400 bg-[#e11d48] text-white shadow-xl shadow-red-100 active:scale-95"
+          class="w-full py-5 rounded-3xl font-black uppercase text-[12px] tracking-widest transition-all duration-300 flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-400 bg-[#e11d48] text-white shadow-xl shadow-red-100 active:scale-95"
         >
           <span>TIẾN HÀNH THANH TOÁN NGAY 🚀</span>
         </button>

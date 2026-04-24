@@ -94,7 +94,7 @@
             </p>
           </div>
           <div class="rounded-[2.5rem] overflow-hidden grayscale hover:grayscale-0 transition-all duration-700 shadow-xl border-4 border-white h-80 bg-slate-200 relative group">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.1657683438076!2d106.6111005758385!3d10.800140258784305!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752be359c402ad%3A0xc0747040498a46b4!2zMzYxIEzDqiBUcuG7jW5nIFThuqVuLCBTxqWbiBLhu7ksIFTDom4gUGjDuiwgSOG7kyBDaMOtIE1pbmgsIFZp4buHdCBOYW0!5e0!3m2!1svi!2s!4v1711874225000!5m2!1svi!2s" class="w-full h-full border-0" allowfullscreen="" loading="lazy"></iframe>
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.0495117245305!2d106.61659707316996!3d10.807519958623203!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x317529305fff8f83%3A0x53158444d87263b!2zQ8O0bmcgdHkgUGjDumMgVGjhu4tuaA!5e0!3m2!1svi!2s!4v1777019409317!5m2!1svi!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </div>
         </div>
       </div>

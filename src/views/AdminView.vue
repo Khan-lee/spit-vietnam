@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore'
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' // MỚI: Thêm Storage
-import { db, auth, storage } from '../firebase' // MỚI: Thêm storage
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' 
+import { db, auth, storage } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
 
 const router = useRouter()
@@ -18,11 +18,18 @@ const ADMIN_EMAIL = 'spitsaigon@gmail.com'
 // --- BIẾN TÌM KIẾM ---
 const searchQuery = ref('')
 
+// --- BIẾN QUẢN LÝ KHUYẾN MÃI ---
+const hasPromotion = ref(false)
+const promotionType = ref('percentage')
+const promotionValue = ref('')
+const activePromotions = ref([]) 
+
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       isAuthenticated.value = true
       fetchProducts()
+      fetchActivePromotions() 
     } else {
       isAuthenticated.value = false
     }
@@ -53,32 +60,61 @@ const handleLogout = async () => {
 const products = ref([])
 const editingId = ref(null)
 
-// --- CẬP NHẬT BIẾN ĐA NGÔN NGỮ ---
 const name_vi = ref(''); const name_en = ref('');
 const category_vi = ref(''); const category_en = ref('');
 const description_vi = ref(''); const description_en = ref('');
+// --- BIẾN ƯU ĐÃI MỚI ---
+const gift_vi = ref(''); const gift_en = ref('');
+
 const brand = ref(''); const price = ref(0); const stock = ref(0);
 const image = ref('');
-const imageFile = ref(null); // MỚI: Lưu file ảnh từ máy
+const imageFile = ref(null);
 
-// Logic lọc sản phẩm theo tên hoặc hãng
+const fetchActivePromotions = async () => {
+  try {
+    const q = query(collection(db, "promotions"), where("is_active", "==", true))
+    const snap = await getDocs(q)
+    activePromotions.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  } catch (e) {
+    console.error("Lỗi lấy khuyến mãi:", e)
+  }
+}
+
+const productsWithPromotions = computed(() => {
+  return products.value.map(product => {
+    const campaign = activePromotions.value.find(p => p.applied_ids?.includes(product.id))
+    if (campaign) {
+      return {
+        ...product,
+        displayPromoType: campaign.discount_type,
+        displayPromoValue: campaign.discount_value,
+        isCampaign: true 
+      }
+    }
+    return {
+      ...product,
+      displayPromoType: product.promotionType,
+      displayPromoValue: product.promotionValue,
+      isCampaign: false
+    }
+  })
+})
+
 const filteredProducts = computed(() => {
-  return products.value.filter(p => 
+  return productsWithPromotions.value.filter(p => 
     (p.name_vi?.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
     (p.brand?.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
 })
 
-// MỚI: Logic xử lý chọn file
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
     imageFile.value = file
-    image.value = URL.createObjectURL(file) // Preview ảnh ngay lập tức
+    image.value = URL.createObjectURL(file)
   }
 }
 
-// MỚI: Logic tải ảnh lên Firebase Storage
 const uploadImage = async () => {
   if (!imageFile.value) return image.value
   const fileRef = storageRef(storage, `products/${Date.now()}_${imageFile.value.name}`)
@@ -96,8 +132,6 @@ const handleSubmit = async () => {
   
   try {
     isSubmitting.value = true
-    
-    // Tải ảnh lên trước khi lưu data vào Firestore
     const finalImageUrl = await uploadImage()
 
     const data = {
@@ -107,11 +141,22 @@ const handleSubmit = async () => {
       category_en: category_en.value || category_vi.value,
       description_vi: description_vi.value,
       description_en: description_en.value || description_vi.value,
+      // --- LƯU DỮ LIỆU ƯU ĐÃI ---
+      gift_vi: gift_vi.value || '',
+      gift_en: gift_en.value || '',
       brand: brand.value,
       price: Number(price.value),
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
       updatedAt: serverTimestamp()
+    }
+
+    if (hasPromotion.value) {
+      data.promotionType = promotionType.value
+      data.promotionValue = promotionValue.value
+    } else {
+      data.promotionType = null
+      data.promotionValue = null
     }
 
     if (editingId.value) {
@@ -136,11 +181,23 @@ const startEdit = (p) => {
   category_en.value = p.category_en || '';
   description_vi.value = p.description_vi || p.description || '';
   description_en.value = p.description_en || '';
+  // --- GÁN DỮ LIỆU ƯU ĐÃI KHI SỬA ---
+  gift_vi.value = p.gift_vi || '';
+  gift_en.value = p.gift_en || '';
   brand.value = p.brand || '';
   price.value = p.price || 0;
   stock.value = p.stock || 0;
   image.value = p.image || '';
-  imageFile.value = null; // Reset file khi chuyển sang sản phẩm khác
+  imageFile.value = null;
+
+  if (p.displayPromoValue && p.displayPromoValue !== '0') {
+    hasPromotion.value = true
+    promotionType.value = p.displayPromoType || 'percentage'
+    promotionValue.value = p.displayPromoValue
+  } else {
+    hasPromotion.value = false
+    promotionValue.value = ''
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -156,8 +213,11 @@ const resetForm = () => {
   name_vi.value = ''; name_en.value = '';
   category_vi.value = ''; category_en.value = '';
   description_vi.value = ''; description_en.value = '';
+  // --- RESET TRƯỜNG ƯU ĐÃI ---
+  gift_vi.value = ''; gift_en.value = '';
   brand.value = ''; price.value = 0; stock.value = 0; image.value = '';
   imageFile.value = null;
+  hasPromotion.value = false; promotionValue.value = '';
 }
 </script>
 
@@ -208,6 +268,12 @@ const resetForm = () => {
                     <input v-model="name_en" placeholder="Product Name (EN)" class="w-full p-3 bg-slate-100/50 rounded-xl outline-none text-sm italic border border-transparent focus:border-blue-200" />
                   </div>
 
+                  <div class="grid grid-cols-1 gap-2 p-3 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                    <label class="text-[9px] font-black uppercase text-blue-400 ml-1 italic">Ưu đãi / Quà tặng (nếu có)</label>
+                    <input v-model="gift_vi" placeholder="Ưu đãi (Ví dụ: Tặng kèm phụ kiện...)" class="w-full p-2 bg-white rounded-lg outline-none text-[11px] font-bold border border-transparent focus:border-blue-200" />
+                    <input v-model="gift_en" placeholder="Special Offer (EN)" class="w-full p-2 bg-white/50 rounded-lg outline-none text-[10px] italic border border-transparent focus:border-blue-200" />
+                  </div>
+
                   <div class="grid grid-cols-2 gap-2">
                     <input v-model="brand" placeholder="Hãng / Brand" class="p-3 bg-slate-50 rounded-xl outline-none text-sm" />
                     <div class="space-y-1">
@@ -222,6 +288,21 @@ const resetForm = () => {
                       <span class="absolute left-3 top-3.5 text-[10px] font-bold text-red-400">₫</span>
                     </div>
                     <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" />
+                  </div>
+
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <div class="flex items-center gap-3">
+                      <input type="checkbox" v-model="hasPromotion" id="promo" class="w-4 h-4 accent-blue-600" />
+                      <label for="promo" class="text-[10px] font-black uppercase text-slate-700 italic">Khuyến mãi (nếu có)</label>
+                    </div>
+                    
+                    <div v-if="hasPromotion" class="grid grid-cols-2 gap-2 mt-3 animate-slide-up">
+                      <select v-model="promotionType" class="p-2 bg-white rounded-xl text-[10px] font-bold border border-slate-100 outline-none">
+                        <option value="percentage">Phần trăm (%)</option>
+                        <option value="fixed">Tiền mặt (VNĐ)</option>
+                      </select>
+                      <input v-model="promotionValue" placeholder="Gía trị giảm" class="p-2 bg-white rounded-xl text-[10px] font-black outline-none border border-slate-100" />
+                    </div>
                   </div>
 
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
@@ -257,6 +338,11 @@ const resetForm = () => {
                     <td class="p-5 flex items-center gap-4">
                       <div class="relative">
                         <img :src="p.image" class="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-100 p-1 shadow-sm group-hover:scale-110 transition-transform" />
+                        <div v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
+                             class="absolute -top-1 -right-1 text-white text-[7px] font-black px-1 rounded-md shadow-sm"
+                             :class="p.isCampaign ? 'bg-orange-500' : 'bg-red-500'">
+                          {{ p.isCampaign ? 'CAMPAIGN' : 'SALE' }}
+                        </div>
                       </div>
                       <div>
                         <div class="text-sm font-black text-slate-800 leading-tight">{{ p.name_vi || p.name }}</div>
@@ -264,6 +350,11 @@ const resetForm = () => {
                         <div class="inline-flex items-center gap-2">
                            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
                            <span class="text-[8px] font-bold text-slate-300 uppercase">{{ p.brand }}</span>
+                           <span v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
+                                 class="text-[8px] font-black uppercase"
+                                 :class="p.isCampaign ? 'text-orange-500' : 'text-red-500'">
+                            -{{ p.displayPromoValue }}{{ p.displayPromoType === 'percentage' ? '%' : 'đ' }}
+                           </span>
                         </div>
                       </div>
                     </td>

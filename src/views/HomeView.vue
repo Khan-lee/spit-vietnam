@@ -4,6 +4,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
+import BrandMarquee from '../components/BrandMarquee.vue' // Đã thêm import này
 
 const { locale, t } = useI18n()
 
@@ -185,6 +186,8 @@ onMounted(fetchData)
         </div>
       </div>
     </div>
+
+    <BrandMarquee />
   </div>
 </template>
 
