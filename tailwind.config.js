@@ -1,41 +1,21 @@
 /** @type {import('tailwindcss').Config} */
-
 export default {
-
   content: [
-
     "./index.html",
-
     "./src/**/*.{vue,js,ts,jsx,tsx}",
-
   ],
-
   theme: {
-
     extend: {
-
       colors: {
-
-        // Khai báo chính xác các biến màu đang dùng trong App.vue và CartView.vue
-
+        // Cập nhật màu chủ đạo từ Đỏ sang Xám #888888
         primary: {
-
-          DEFAULT: '#e11d48', // Màu đỏ chủ đạo
-
-          dark: '#0f172a',    // Màu đen Slate cho thanh thông báo
-
-          light: '#fff1f2',
-
-          accent: '#1e293b',
-
+          DEFAULT: '#888888', // Màu xám chủ đạo mới của bạn
+          dark: '#888888',    // GIỮ NGUYÊN: Màu đen Slate cho thanh thông báo
+          light: '#f4f4f4',   // Cập nhật nhẹ: Màu nền sáng hợp với tông xám
+          accent: '#1e293b',  // GIỮ NGUYÊN: Màu nhấn đậm
         }
-
       }
-
     },
-
   },
-
   plugins: [],
-
 }

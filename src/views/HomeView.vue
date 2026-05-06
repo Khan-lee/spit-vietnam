@@ -4,7 +4,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
-import BrandMarquee from '../components/BrandMarquee.vue' // Đã thêm import này
+import BrandMarquee from '../components/BrandMarquee.vue'
 
 const { locale, t } = useI18n()
 
@@ -36,7 +36,6 @@ const fetchData = async () => {
   }
 }
 
-// LOGIC KHUYẾN MÃI
 const getActivePromo = (product) => {
   return promotions.value.find(p => {
     const start = p.start_date ? new Date(p.start_date) : null
@@ -93,17 +92,17 @@ onMounted(fetchData)
   <div class="bg-white">
     <Transition name="slide-down">
       <div v-if="activeBannerPromo" 
-           class="relative overflow-hidden bg-linear-to-r from-slate-900 via-red-700 to-slate-900 text-white py-2.5 shadow-lg border-b border-white/10 z-100">
+           class="relative overflow-hidden bg-linear-to-r from-slate-900 via-primary to-slate-900 text-white py-2.5 shadow-lg border-b border-white/10 z-[100]">
         <div class="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shine"></div>
         
         <div class="flex items-center justify-center gap-8 whitespace-nowrap">
           <div class="flex animate-marquee space-x-12 items-center">
             <div v-for="i in 4" :key="i" class="flex items-center gap-4">
-              <span class="bg-white text-red-600 px-2 py-0.5 rounded text-[9px] font-black italic shadow-sm">PROMO</span>
+              <span class="bg-white text-primary px-2 py-0.5 rounded text-[9px] font-black italic shadow-sm">PROMO</span>
               <span class="text-[11px] font-bold uppercase tracking-wider">
                 {{ activeBannerPromo.title }}: GIẢM ĐẾN {{ activeBannerPromo.discount_value }}{{ activeBannerPromo.discount_type === 'percentage' ? '%' : 'VNĐ' }}
               </span>
-              <span v-if="activeBannerPromo.end_date" class="text-[10px] font-mono text-red-300 font-bold bg-black/20 px-2 py-0.5 rounded-full border border-white/5">
+              <span v-if="activeBannerPromo.end_date" class="text-[10px] font-mono text-primary-light font-bold bg-black/20 px-2 py-0.5 rounded-full border border-white/5">
                 {{ getCountdown(activeBannerPromo.end_date) }}
               </span>
               <span class="text-white/30 text-xs">✦</span>
@@ -118,11 +117,7 @@ onMounted(fetchData)
       <div class="relative z-10 max-w-4xl">
         <h1 class="text-4xl md:text-6xl font-black uppercase italic leading-tight mb-4" v-html="$t('home.hero_title')"></h1>
         <p class="text-slate-300 max-w-xl mb-8 font-medium">{{ $t('home.hero_subtitle') }}</p>
-        <div class="flex gap-4">
-          <button class="bg-red-600 px-8 py-3 rounded-lg font-black uppercase text-xs hover:bg-red-700 transition">
-            {{ $t('home.new_products') }}
-          </button>
-        </div>
+        <!-- Đã xóa div chứa button ở đây -->
       </div>
     </section>
 
@@ -136,7 +131,7 @@ onMounted(fetchData)
       <div class="flex flex-wrap justify-center gap-2 mb-12">
         <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat"
                 :class="['px-6 py-2 rounded-full text-[10px] font-black uppercase transition-all border', 
-                selectedCategory === cat ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200']">
+                selectedCategory === cat ? 'bg-primary text-white border-primary' : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200']">
           {{ cat === 'all' ? $t('home.all_cats') : cat }}
         </button>
       </div>
@@ -148,7 +143,7 @@ onMounted(fetchData)
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div v-for="p in filteredProducts" :key="p.id" class="relative border border-slate-100 rounded-3xl p-6 flex flex-col hover:shadow-2xl transition-all group bg-white overflow-hidden">
           
-          <div v-if="getSalePrice(p)" class="absolute top-4 right-4 bg-red-600 text-white px-2 py-1 rounded-lg text-[9px] font-black shadow-lg z-10">
+          <div v-if="getSalePrice(p)" class="absolute top-4 right-4 bg-primary text-white px-2 py-1 rounded-lg text-[9px] font-black shadow-lg z-10">
             SALE
           </div>
 
@@ -157,12 +152,12 @@ onMounted(fetchData)
             
             <div v-if="getActivePromo(p)?.end_date" class="absolute bottom-0 left-0 w-full bg-slate-900/90 py-1.5 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                <p class="text-[8px] text-white font-bold uppercase">
-                 Kết thúc: <span class="text-red-400 font-mono text-[10px] ml-1">{{ getCountdown(getActivePromo(p).end_date) }}</span>
+                  Kết thúc: <span class="text-primary font-mono text-[10px] ml-1">{{ getCountdown(getActivePromo(p).end_date) }}</span>
                </p>
             </div>
           </div>
           
-          <span class="text-[9px] font-black text-blue-500 uppercase mb-2">
+          <span class="text-[9px] font-black text-primary uppercase mb-2">
             {{ p[`category_${locale}`] || p.category }} | {{ p.brand }}
           </span>
           
@@ -172,14 +167,14 @@ onMounted(fetchData)
 
           <div class="mt-auto">
             <div v-if="getSalePrice(p)" class="mb-4">
-              <div class="text-xl font-black text-red-600">{{ Math.round(getSalePrice(p)).toLocaleString() }} VNĐ</div>
+              <div class="text-xl font-black text-primary">{{ Math.round(getSalePrice(p)).toLocaleString() }} VNĐ</div>
               <div class="text-xs text-slate-400 line-through font-medium">{{ p.price?.toLocaleString() }} VNĐ</div>
             </div>
-            <div v-else class="text-xl font-black text-red-600 mb-4">
+            <div v-else class="text-xl font-black text-primary mb-4">
               {{ p.price?.toLocaleString() }} VNĐ
             </div>
 
-            <router-link :to="'/product/' + p.id" class="block w-full text-center bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase hover:bg-blue-600 transition">
+            <router-link :to="'/product/' + p.id" class="block w-full text-center bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase hover:bg-primary transition">
               {{ $t('product.view_detail') }}
             </router-link>
           </div>
