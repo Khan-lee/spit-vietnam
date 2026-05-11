@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+  <div class="fixed inset-0 z-10000 flex items-center justify-center p-4">
     <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
     
     <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
@@ -27,7 +27,7 @@
             </div>
           </div>
           
-          <div class="bg-slate-50/80 p-6 rounded-[2rem] border border-slate-100 space-y-4">
+          <div class="bg-slate-50/80 p-6 rounded-4xl border border-slate-100 space-y-4">
             <h3 class="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
               <span class="w-2 h-2 bg-emerald-600 rounded-full"></span> 🏢 Doanh nghiệp
             </h3>
@@ -57,7 +57,7 @@
           <div class="space-y-3">
             <template v-if="order.items && order.items.length > 0">
               <div v-for="(item, index) in order.items" :key="index" 
-                   class="flex items-center gap-4 p-5 rounded-[1.5rem] border border-slate-100 bg-white shadow-sm">
+                   class="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 bg-white shadow-sm">
                 <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300">
                   <img v-if="item.image || item.productImage" :src="item.image || item.productImage" class="w-full h-full object-cover rounded-2xl" />
                   <span v-else>SP</span>
@@ -84,7 +84,7 @@
             </template>
 
             <template v-else>
-              <div class="flex items-center gap-4 p-5 rounded-[1.5rem] border border-slate-100 bg-white shadow-sm">
+              <div class="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 bg-white shadow-sm">
                 <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300">SP</div>
                 
                 <div class="grow">

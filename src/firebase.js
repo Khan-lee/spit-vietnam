@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { initializeFirestore } from "firebase/firestore"; // Cập nhật hàm này để cấu hình sâu hơn
-import { getAuth } from "firebase/auth";
+import { initializeFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; // Thêm GoogleAuthProvider
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -15,12 +15,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Cập nhật: Ép Firebase dùng Long Polling để fix lỗi "Failed to load response data" trên trình duyệt
+// Giữ nguyên cấu hình Long Polling của bạn
 const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
 
 const auth = getAuth(app);
 const storage = getStorage(app);
+const googleProvider = new GoogleAuthProvider(); // Khởi tạo Provider cho Google
 
-export { db, auth, storage };
+// Export thêm googleProvider
+export { db, auth, storage, googleProvider };
