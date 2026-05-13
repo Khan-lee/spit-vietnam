@@ -108,7 +108,7 @@ const changeLanguage = (event) => {
           
           <div class="hidden lg:block text-left">
             <p class="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none mb-1">Welcome,</p>
-            <p class="text-[10px] font-black uppercase tracking-tighter truncate max-w-[80px] leading-none">{{ user.displayName.split(' ').pop() }}</p>
+            <p class="text-[10px] font-black uppercase tracking-tighter truncate max-w-20 leading-none">{{ user.displayName.split(' ').pop() }}</p>
           </div>
 
           <div class="absolute right-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
@@ -116,6 +116,12 @@ const changeLanguage = (event) => {
               <div class="px-4 py-2 border-b border-slate-50 mb-1">
                 <p class="text-[10px] font-black uppercase truncate text-slate-400">{{ user.displayName }}</p>
               </div>
+              
+              <RouterLink to="/orders" class="w-full text-left px-5 py-2.5 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                Đơn hàng
+              </RouterLink>
+
               <button @click="handleLogout" class="w-full text-left px-5 py-2.5 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 transition-colors flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Đăng xuất
@@ -137,12 +143,17 @@ const changeLanguage = (event) => {
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
-        <div v-if="user" class="mb-8 p-4 bg-slate-50 rounded-2xl flex items-center gap-3">
-          <img :src="user.photoURL" class="w-10 h-10 rounded-full border border-white shadow-sm" />
-          <div class="overflow-hidden">
-            <p class="text-[10px] font-black uppercase truncate">{{ user.displayName }}</p>
-            <button @click="handleLogout" class="text-[9px] text-red-500 font-bold uppercase hover:underline">Đăng xuất</button>
+        <div v-if="user" class="mb-8 p-4 bg-slate-50 rounded-2xl flex flex-col gap-3">
+          <div class="flex items-center gap-3">
+            <img :src="user.photoURL" class="w-10 h-10 rounded-full border border-white shadow-sm" />
+            <div class="overflow-hidden">
+              <p class="text-[10px] font-black uppercase truncate">{{ user.displayName }}</p>
+            </div>
           </div>
+          <RouterLink to="/orders" @click="isMobileMenuOpen = false" class="text-[10px] font-black uppercase text-primary py-2 border-t border-slate-200 mt-1">
+            Xem đơn hàng
+          </RouterLink>
+          <button @click="handleLogout" class="text-[9px] text-red-500 font-bold uppercase hover:underline text-left">Đăng xuất</button>
         </div>
         <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="mb-8 w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">
           Đăng nhập bằng Google

@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { db } from '../firebase'
+// Bổ sung auth vào import
+import { db, auth } from '../firebase'
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
 
 const router = useRouter()
@@ -9,13 +10,12 @@ const cartItems = ref([])
 const totalPrice = ref(0)
 const isProcessing = ref(false)
 
-// THÔNG TIN KHÁCH HÀNG (ĐÃ THÊM CÁC TRƯỜNG DOANH NGHIỆP MỚI)
+// THÔNG TIN KHÁCH HÀNG (GIỮ NGUYÊN)
 const customer = ref({ 
   name: '', 
   phone: '', 
   address: '', 
   note: '',
-  // --- PHẦN MỚI ---
   companyName: '',
   taxCode: '',
   contractEmail: ''
@@ -34,17 +34,18 @@ const handleCheckout = async () => {
   try {
     isProcessing.value = true
 
-    // 1. Lưu đơn hàng vào collection "orders" (ĐÃ CẬP NHẬT TRƯỜNG MỚI)
+    // 1. Lưu đơn hàng vào collection "orders"
     const orderData = {
+      // THÊM: Gắn ID người dùng vào đơn hàng để hiển thị trong lịch sử
+      userId: auth.currentUser ? auth.currentUser.uid : null,
+      
       customerName: customer.value.name,
       phone: customer.value.phone,
       address: customer.value.address,
       note: customer.value.note,
-      // --- DỮ LIỆU DOANH NGHIỆP MỚI ---
       companyName: customer.value.companyName,
       taxCode: customer.value.taxCode,
       contractEmail: customer.value.contractEmail,
-      // ----------------------------
       items: cartItems.value,
       totalPrice: totalPrice.value,
       status: 'pending',

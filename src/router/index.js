@@ -17,7 +17,11 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
-    
+    {
+  path: '/orders',
+  name: 'orders',
+  component: () => import('../views/OrdersView.vue')
+},
     { path: '/tin-tuc', name: 'posts-list', component: () => import('../views/PostsView.vue') },
     { path: '/post/:id', name: 'post-detail', component: () => import('../views/PostDetailView.vue') },
 
