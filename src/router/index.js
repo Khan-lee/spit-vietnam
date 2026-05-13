@@ -18,12 +18,15 @@ const router = createRouter({
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     {
-  path: '/orders',
-  name: 'orders',
-  component: () => import('../views/OrdersView.vue')
-},
+      path: '/orders',
+      name: 'orders',
+      component: () => import('../views/OrdersView.vue')
+    },
     { path: '/tin-tuc', name: 'posts-list', component: () => import('../views/PostsView.vue') },
     { path: '/post/:id', name: 'post-detail', component: () => import('../views/PostDetailView.vue') },
+
+    // ROUTE GIỚI THIỆU (ABOUT) CHO NGƯỜI DÙNG
+    { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
 
     // --- ADMIN ROUTES ---
     { 
@@ -61,6 +64,13 @@ const router = createRouter({
       path: '/spit-system-manager/settings', 
       name: 'AdminSettings', 
       component: () => import('../views/AdminSettingsView.vue'),
+      meta: { requiresAuth: true } 
+    },
+    // ROUTE QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
+    { 
+      path: '/spit-system-manager/about', 
+      name: 'AdminAbout', 
+      component: () => import('../views/admin/AdminAboutView.vue'),
       meta: { requiresAuth: true } 
     }
   ],

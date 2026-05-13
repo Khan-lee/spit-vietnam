@@ -33,6 +33,11 @@
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý nhãn hàng</span>
       </router-link>
 
+      <router-link to="/spit-system-manager/about" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
+        <span class="text-xl">ℹ️</span>
+        <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Trang giới thiệu</span>
+      </router-link>
+
       <router-link to="/spit-system-manager/settings" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
         <span class="text-xl">⚙️</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Thiết lập hệ thống</span>

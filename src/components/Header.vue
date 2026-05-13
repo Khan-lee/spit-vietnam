@@ -52,9 +52,9 @@ const changeLanguage = (event) => {
     </RouterLink>
 
     <nav class="hidden lg:flex items-center gap-8 xl:gap-12 mx-4">
-      <RouterLink v-for="item in ['home', 'products', 'contact']" :key="item" :to="item === 'home' ? '/' : '/' + item" 
+      <RouterLink v-for="item in ['home', 'about', 'products', 'contact']" :key="item" :to="item === 'home' ? '/' : '/' + item" 
                   class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-primary transition whitespace-nowrap" active-class="text-primary">
-        {{ $t('nav.' + item) }}
+        {{ $t('nav.' + item) !== 'nav.' + item ? $t('nav.' + item) : (item === 'about' ? 'Giới thiệu' : item) }}
       </RouterLink>
     </nav>
 
@@ -170,12 +170,12 @@ const changeLanguage = (event) => {
         </div>
         
         <nav class="flex flex-col gap-6">
-          <RouterLink v-for="item in ['home', 'products', 'contact']" 
+          <RouterLink v-for="item in ['home', 'about', 'products', 'contact']" 
                       :key="item" :to="item === 'home' ? '/' : '/' + item"
                       @click="isMobileMenuOpen = false"
                       class="text-sm font-black uppercase tracking-[0.2em] text-slate-800 border-b border-slate-50 pb-4 flex justify-between items-center" 
                       active-class="text-primary border-primary">
-            {{ $t('nav.' + item) }}
+            {{ $t('nav.' + item) !== 'nav.' + item ? $t('nav.' + item) : (item === 'about' ? 'Giới thiệu' : item) }}
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
           </RouterLink>
         </nav>

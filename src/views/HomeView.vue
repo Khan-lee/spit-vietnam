@@ -92,7 +92,7 @@ onMounted(fetchData)
   <div class="bg-white">
     <Transition name="slide-down">
       <div v-if="activeBannerPromo" 
-           class="relative overflow-hidden bg-linear-to-r from-slate-900 via-primary to-slate-900 text-white py-2.5 shadow-lg border-b border-white/10 z-[100]">
+           class="relative overflow-hidden bg-linear-to-r from-slate-900 via-primary to-slate-900 text-white py-2.5 shadow-lg border-b border-white/10 z-100">
         <div class="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shine"></div>
         
         <div class="flex items-center justify-center gap-8 whitespace-nowrap">
