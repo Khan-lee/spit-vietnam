@@ -1,18 +1,22 @@
 <script setup>
-import { ref, onMounted } from 'vue' 
+import { ref, onMounted, computed } from 'vue' 
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router' 
 import { auth, googleProvider } from '../firebase' 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth' 
+import { useSearchStore } from '../stores/search' 
 
 // Logo từ assets
 import logoImg from '../assets/noBG_logo.png'
 
-defineProps(['cartCount', 'searchQuery'])
+const props = defineProps(['cartCount', 'searchQuery', 'products']) 
 const emit = defineEmits(['update:searchQuery', 'openCart'])
 
 const { locale } = useI18n()
+const router = useRouter()
+const searchStore = useSearchStore()
 const isMobileMenuOpen = ref(false)
+const isSearchFocused = ref(false)
 const user = ref(null) 
 
 onMounted(() => {
@@ -21,22 +25,44 @@ onMounted(() => {
   })
 })
 
+// [FIX LỖI] Hàm đóng kết quả tìm kiếm thay cho việc gọi setTimeout trực tiếp ở template
+const handleBlur = () => {
+  setTimeout(() => {
+    isSearchFocused.value = false
+  }, 200)
+}
+
+// [FIX LỖI] Đảm bảo cập nhật searchQuery vào Store khi người dùng gõ
+const handleInput = (e) => {
+  const value = e.target.value
+  emit('update:searchQuery', value)
+  searchStore.setSearchQuery(value) // Đẩy từ khóa lên Pinia để HomeView nhận được
+}
+
+// LOGIC GỢI Ý (GIỮ NGUYÊN)
+const suggestions = computed(() => {
+  const query = (props.searchQuery || '').toLowerCase().trim()
+  if (!query || !props.products) return []
+  return props.products.filter(p => {
+    const name = (p[`name_${locale.value}`] || p.name || '').toLowerCase()
+    return name.includes(query) || p.brand?.toLowerCase().includes(query)
+  }).slice(0, 5)
+})
+
+const selectSuggestion = (id) => {
+  router.push('/product/' + id)
+  isSearchFocused.value = false
+  emit('update:searchQuery', '') 
+  searchStore.setSearchQuery('') // Reset store sau khi chọn
+}
+
+// CÁC HÀM CŨ GIỮ NGUYÊN
 const loginWithGoogle = async () => {
-  try {
-    await signInWithPopup(auth, googleProvider)
-  } catch (error) {
-    console.error("Lỗi đăng nhập:", error)
-  }
+  try { await signInWithPopup(auth, googleProvider) } 
+  catch (error) { console.error("Lỗi đăng nhập:", error) }
 }
-
-const handleLogout = async () => {
-  await signOut(auth)
-}
-
-const handleOpenCart = () => {
-  emit('openCart')
-}
-
+const handleLogout = async () => { await signOut(auth) }
+const handleOpenCart = () => { emit('openCart') }
 const changeLanguage = (event) => {
   const newLang = event.target.value
   locale.value = newLang
@@ -60,15 +86,27 @@ const changeLanguage = (event) => {
 
     <div class="flex items-center gap-3 md:gap-5">
       
-      <div class="relative hidden md:block group">
+      <div class="relative hidden md:hidden group">
         <input
           :value="searchQuery"
-          @input="emit('update:searchQuery', $event.target.value)"
+          @input="handleInput"
+          @focus="isSearchFocused = true"
+          @blur="handleBlur" 
           type="text"
           :placeholder="$t('nav.search')"
           class="bg-slate-100 py-2.5 px-6 pr-12 rounded-full text-[11px] font-bold outline-none w-40 lg:w-60 focus:w-72 transition-all border border-transparent focus:border-primary/20 shadow-inner"
         />
         <svg class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        
+        <div v-if="isSearchFocused && suggestions.length > 0" class="absolute top-full mt-2 right-0 w-80 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-50">
+          <div v-for="p in suggestions" :key="p.id" @click="selectSuggestion(p.id)" class="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0">
+            <img :src="p.image" class="w-10 h-10 object-contain bg-slate-50 rounded-lg" />
+            <div class="overflow-hidden">
+              <p class="text-[9px] font-black text-primary uppercase leading-none mb-1">{{ p.brand }}</p>
+              <p class="text-[10px] font-bold text-slate-700 truncate leading-tight">{{ p[`name_${locale}`] || p.name }}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <select :value="locale" @change="changeLanguage"
@@ -84,7 +122,7 @@ const changeLanguage = (event) => {
         </svg>
         <span v-if="cartCount > 0" 
               class="absolute -top-1 -right-1 flex items-center justify-center rounded-full text-white text-[9px] font-black w-4 h-4 shadow-sm z-10"
-              style="background-color: #888888; line-height: 1;">
+              style="background-color: #dc2626; line-height: 1;">
           {{ cartCount }}
         </span>
       </button>
@@ -116,12 +154,10 @@ const changeLanguage = (event) => {
               <div class="px-4 py-2 border-b border-slate-50 mb-1">
                 <p class="text-[10px] font-black uppercase truncate text-slate-400">{{ user.displayName }}</p>
               </div>
-              
               <RouterLink to="/orders" class="w-full text-left px-5 py-2.5 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                 Đơn hàng
               </RouterLink>
-
               <button @click="handleLogout" class="w-full text-left px-5 py-2.5 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 transition-colors flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Đăng xuất
@@ -150,19 +186,15 @@ const changeLanguage = (event) => {
               <p class="text-[10px] font-black uppercase truncate">{{ user.displayName }}</p>
             </div>
           </div>
-          <RouterLink to="/orders" @click="isMobileMenuOpen = false" class="text-[10px] font-black uppercase text-primary py-2 border-t border-slate-200 mt-1">
-            Xem đơn hàng
-          </RouterLink>
+          <RouterLink to="/orders" @click="isMobileMenuOpen = false" class="text-[10px] font-black uppercase text-primary py-2 border-t border-slate-200 mt-1">Xem đơn hàng</RouterLink>
           <button @click="handleLogout" class="text-[9px] text-red-500 font-bold uppercase hover:underline text-left">Đăng xuất</button>
         </div>
-        <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="mb-8 w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">
-          Đăng nhập bằng Google
-        </button>
+        <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="mb-8 w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">Đăng nhập bằng Google</button>
 
         <div class="mb-10 relative">
            <input
             :value="searchQuery"
-            @input="emit('update:searchQuery', $event.target.value)"
+            @input="handleInput"
             type="text"
             :placeholder="$t('nav.search')"
             class="w-full bg-slate-100 py-3 px-5 rounded-xl text-xs font-bold outline-none border border-transparent focus:border-primary/20"
@@ -179,21 +211,12 @@ const changeLanguage = (event) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
           </RouterLink>
         </nav>
-
-        <div class="mt-auto text-center">
-           <p class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">SPIT Vietnam Technology</p>
-        </div>
       </div>
     </div>
   </header>
 </template>
 
 <style scoped>
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.animate-slide-in {
-  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.animate-slide-in { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 </style>

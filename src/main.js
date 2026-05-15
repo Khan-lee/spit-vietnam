@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import { createPinia } from 'pinia'
 
 import vi from './locales/vi.json'
 import en from './locales/en.json'
@@ -24,4 +25,5 @@ const i18n = createI18n({
 app.use(head)
 app.use(router)
 app.use(i18n)
+app.use(createPinia()) // thêm dòng này
 app.mount('#app')

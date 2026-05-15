@@ -5,6 +5,7 @@ import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
 import BrandMarquee from '../components/BrandMarquee.vue'
+import { useSearchStore } from '../stores/search' // [MỚI] Import Store để lấy từ khóa tìm kiếm
 
 // Import Swiper Vue.js components & modules
 import { Swiper, SwiperSlide } from 'swiper/vue'
@@ -17,6 +18,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/effect-fade'
 
 const { locale, t } = useI18n()
+const searchStore = useSearchStore() // [MỚI] Khởi tạo store tìm kiếm
 
 const products = ref([])
 const promotions = ref([]) 
@@ -26,12 +28,12 @@ const currentTime = ref(new Date())
 
 const swiperModules = [Autoplay, Pagination, Navigation, EffectFade]
 
-// Dữ liệu Banners cho Slider
+// Dữ liệu Banners cho Slider (GIỮ NGUYÊN)
 const mainBanners = ref([
   {
     id: 1,
     image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
-    useI18n: true // Sử dụng dịch từ file ngôn ngữ
+    useI18n: true 
   },
   {
     id: 2,
@@ -108,10 +110,27 @@ const categories = computed(() => {
   return ['all', ...new Set(allCats.filter(c => c))]
 })
 
+// [CẬP NHẬT] filteredProducts để kết hợp lọc theo danh mục VÀ tìm kiếm từ Header
 const filteredProducts = computed(() => {
-  if (selectedCategory.value === 'all') return products.value
-  const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
-  return products.value.filter(p => (p[catField] || p.category) === selectedCategory.value)
+  let result = products.value
+
+  // 1. Lọc theo danh mục (Code cũ của bạn)
+  if (selectedCategory.value !== 'all') {
+    const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+    result = result.filter(p => (p[catField] || p.category) === selectedCategory.value)
+  }
+
+  // 2. Lọc theo từ khóa tìm kiếm từ Store (Code mới tích hợp)
+  if (searchStore.searchQuery && searchStore.searchQuery.trim() !== '') {
+    const query = searchStore.searchQuery.toLowerCase().trim()
+    result = result.filter(p => {
+      const name = (p[`name_${locale.value}`] || p.name || '').toLowerCase()
+      const brand = (p.brand || '').toLowerCase()
+      return name.includes(query) || brand.includes(query)
+    })
+  }
+
+  return result
 })
 
 onMounted(fetchData)
@@ -123,7 +142,6 @@ onMounted(fetchData)
       <div v-if="activeBannerPromo" 
            class="relative overflow-hidden bg-linear-to-r from-slate-900 via-primary to-slate-900 text-white py-2.5 shadow-lg border-b border-white/10 z-100">
         <div class="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shine"></div>
-        
         <div class="flex items-center justify-center gap-8 whitespace-nowrap">
           <div class="flex animate-marquee space-x-12 items-center">
             <div v-for="i in 4" :key="i" class="flex items-center gap-4">
@@ -155,11 +173,8 @@ onMounted(fetchData)
       >
         <swiper-slide v-for="banner in mainBanners" :key="banner.id" class="overflow-hidden">
           <div class="relative h-full w-full flex items-center">
-            
             <img :src="banner.image" class="absolute inset-0 w-full h-full object-cover opacity-40 z-0 transition-transform duration-10000 swiper-slide-active:scale-110" />
-            
             <div class="absolute inset-0 bg-linear-to-r from-slate-900 via-slate-900/60 to-transparent z-1"></div>
-
             <div class="relative z-10 container mx-auto px-6 md:px-20">
               <div class="max-w-4xl space-y-6 content-wrapper">
                 <template v-if="banner.useI18n">
@@ -171,7 +186,6 @@ onMounted(fetchData)
                   <h1 class="text-4xl md:text-7xl font-black uppercase leading-[1.1] tracking-tighter" v-html="banner.title"></h1>
                   <p class="text-slate-200 max-w-xl font-medium text-lg opacity-90">{{ banner.desc }}</p>
                 </template>
-                
                 <div class="pt-4">
                     <router-link to="/products" class="inline-block bg-primary hover:bg-red-700 text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20">
                         Khám phá ngay
@@ -203,6 +217,10 @@ onMounted(fetchData)
         {{ $t('product.processing') }}
       </div>
       
+      <div v-else-if="filteredProducts.length === 0" class="text-center py-20">
+        <p class="text-slate-400 font-bold uppercase tracking-widest text-sm">Không tìm thấy sản phẩm phù hợp</p>
+      </div>
+
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div v-for="p in filteredProducts" :key="p.id" class="relative border border-slate-100 rounded-3xl p-6 flex flex-col hover:shadow-2xl transition-all group bg-white overflow-hidden">
           
@@ -212,10 +230,9 @@ onMounted(fetchData)
 
           <div class="h-48 mb-6 flex items-center justify-center relative overflow-hidden">
             <img :src="p.image" class="max-h-full object-contain group-hover:scale-110 transition-transform" />
-            
             <div v-if="getActivePromo(p)?.end_date" class="absolute bottom-0 left-0 w-full bg-slate-900/90 py-1.5 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                <p class="text-[8px] text-white font-bold uppercase">
-                  Kết thúc: <span class="text-primary font-mono text-[10px] ml-1">{{ getCountdown(getActivePromo(p).end_date) }}</span>
+                 Kết thúc: <span class="text-primary font-mono text-[10px] ml-1">{{ getCountdown(getActivePromo(p).end_date) }}</span>
                </p>
             </div>
           </div>
@@ -250,13 +267,13 @@ onMounted(fetchData)
 </template>
 
 <style scoped>
-/* Custom Pagination & Navigation Swiper */
+/* Swiper styles (GIỮ NGUYÊN) */
 :deep(.swiper-pagination-bullet) {
   background: white;
   opacity: 0.5;
 }
 :deep(.swiper-pagination-bullet-active) {
-  background: #dc2626 !important; /* Màu primary đỏ */
+  background: #dc2626 !important; 
   opacity: 1;
   width: 25px;
   border-radius: 4px;
