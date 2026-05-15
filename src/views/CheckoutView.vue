@@ -4,11 +4,17 @@ import { useRouter } from 'vue-router'
 // Bổ sung auth vào import
 import { db, auth } from '../firebase'
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
+// THÊM: Import component QR
+import PaymentQR from '../components/PaymentQR.vue'
 
 const router = useRouter()
 const cartItems = ref([])
 const totalPrice = ref(0)
 const isProcessing = ref(false)
+
+// THÊM: Biến quản lý trạng thái hiển thị QR
+const showPaymentQR = ref(false)
+const newOrderId = ref('')
 
 // THÔNG TIN KHÁCH HÀNG (GIỮ NGUYÊN)
 const customer = ref({ 
@@ -36,9 +42,7 @@ const handleCheckout = async () => {
 
     // 1. Lưu đơn hàng vào collection "orders"
     const orderData = {
-      // THÊM: Gắn ID người dùng vào đơn hàng để hiển thị trong lịch sử
       userId: auth.currentUser ? auth.currentUser.uid : null,
-      
       customerName: customer.value.name,
       phone: customer.value.phone,
       address: customer.value.address,
@@ -51,9 +55,11 @@ const handleCheckout = async () => {
       status: 'pending',
       createdAt: serverTimestamp()
     }
-    await addDoc(collection(db, "orders"), orderData)
+    
+    const docRef = await addDoc(collection(db, "orders"), orderData)
+    newOrderId.value = docRef.id
 
-    // 2. Cập nhật số lượng tồn kho (Stock) cho từng sản phẩm (GIỮ NGUYÊN)
+    // 2. Cập nhật số lượng tồn kho (Stock)
     const updatePromises = cartItems.value.map(item => {
       const productRef = doc(db, "products", item.id)
       return updateDoc(productRef, {
@@ -62,11 +68,12 @@ const handleCheckout = async () => {
     })
     await Promise.all(updatePromises)
 
-    // 3. Xóa giỏ hàng và hoàn tất (GIỮ NGUYÊN)
+    // 3. Xóa giỏ hàng và hoàn tất
     localStorage.removeItem('spit_cart')
     window.dispatchEvent(new Event('cart-updated'))
-    alert("Đặt hàng thành công! Đơn hàng của bạn đã được ghi nhận hệ thống.")
-    router.push('/')
+    
+    // Hiện mã QR lên
+    showPaymentQR.value = true
 
   } catch (error) {
     console.error("Lỗi thanh toán:", error)
@@ -122,7 +129,34 @@ const handleCheckout = async () => {
           </button>
         </div>
       </div>
+    </div>
 
+    <div v-if="showPaymentQR" class="fixed inset-0 z-1000 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md"></div>
+      
+      <div class="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-transparent rounded-3xl animate-in fade-in zoom-in duration-300 no-scrollbar">
+        <PaymentQR 
+          :amount="totalPrice" 
+          :orderId="newOrderId" 
+        />
+        <button 
+          @click="router.push('/')" 
+          class="w-full mt-4 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-900/20 transition-all sticky bottom-0"
+        >
+          Tôi đã chuyển khoản - Về trang chủ
+        </button>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Ẩn thanh cuộn để giao diện sạch sẽ hơn */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

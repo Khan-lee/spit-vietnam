@@ -8,7 +8,7 @@ import RevenueChart from '../components/RevenueChart.vue'
 import OrderDetailModal from '../components/OrderDetailModal.vue' 
 import * as XLSX from 'xlsx'
 
-// --- TRẠNG THÁI DỮ LIỆU ---
+// --- TRẠNG THÁI DỮ LIỆU (GIỮ NGUYÊN) ---
 const orders = ref([])
 const products = ref([])
 const contacts = ref([])
@@ -16,7 +16,15 @@ const activeTab = ref('orders')
 const isLoading = ref(true)
 const searchQuery = ref('')
 
-// TRẠNG THÁI MODAL CHI TIẾT
+// --- BỔ SUNG: BỘ LỌC TRẠNG THÁI & PHÂN TRANG (GIỮ NGUYÊN) ---
+const statusFilter = ref('all')
+const currentPage = ref(1)
+const itemsPerPage = 10
+
+// --- THÊM MỚI: BIẾN CHO ĐỐI SOÁT NGÂN HÀNG (KHÔNG XÓA CŨ) ---
+const paymentFilter = ref('all') 
+
+// TRẠNG THÁI MODAL CHI TIẾT (GIỮ NGUYÊN)
 const selectedContact = ref(null)
 const selectedOrder = ref(null) 
 const isModalOpen = ref(false)
@@ -28,7 +36,7 @@ const showToast = (msg, type = 'success') => {
   setTimeout(() => { toast.value.show = false }, 3000)
 }
 
-// --- LOGIC MODAL ---
+// --- LOGIC MODAL (GIỮ NGUYÊN) ---
 const openContactDetail = (item) => {
   selectedContact.value = item
   isModalOpen.value = true
@@ -48,7 +56,7 @@ const closeDetail = () => {
   }, 300)
 }
 
-// --- FETCH DATA ---
+// --- FETCH DATA (GIỮ NGUYÊN) ---
 const fetchData = async () => {
   try {
     isLoading.value = true
@@ -67,7 +75,7 @@ const fetchData = async () => {
   }
 }
 
-// --- LOGIC XỬ LÝ BẢN VẼ ---
+// --- LOGIC XỬ LÝ BẢN VẼ (GIỮ NGUYÊN) ---
 const viewBlueprint = (url) => {
   if (!url) return showToast("Không có bản vẽ!", "error")
   window.open(url, '_blank')
@@ -90,14 +98,44 @@ const downloadBlueprint = async (url, customerName) => {
   }
 }
 
-// --- BỘ LỌC & THỐNG KÊ ---
+// --- BỘ LỌC & THỐNG KÊ (GIỮ LOGIC CŨ + THÊM ĐIỀU KIỆN THANH TOÁN) ---
 const filteredOrders = computed(() => {
-  return orders.value.filter(order => 
-    order.customerName?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-    order.phone?.includes(searchQuery.value) ||
-    order.orderCode?.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
+  return orders.value.filter(order => {
+    const matchSearch = order.customerName?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                       order.phone?.includes(searchQuery.value) ||
+                       order.orderCode?.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchStatus = statusFilter.value === 'all' || order.status === statusFilter.value;
+    
+    // THÊM MỚI: Điều kiện lọc thanh toán (không ảnh hưởng matchStatus cũ)
+    const isPaid = order.status !== 'pending';
+    const matchPayment = paymentFilter.value === 'all' || 
+                        (paymentFilter.value === 'unpaid' && !isPaid) || 
+                        (paymentFilter.value === 'paid' && isPaid);
+
+    return matchSearch && matchStatus && matchPayment;
+  })
 })
+
+const filteredContacts = computed(() => {
+  return contacts.value.filter(contact => {
+    const matchSearch = contact.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                       contact.phone?.includes(searchQuery.value);
+    const matchStatus = statusFilter.value === 'all' || contact.status === statusFilter.value;
+    return matchSearch && matchStatus;
+  })
+})
+
+// LOGIC PHÂN TRANG (GIỮ NGUYÊN)
+const paginatedData = computed(() => {
+  const data = activeTab.value === 'orders' ? filteredOrders.value : filteredContacts.value;
+  const start = (currentPage.value - 1) * itemsPerPage;
+  return data.slice(start, start + itemsPerPage);
+});
+
+const totalPages = computed(() => {
+  const data = activeTab.value === 'orders' ? filteredOrders.value : filteredContacts.value;
+  return Math.ceil(data.length / itemsPerPage);
+});
 
 const conversionRate = computed(() => {
   if (contacts.value.length === 0) return 0
@@ -147,11 +185,12 @@ const topProducts = computed(() => {
     .slice(0, 3)
 })
 
-// --- CÁC HÀNH ĐỘNG KHÁC ---
+// --- CÁC HÀNH ĐỘNG KHÁC (GIỮ NGUYÊN) ---
 const exportToExcel = (data, fileName) => {
   if (data.length === 0) return showToast("Không có dữ liệu!", "error")
   const cleanData = data.map(({ id, createdAt, items, ...rest }) => ({
     'ID': id,
+    'Mã Đơn': id.slice(-6).toUpperCase(), // THÊM THÔNG TIN MỚI VÀO EXCEL
     'Ngày': createdAt?.toDate().toLocaleString('vi-VN') || '',
     'Khách hàng': rest.customerName || rest.name || '',
     'SĐT': rest.phone || '',
@@ -381,8 +420,30 @@ onMounted(fetchData)
             <h1 class="text-3xl font-black text-slate-900 uppercase italic">Quản Lý Hệ Thống</h1>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Bảng điều khiển: SPIT Vietnam</p>
           </div>
-          <div class="flex gap-3">
-            <input v-model="searchQuery" type="text" placeholder="Tìm kiếm nhanh..." class="text-[10px] font-bold px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 ring-blue-500 w-64 bg-white" />
+          <div class="flex flex-wrap gap-3">
+            <div v-if="activeTab === 'orders'" class="flex bg-white rounded-full p-1 border border-slate-200 shadow-sm">
+              <button @click="paymentFilter = 'all'" :class="['px-4 py-1.5 rounded-full text-[9px] font-black uppercase transition-all', paymentFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-400']">Tất cả</button>
+              <button @click="paymentFilter = 'unpaid'" :class="['px-4 py-1.5 rounded-full text-[9px] font-black uppercase transition-all', paymentFilter === 'unpaid' ? 'bg-red-500 text-white' : 'text-slate-400']">Chưa thanh toán</button>
+              <button @click="paymentFilter = 'paid'" :class="['px-4 py-1.5 rounded-full text-[9px] font-black uppercase transition-all', paymentFilter === 'paid' ? 'bg-emerald-500 text-white' : 'text-slate-400']">Đã thanh toán</button>
+            </div>
+
+            <select v-model="statusFilter" class="text-[10px] font-bold px-4 py-2 rounded-full border border-slate-200 focus:outline-none bg-white">
+              <option value="all">Tất cả trạng thái</option>
+              <template v-if="activeTab === 'orders'">
+                <option value="pending">Chờ duyệt</option>
+                <option value="confirmed">Đã duyệt</option>
+                <option value="shipping">Đang giao</option>
+                <option value="completed">Hoàn tất</option>
+              </template>
+              <template v-else>
+                <option value="new">Mới</option>
+                <option value="processing">Đang xử lý</option>
+                <option value="quoted">Đã báo giá</option>
+                <option value="closed">Hoàn tất</option>
+              </template>
+            </select>
+
+            <input v-model="searchQuery" type="text" placeholder="Tìm kiếm nhanh..." class="text-[10px] font-bold px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 ring-blue-500 w-48 md:w-64 bg-white" />
             <button @click="exportToExcel(activeTab === 'orders' ? filteredOrders : contacts, activeTab)" class="text-[9px] font-black text-emerald-600 uppercase italic bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 hover:bg-emerald-500 hover:text-white">📥 Xuất Excel</button>
             <button @click="handleClearData" class="text-[9px] font-black text-red-500 uppercase italic bg-red-50 px-4 py-2 rounded-full border border-red-100 hover:bg-red-500 hover:text-white">Dọn dẹp</button>
           </div>
@@ -438,33 +499,43 @@ onMounted(fetchData)
 
           <div class="lg:col-span-3 space-y-6">
             <div class="bg-white p-2 rounded-4xl shadow-sm border border-slate-100 flex gap-2">
-              <button @click="activeTab = 'orders'" :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all', activeTab === 'orders' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50']">📦 Đơn hàng ({{ orders.length }})</button>
-              <button @click="activeTab = 'contacts'" :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all', activeTab === 'contacts' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50']">📩 Tư vấn ({{ contacts.length }})</button>
+              <button @click="activeTab = 'orders'; currentPage = 1" :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all', activeTab === 'orders' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50']">📦 Đơn hàng ({{ filteredOrders.length }})</button>
+              <button @click="activeTab = 'contacts'; currentPage = 1" :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all', activeTab === 'contacts' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50']">📩 Tư vấn ({{ filteredContacts.length }})</button>
             </div>
 
             <div v-if="activeTab === 'orders'" class="space-y-4">
-              <div v-for="order in filteredOrders" :key="order.id" @click="openOrderDetail(order)" class="bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm cursor-pointer">
+              <div v-for="order in paginatedData" :key="order.id" @click="openOrderDetail(order)" 
+                   :class="['bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm cursor-pointer relative overflow-hidden', order.status === 'pending' ? 'border-l-8 border-red-500' : '']">
+                
                 <div class="flex flex-wrap justify-between items-start gap-4">
                   <div class="flex gap-4">
-                    <div :class="getStatusBadge(order.status)" class="w-12 h-12 flex items-center justify-center rounded-2xl text-xl shrink-0 border font-black italic uppercase">
-                      {{ order.status === 'completed' ? '✅' : '⏳' }}
+                    <div :class="getStatusBadge(order.status)" class="w-12 h-12 flex flex-col items-center justify-center rounded-2xl text-[10px] shrink-0 border font-black italic uppercase leading-none">
+                      <span class="opacity-40 text-[7px] mb-1">ID</span>
+                      {{ order.id.slice(-6).toUpperCase() }}
                     </div>
                     <div>
                       <div class="flex items-center gap-2">
                         <h4 class="text-xs font-black text-slate-800 uppercase italic">{{ order.customerName }}</h4>
                         <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || 1 }}</span>
                         <span v-if="order.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
+                        <span v-if="order.status === 'pending'" class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA TRẢ TIỀN</span>
                       </div>
                       <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">{{ order.phone }} • {{ order.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
                     </div>
                   </div>
-                  <div class="text-right">
-                    <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
-                    <div class="flex gap-2 mt-3 justify-end">
-                      <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" class="text-[9px] font-black text-blue-600 uppercase border border-blue-600 px-3 py-1.5 rounded-lg">Duyệt</button>
-                      <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg">Giao</button>
-                      <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg">Xong</button>
-                      <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100">🗑️</button>
+                  <div class="text-right flex items-center gap-6">
+                    <div>
+                      <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                      <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" 
+                              class="text-[9px] font-black bg-red-600 text-white uppercase px-6 py-2 rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-all scale-110">
+                        Đã nhận tiền 💰
+                      </button>
+
+                      <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-600 hover:text-white transition-colors">Giao</button>
+                      <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Xong</button>
+                      <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
                     </div>
                   </div>
                 </div>
@@ -474,7 +545,7 @@ onMounted(fetchData)
             <div v-if="activeTab === 'contacts'" class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
               <table class="w-full text-left">
                 <tbody class="divide-y divide-slate-50">
-                  <tr v-for="item in contacts" :key="item.id" @click="openContactDetail(item)" class="hover:bg-blue-50/50 group transition-all cursor-pointer">
+                  <tr v-for="item in paginatedData" :key="item.id" @click="openContactDetail(item)" class="hover:bg-blue-50/50 group transition-all cursor-pointer">
                     <td class="p-6">
                       <div class="flex items-center gap-2">
                         <div class="text-[11px] font-black text-slate-800 uppercase italic">{{ item.name }}</div>
@@ -500,6 +571,16 @@ onMounted(fetchData)
                 </tbody>
               </table>
             </div>
+
+            <div v-if="totalPages > 1" class="flex justify-center items-center gap-4 py-6">
+              <button @click="currentPage--" :disabled="currentPage === 1" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center disabled:opacity-30 bg-white shadow-sm">←</button>
+              <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Trang {{ currentPage }} / {{ totalPages }}</span>
+              <button @click="currentPage++" :disabled="currentPage === totalPages" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center disabled:opacity-30 bg-white shadow-sm">→</button>
+            </div>
+            
+            <div v-if="paginatedData.length === 0" class="p-20 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200">
+               <p class="text-xs font-bold text-slate-400 uppercase italic">Không tìm thấy dữ liệu phù hợp</p>
+            </div>
           </div>
         </div>
       </div>
@@ -515,4 +596,5 @@ onMounted(fetchData)
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .animate-slide-up { animation: slide-up 0.4s ease-out; }
+button:active { transform: scale(0.95); }
 </style>
