@@ -138,7 +138,7 @@ const changeLanguage = (event) => {
 
     <div v-if="isMobileMenuOpen" class="fixed inset-0 z-200 lg:hidden">
       <div @click="isMobileMenuOpen = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
-      <div class="absolute top-0 right-0 h-full w-72 bg-white shadow-2xl flex flex-col p-8 animate-slide-in">
+      <div class="absolute top-0 right-0 h-full w-72 bg-white shadow-2xl flex flex-col p-8 animate-slide-in overflow-y-auto max-h-screen">
         <button @click="isMobileMenuOpen = false" class="self-end p-2 text-slate-400 hover:text-primary mb-8">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>

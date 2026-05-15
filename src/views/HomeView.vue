@@ -6,6 +6,16 @@ import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
 import BrandMarquee from '../components/BrandMarquee.vue'
 
+// Import Swiper Vue.js components & modules
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { Autoplay, Pagination, Navigation, EffectFade } from 'swiper/modules'
+
+// Import Swiper styles
+import 'swiper/css'
+import 'swiper/css/pagination'
+import 'swiper/css/navigation'
+import 'swiper/css/effect-fade'
+
 const { locale, t } = useI18n()
 
 const products = ref([])
@@ -13,6 +23,25 @@ const promotions = ref([])
 const isLoading = ref(true)
 const selectedCategory = ref('all') 
 const currentTime = ref(new Date()) 
+
+const swiperModules = [Autoplay, Pagination, Navigation, EffectFade]
+
+// Dữ liệu Banners cho Slider
+const mainBanners = ref([
+  {
+    id: 1,
+    image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
+    useI18n: true // Sử dụng dịch từ file ngôn ngữ
+  },
+  {
+    id: 2,
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=2070',
+    title: 'VOUCHER <span class="text-primary">ƯU ĐÃI CỰC ĐÃ</span>',
+    subtitle: 'KHI MUA 5 HỘP INSERT TẶNG NGAY 1 CÁN DAO',
+    desc: 'Áp dụng cho tất cả các dòng sản phẩm INSERT tại SPIT.',
+    useI18n: false
+  }
+])
 
 let timer
 onMounted(() => {
@@ -112,13 +141,47 @@ onMounted(fetchData)
       </div>
     </Transition>
 
-    <section class="relative bg-slate-900 text-white py-20 px-6 md:px-12 overflow-hidden">
-      <img src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070" class="absolute inset-0 w-full h-full object-cover opacity-30" />
-      <div class="relative z-10 max-w-4xl">
-        <h1 class="text-4xl md:text-6xl font-black uppercase italic leading-tight mb-4" v-html="$t('home.hero_title')"></h1>
-        <p class="text-slate-300 max-w-xl mb-8 font-medium">{{ $t('home.hero_subtitle') }}</p>
-        <!-- Đã xóa div chứa button ở đây -->
-      </div>
+    <section class="relative h-125 md:h-187.5 bg-slate-900 text-white overflow-hidden">
+      <swiper
+        :modules="swiperModules"
+        :slides-per-view="1"
+        :loop="true"
+        :effect="'fade'"
+        :fade-effect="{ crossFade: true }"
+        :autoplay="{ delay: 5000, disableOnInteraction: false }"
+        :pagination="{ clickable: true }"
+        :navigation="true"
+        class="h-full w-full"
+      >
+        <swiper-slide v-for="banner in mainBanners" :key="banner.id" class="overflow-hidden">
+          <div class="relative h-full w-full flex items-center">
+            
+            <img :src="banner.image" class="absolute inset-0 w-full h-full object-cover opacity-40 z-0 transition-transform duration-10000 swiper-slide-active:scale-110" />
+            
+            <div class="absolute inset-0 bg-linear-to-r from-slate-900 via-slate-900/60 to-transparent z-1"></div>
+
+            <div class="relative z-10 container mx-auto px-6 md:px-20">
+              <div class="max-w-4xl space-y-6 content-wrapper">
+                <template v-if="banner.useI18n">
+                  <h1 class="text-4xl md:text-7xl font-black uppercase italic leading-[1.1] tracking-tighter" v-html="$t('home.hero_title')"></h1>
+                  <p class="text-slate-300 max-w-xl font-medium text-lg md:text-xl">{{ $t('home.hero_subtitle') }}</p>
+                </template>
+                <template v-else>
+                  <h2 class="text-primary text-lg md:text-2xl font-black uppercase tracking-[0.3em] mb-2">{{ banner.subtitle }}</h2>
+                  <h1 class="text-4xl md:text-7xl font-black uppercase leading-[1.1] tracking-tighter" v-html="banner.title"></h1>
+                  <p class="text-slate-200 max-w-xl font-medium text-lg opacity-90">{{ banner.desc }}</p>
+                </template>
+                
+                <div class="pt-4">
+                    <router-link to="/products" class="inline-block bg-primary hover:bg-red-700 text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20">
+                        Khám phá ngay
+                    </router-link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </swiper-slide>
+      </swiper>
     </section>
 
     <NewsSection />
@@ -187,6 +250,22 @@ onMounted(fetchData)
 </template>
 
 <style scoped>
+/* Custom Pagination & Navigation Swiper */
+:deep(.swiper-pagination-bullet) {
+  background: white;
+  opacity: 0.5;
+}
+:deep(.swiper-pagination-bullet-active) {
+  background: #dc2626 !important; /* Màu primary đỏ */
+  opacity: 1;
+  width: 25px;
+  border-radius: 4px;
+}
+:deep(.swiper-button-next), :deep(.swiper-button-prev) {
+  color: white;
+  transform: scale(0.6);
+}
+
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.5s ease; }
 .slide-down-enter-from, .slide-down-leave-to { transform: translateY(-100%); }
 

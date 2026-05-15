@@ -11,6 +11,7 @@ const loading = ref(true)
 const selectedCategory = ref('Tất cả')
 const selectedBrand = ref('Tất cả Hãng')
 const currentTime = ref(new Date()) // Để cập nhật đồng hồ đếm ngược
+const localSearch = ref('') // Thanh tìm kiếm tại trang
 
 // Cập nhật thời gian mỗi giây
 let timer
@@ -91,8 +92,12 @@ const filteredProducts = computed(() => {
     const currentName = p.name_vi || p.name
     const matchCat = selectedCategory.value === 'Tất cả' || currentCat === selectedCategory.value
     const matchBrand = selectedBrand.value === 'Tất cả Hãng' || p.brand === selectedBrand.value
-    const matchSearch = !props.searchQuery || 
-      [currentName, p.brand, currentCat].some(f => f?.toLowerCase().includes(props.searchQuery.toLowerCase().trim()))
+    
+    // Ưu tiên localSearch, nếu không có thì dùng searchQuery từ props
+    const query = localSearch.value.trim() || props.searchQuery?.trim() || ''
+    const matchSearch = !query || 
+      [currentName, p.brand, currentCat].some(f => f?.toLowerCase().includes(query.toLowerCase()))
+    
     return matchCat && matchBrand && matchSearch
   })
 })
@@ -115,6 +120,23 @@ onMounted(fetchData)
           SPIT <span class="text-red-600">COLLECTION</span>
         </h1>
         <div class="h-1 w-12 bg-red-600 mx-auto mt-2"></div>
+      </div>
+
+      <div class="max-w-2xl mx-auto mb-10 relative group px-4">
+        <div class="absolute inset-y-0 left-8 flex items-center pointer-events-none">
+          <svg class="w-4 h-4 text-slate-400 group-focus-within:text-red-600 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </div>
+        <input 
+          v-model="localSearch"
+          type="text" 
+          placeholder="TÌM KIẾM SẢN PHẨM TẠI ĐÂY..."
+          class="w-full bg-slate-50 border-2 border-transparent focus:border-red-600/10 focus:bg-white py-4 pl-14 pr-6 rounded-2xl text-[11px] font-black uppercase tracking-widest outline-none transition-all shadow-sm"
+        />
+        <button v-if="localSearch" @click="localSearch = ''" class="absolute inset-y-0 right-8 flex items-center text-slate-400 hover:text-red-600">
+          <span class="text-[10px] font-black">XOÁ</span>
+        </button>
       </div>
 
       <div class="sticky top-20 z-30 bg-white/80 backdrop-blur-md py-4 mb-12 border-y border-slate-100 flex flex-wrap items-center justify-center gap-6">
@@ -202,7 +224,7 @@ onMounted(fetchData)
 
         <div v-else class="text-center py-40">
           <p class="text-slate-300 font-black uppercase tracking-[0.5em] text-xs">No Results Found</p>
-          <button @click="selectedBrand = 'Tất cả Hãng'; selectedCategory = 'Tất cả'" class="mt-4 text-[10px] font-bold underline uppercase tracking-widest text-red-600">Reset Filters</button>
+          <button @click="selectedBrand = 'Tất cả Hãng'; selectedCategory = 'Tất cả'; localSearch = ''" class="mt-4 text-[10px] font-bold underline uppercase tracking-widest text-red-600">Reset Filters</button>
         </div>
       </div>
     </div>
