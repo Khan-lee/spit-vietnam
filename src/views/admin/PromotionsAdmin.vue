@@ -201,7 +201,7 @@ onMounted(() => {
           </div>
           
           <div class="flex items-center gap-4">
-            <button @click="toggleStatus(promo)" 
+            <button @click="toggleStatus(promo)"
                     class="px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
                     :class="promo.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">
               {{ promo.is_active ? 'Đang chạy' : 'Đã dừng' }}

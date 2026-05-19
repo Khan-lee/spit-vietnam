@@ -24,6 +24,10 @@ const promotionType = ref('percentage')
 const promotionValue = ref('')
 const activePromotions = ref([]) 
 
+// --- [MỚI] BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
+const subImages = ref([])       // Lưu các chuỗi URL (ảnh đã có trên server hoặc link ngoài)
+const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy tính để chuẩn bị upload
+
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -122,6 +126,43 @@ const uploadImage = async () => {
   return await getDownloadURL(fileRef)
 }
 
+// --- [MỚI] XỬ LÝ LỰA CHỌN NHIỀU ẢNH PHỤ ---
+const onSubFilesChange = (e) => {
+  const files = Array.from(e.target.files)
+  files.forEach(file => {
+    subImageFiles.value.push(file)
+    subImages.value.push(URL.createObjectURL(file))
+  })
+}
+
+// --- [MỚI] XÓA ẢNH PHỤ KHỎI DANH SÁCH CHỌN TẠM ---
+const removeSubImage = (index) => {
+  subImages.value.splice(index, 1)
+  subImageFiles.value.splice(index, 1)
+}
+
+// --- [MỚI] HÀM UPLOAD TOÀN BỘ ẢNH PHỤ LÊN STORAGE ---
+const uploadSubImages = async () => {
+  const uploadedUrls = []
+  
+  for (let i = 0; i < subImages.value.length; i++) {
+    const currentUrl = subImages.value[i]
+    const currentFile = subImageFiles.value[i]
+
+    if (currentFile) {
+      // Nếu là file mới chọn từ máy -> Tiến hành upload lên Storage
+      const fileRef = storageRef(storage, `products/subs/${Date.now()}_${currentFile.name}`)
+      await uploadBytes(fileRef, currentFile)
+      const downloadUrl = await getDownloadURL(fileRef)
+      uploadedUrls.push(downloadUrl)
+    } else if (currentUrl && !currentUrl.startsWith('blob:')) {
+      // Nếu là URL cũ đã có sẵn từ trước khi sửa sản phẩm -> Giữ nguyên URL
+      uploadedUrls.push(currentUrl)
+    }
+  }
+  return uploadedUrls
+}
+
 const fetchProducts = async () => {
   const querySnapshot = await getDocs(collection(db, "products"))
   products.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -133,6 +174,8 @@ const handleSubmit = async () => {
   try {
     isSubmitting.value = true
     const finalImageUrl = await uploadImage()
+    // [MỚI] Chạy tiến trình tải mảng ảnh phụ lên Firebase Storage
+    const finalSubImageUrls = await uploadSubImages()
 
     const data = {
       name_vi: name_vi.value,
@@ -148,6 +191,8 @@ const handleSubmit = async () => {
       price: Number(price.value),
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
+      // [MỚI] Đưa mảng dữ liệu ảnh chi tiết vào trường cấu trúc mới
+      sub_images: finalSubImageUrls,
       updatedAt: serverTimestamp()
     }
 
@@ -190,6 +235,10 @@ const startEdit = (p) => {
   image.value = p.image || '';
   imageFile.value = null;
 
+  // [MỚI] Đọc dữ liệu ảnh phụ đã có của sản phẩm khi ấn sửa
+  subImages.value = p.sub_images ? [...p.sub_images] : []
+  subImageFiles.value = p.sub_images ? new Array(p.sub_images.length).fill(null) : []
+
   if (p.displayPromoValue && p.displayPromoValue !== '0') {
     hasPromotion.value = true
     promotionType.value = p.displayPromoType || 'percentage'
@@ -218,6 +267,10 @@ const resetForm = () => {
   brand.value = ''; price.value = 0; stock.value = 0; image.value = '';
   imageFile.value = null;
   hasPromotion.value = false; promotionValue.value = '';
+
+  // [MỚI] Làm sạch mảng quản lý ảnh bổ sung
+  subImages.value = []
+  subImageFiles.value = []
 }
 </script>
 
@@ -260,6 +313,24 @@ const resetForm = () => {
                        <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
                     </div>
                   </div>
+
+                  <div class="mt-4 pt-4 border-t border-slate-100">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
+                    
+                    <div class="grid grid-cols-4 gap-2">
+                      <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
+                        <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+                        <span class="text-sm font-bold text-slate-400">+ Ảnh</span>
+                      </div>
+
+                      <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb">
+                        <img :src="imgUrl" class="w-full h-full object-contain" />
+                        <button type="button" @click="removeSubImage(index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="space-y-4">
@@ -296,7 +367,7 @@ const resetForm = () => {
                       <label for="promo" class="text-[10px] font-black uppercase text-slate-700 italic">Khuyến mãi (nếu có)</label>
                     </div>
                     
-                    <div v-if="hasPromotion" class="grid grid-cols-2 gap-2 mt-3 animate-slide-up">
+                    <div class="v-if='hasPromotion' grid grid-cols-2 gap-2 mt-3 animate-slide-up" v-if="hasPromotion">
                       <select v-model="promotionType" class="p-2 bg-white rounded-xl text-[10px] font-bold border border-slate-100 outline-none">
                         <option value="percentage">Phần trăm (%)</option>
                         <option value="fixed">Tiền mặt (VNĐ)</option>

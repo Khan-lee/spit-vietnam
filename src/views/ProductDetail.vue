@@ -16,6 +16,9 @@ const toastMessage = ref('')
 // --- BIẾN LƯU TRỮ CHIẾN DỊCH KHUYẾN MÃI ĐANG CHẠY ---
 const activePromotions = ref([])
 
+// --- [MỚI] BIẾN QUẢN LÝ ẢNH ĐANG ĐƯỢC CHỌN HIỂN THỊ LỚN ---
+const activeImage = ref('')
+
 // --- HÀM XỬ LÝ SỐ CỰC MẠNH (Trị dấu phẩy) ---
 const cleanNumber = (val) => {
   if (val === undefined || val === null || val === '') return 0;
@@ -114,7 +117,13 @@ onMounted(async () => {
     await fetchActivePromotions();
     const docRef = doc(db, "products", route.params.id)
     const docSnap = await getDoc(docRef)
-    if (docSnap.exists()) product.value = { id: docSnap.id, ...docSnap.data() }
+    if (docSnap.exists()) {
+      product.value = { id: docSnap.id, ...docSnap.data() }
+      // [MỚI] Thiết lập ảnh lớn mặc định ban đầu chính là ảnh đại diện của sản phẩm
+      if (product.value.image) {
+        activeImage.value = product.value.image
+      }
+    }
   } catch (error) {
     console.error("Lỗi:", error)
   } finally {
@@ -136,13 +145,28 @@ onMounted(async () => {
     <div class="container mx-auto max-w-6xl py-12 md:py-20 px-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-start bg-white p-8 md:p-12 rounded-[3rem] border border-slate-100 shadow-xl">
         
-        <div class="relative bg-slate-50 p-10 rounded-[2.5rem] border border-slate-100 flex items-center justify-center aspect-square shadow-inner lg:sticky lg:top-24">
-          <div v-if="hasPromo(product)" 
-               class="absolute top-6 left-6 z-10 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg animate-bounce"
-               :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-orange-500' : 'bg-red-600'">
-            {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
+        <div class="lg:sticky lg:top-24 space-y-4 w-full">
+          <div class="relative bg-slate-50 p-10 rounded-[2.5rem] border border-slate-100 flex items-center justify-center aspect-square shadow-inner">
+            <div v-if="hasPromo(product)" 
+                 class="absolute top-6 left-6 z-10 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg animate-bounce"
+                 :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-orange-500' : 'bg-red-600'">
+              {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
+            </div>
+            <img :src="activeImage" class="max-h-full object-contain hover:scale-105 transition-transform duration-500" />
           </div>
-          <img :src="product.image" class="max-h-full object-contain hover:scale-105 transition-transform duration-500" />
+
+          <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-2 justify-center lg:justify-start">
+            <div @click="activeImage = product.image" 
+                 :class="['w-16 h-16 p-1 rounded-xl bg-slate-50 border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-blue-600 shadow-md' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="product.image" class="max-h-full max-w-full object-contain rounded-lg" />
+            </div>
+
+            <div v-for="(subImg, index) in product.sub_images" :key="index"
+                 @click="activeImage = subImg"
+                 :class="['w-16 h-16 p-1 rounded-xl bg-slate-50 border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-blue-600 shadow-md' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="subImg" class="max-h-full max-w-full object-contain rounded-lg" />
+            </div>
+          </div>
         </div>
         
         <div class="space-y-8">
