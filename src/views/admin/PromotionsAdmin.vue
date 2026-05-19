@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue' // Thêm computed
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase'
 
@@ -8,7 +8,10 @@ const promotions = ref([])
 const products = ref([])
 const loading = ref(false)
 
-// State cho Form thêm mới (ĐÃ THÊM: start_date, end_date)
+// [MỚI] State lưu từ khóa tìm kiếm sản phẩm trong admin
+const adminSearchQuery = ref('')
+
+// State cho Form thêm mới (ĐÃ THÊM: start_date, end_date) - GIỮ NGUYÊN
 const newPromo = ref({
   title: '',
   discount_type: 'percentage', // percentage hoặc fixed_amount
@@ -20,13 +23,29 @@ const newPromo = ref({
   is_active: true
 })
 
-// 1. Lấy danh sách sản phẩm để chọn (Multi-select)
+// 1. Lấy danh sách sản phẩm để chọn (Multi-select) - CẬP NHẬT lấy thêm brand để lọc hãng
 const fetchProducts = async () => {
   const snap = await getDocs(collection(db, "products"))
-  products.value = snap.docs.map(d => ({ id: d.id, name: d.data().name_vi || d.data().name }))
+  products.value = snap.docs.map(d => ({ 
+    id: d.id, 
+    name: d.data().name_vi || d.data().name,
+    brand: d.data().brand || '' // Lấy thêm hãng phục vụ việc search
+  }))
 }
 
-// 2. Lấy danh sách khuyến mãi hiện có
+// [MỚI] Logic lọc sản phẩm hiển thị trong ô select dựa trên từ khóa nhập vào
+const filteredAdminProducts = computed(() => {
+  const queryText = adminSearchQuery.value.toLowerCase().trim()
+  if (!queryText) return products.value
+  
+  return products.value.filter(p => {
+    const nameMatch = p.name.toLowerCase().includes(queryText)
+    const brandMatch = p.brand.toLowerCase().includes(queryText)
+    return nameMatch || brandMatch
+  })
+})
+
+// 2. Lấy danh sách khuyến mãi hiện có - GIỮ NGUYÊN
 const fetchPromotions = async () => {
   loading.value = true
   try {
@@ -39,7 +58,7 @@ const fetchPromotions = async () => {
   loading.value = false
 }
 
-// 3. Xử lý thêm khuyến mãi
+// 3. Xử lý thêm khuyến mãi - GIỮ NGUYÊN
 const handleAddPromo = async () => {
   // THÊM KIỂM TRA THỜI GIAN
   if (!newPromo.value.title || newPromo.value.discount_value <= 0 || !newPromo.value.start_date || !newPromo.value.end_date) {
@@ -73,14 +92,14 @@ const handleAddPromo = async () => {
   }
 }
 
-// 4. Bật/Tắt khuyến mãi nhanh
+// 4. Bật/Tắt khuyến mãi nhanh - GIỮ NGUYÊN
 const toggleStatus = async (promo) => {
   const promoRef = doc(db, "promotions", promo.id)
   await updateDoc(promoRef, { is_active: !promo.is_active })
   fetchPromotions()
 }
 
-// 5. Xóa khuyến mãi
+// 5. Xóa khuyến mãi - GIỮ NGUYÊN
 const handleDelete = async (id) => {
   if(confirm("Bạn có chắc muốn xóa khuyến mãi này?")) {
     await deleteDoc(doc(db, 'promotions', id))
@@ -135,11 +154,27 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="text-xs font-bold text-slate-500 uppercase">Sản phẩm áp dụng</label>
-            <select v-model="newPromo.applied_ids" multiple class="w-full mt-1 p-2 border rounded-lg text-sm h-32">
-              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+            <label class="text-xs font-bold text-slate-500 uppercase flex justify-between items-center">
+              <span>Sản phẩm áp dụng</span>
+              <span v-if="adminSearchQuery" class="text-[10px] text-red-500 normal-case">Đang lọc...</span>
+            </label>
+            
+            <input 
+              v-model="adminSearchQuery" 
+              type="text" 
+              placeholder="🔍 Gõ hãng (Norton, Achteck...) hoặc tên..." 
+              class="w-full mt-1 mb-2 p-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-red-500 transition-all font-medium"
+            />
+
+            <select v-model="newPromo.applied_ids" multiple class="w-full p-2 border rounded-lg text-sm h-32 focus:border-slate-400 outline-none">
+              <option v-for="p in filteredAdminProducts" :key="p.id" :value="p.id">
+                {{ p.brand ? `[${p.brand.toUpperCase()}] ` : '' }}{{ p.name }}
+              </option>
             </select>
-            <p class="text-[10px] text-slate-400 mt-1">* Giữ Ctrl để chọn nhiều sản phẩm</p>
+            <div class="flex justify-between items-center mt-1 text-[10px] text-slate-400">
+              <p>* Giữ Ctrl để chọn nhiều sản phẩm</p>
+              <p v-if="adminSearchQuery">Tìm thấy: {{ filteredAdminProducts.length }}</p>
+            </div>
           </div>
 
           <button @click="handleAddPromo" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-slate-900 transition-colors uppercase text-xs tracking-widest">
@@ -184,3 +219,7 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Giữ nguyên CSS cũ của bạn */
+</style>
