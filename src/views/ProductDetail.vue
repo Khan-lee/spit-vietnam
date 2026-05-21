@@ -187,17 +187,17 @@ onMounted(async () => {
             </div>
           </div>
           
-          <div class="p-8 rounded-[2.5rem] transition-all duration-500" 
+          <div class="p-5 sm:p-8 rounded-[2.5rem] transition-all duration-500" 
                :class="hasPromo(product) ? 'bg-red-50 border-red-100 shadow-red-100/50 shadow-lg' : 'bg-slate-900 border-slate-800 text-white shadow-2xl'">
                <div class="flex flex-col gap-1">
-                 <div v-if="hasPromo(product)" class="text-slate-400 font-bold text-lg line-through opacity-60">
+                 <div v-if="hasPromo(product)" class="text-slate-400 font-bold text-sm sm:text-lg line-through opacity-60 whitespace-nowrap">
                    {{ cleanNumber(product.price).toLocaleString('vi-VN') }} VNĐ
                  </div>
                  
-                 <div class="text-6xl font-black tracking-tight flex items-baseline gap-1.5"
+                 <div class="text-3xl min-[390px]:text-4xl sm:text-5xl md:text-6xl font-black tracking-tight flex items-baseline gap-1.5 whitespace-nowrap"
                       :class="hasPromo(product) ? 'text-red-600' : 'text-white'">
                    {{ getDiscountedPrice(product).toLocaleString('vi-VN') }} 
-                   <span class="text-xl font-bold opacity-40 uppercase">VNĐ</span>
+                   <span class="text-xs min-[390px]:text-sm sm:text-base md:text-xl font-bold opacity-40 uppercase shrink-0">VNĐ</span>
                  </div>
                </div>
           </div>

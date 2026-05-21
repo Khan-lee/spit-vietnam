@@ -115,7 +115,6 @@ const filteredOrders = computed(() => {
     return matchSearch && matchStatus && matchPayment;
   })
 })
-
 const filteredContacts = computed(() => {
   return contacts.value.filter(contact => {
     const matchSearch = contact.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
@@ -124,31 +123,26 @@ const filteredContacts = computed(() => {
     return matchSearch && matchStatus;
   })
 })
-
 // LOGIC PHÂN TRANG (GIỮ NGUYÊN)
 const paginatedData = computed(() => {
   const data = activeTab.value === 'orders' ? filteredOrders.value : filteredContacts.value;
   const start = (currentPage.value - 1) * itemsPerPage;
   return data.slice(start, start + itemsPerPage);
 });
-
 const totalPages = computed(() => {
   const data = activeTab.value === 'orders' ? filteredOrders.value : filteredContacts.value;
   return Math.ceil(data.length / itemsPerPage);
 });
-
 const conversionRate = computed(() => {
   if (contacts.value.length === 0) return 0
   const successfulOrders = orders.value.filter(o => o.status !== 'pending').length
   return ((successfulOrders / contacts.value.length) * 100).toFixed(1)
 })
-
 const totalRevenue = computed(() => {
   return orders.value
     .filter(o => o.status === 'completed')
     .reduce((s, o) => s + (Number(o.totalPrice) || 0), 0)
 })
-
 const monthlyRevenueData = computed(() => {
   const revenueArray = new Array(12).fill(0)
   orders.value.forEach(order => {
@@ -168,9 +162,7 @@ const monthlyRevenueData = computed(() => {
     }]
   }
 })
-
 const lowStock = computed(() => products.value.filter(p => p.stock <= 5))
-
 const topProducts = computed(() => {
   const counts = {}
   orders.value.forEach(order => {
@@ -184,21 +176,41 @@ const topProducts = computed(() => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
 })
-
 // --- CÁC HÀNH ĐỘNG KHÁC (GIỮ NGUYÊN) ---
 const exportToExcel = (data, fileName) => {
   if (data.length === 0) return showToast("Không có dữ liệu!", "error")
-  const cleanData = data.map(({ id, createdAt, items, ...rest }) => ({
-    'ID': id,
-    'Mã Đơn': id.slice(-6).toUpperCase(), // THÊM THÔNG TIN MỚI VÀO EXCEL
-    'Ngày': createdAt?.toDate().toLocaleString('vi-VN') || '',
-    'Khách hàng': rest.customerName || rest.name || '',
-    'SĐT': rest.phone || '',
-    'Email': rest.email || rest.contractEmail || '',
-    'Công ty': rest.companyName || '',
-    'Địa chỉ': rest.companyAddress || '',
-    'Sản phẩm': rest.productName || ''
-  }))
+  
+  const cleanData = data.map((item) => {
+    // 1. XỬ LÝ CỘT SẢN PHẨM (Hỗ trợ cả mảng items/products của Đơn hàng và chuỗi productName của Tư vấn)
+    let sanPhamText = item.productName || item.name || '';
+    
+    // Nếu là Đơn hàng và có chứa mảng danh sách sản phẩm (items hoặc products)
+    const productArray = item.items || item.products;
+    if (Array.isArray(productArray) && productArray.length > 0) {
+      sanPhamText = productArray
+        .map(p => `${p.name || p.productName || ''} (SL: ${p.quantity || p.sl || 1})`)
+        .join('\n'); // Xuống dòng nếu ô có nhiều sản phẩm
+    }
+
+    // 2. XỬ LÝ CỘT ĐỊA CHỈ (Quét hết các key có thể có của cả Đơn hàng lẫn Tư vấn)
+    const diaChiText = item.companyAddress || item.address || item.shippingAddress || item.diaChi || 'Chưa cập nhật';
+
+    return {
+      'ID': item.id,
+      'Mã Đơn': item.id ? item.id.slice(-6).toUpperCase() : '',
+      'Ngày': item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '',
+      'Khách hàng': item.customerName || item.name || '',
+      'SĐT': item.phone || '',
+      'Email': item.email || item.contractEmail || '',
+      'Công ty': item.companyName || item.company || '',
+      
+      // Đã được cấu hình tự động nhận diện linh hoạt
+      'Địa chỉ': diaChiText,
+      'Sản phẩm': sanPhamText
+    }
+  })
+
+  // Tiến hành tạo và tải file Excel
   const worksheet = XLSX.utils.json_to_sheet(cleanData)
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, "Data")
@@ -484,7 +496,7 @@ onMounted(fetchData)
               <h3 class="text-blue-600 font-black uppercase text-[10px] mb-4 italic">🏆 Sản phẩm tiêu biểu</h3>
               <div class="space-y-4">
                 <div v-for="(p, index) in topProducts" :key="index" class="flex items-center gap-3">
-                  <span class="text-xs font-black text-slate-300">0{{ index + 1 }}</span>
+                  <span class="text-xs font-black text-slate-300">02026</span>
                   <div class="flex-1 min-w-0">
                     <p class="text-[10px] font-black uppercase text-slate-700 truncate">{{ p.name }}</p>
                     <div class="w-full bg-slate-100 h-1 rounded-full mt-1">
@@ -594,7 +606,7 @@ onMounted(fetchData)
 .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-@keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); } }
 .animate-slide-up { animation: slide-up 0.4s ease-out; }
 button:active { transform: scale(0.95); }
 </style>
