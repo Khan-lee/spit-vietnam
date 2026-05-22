@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#f8fafc] font-sans antialiased text-slate-800">
+  <div class="min-h-screen bg-[#f8fafc] p-4 lg:p-8 font-sans">
     
     <div class="relative py-28 md:py-36 bg-slate-950 text-white overflow-hidden flex items-center justify-center">
       <div class="absolute inset-0 z-0 select-none pointer-events-none">
@@ -121,18 +121,27 @@
             <h3 class="text-lg font-black uppercase text-slate-800">Đối tác chiến lược toàn cầu</h3>
           </div>
           
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-            <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center font-black text-xs text-slate-400 uppercase tracking-widest hover:text-red-600 hover:bg-red-50/30 transition-all cursor-default select-none">
-              NORTON
-            </div>
-            <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center font-black text-xs text-slate-400 uppercase tracking-widest hover:text-red-600 hover:bg-red-50/30 transition-all cursor-default select-none">
-              DIJET
-            </div>
-            <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center font-black text-xs text-slate-400 uppercase tracking-widest hover:text-red-600 hover:bg-red-50/30 transition-all cursor-default select-none">
-              ACHTECK
-            </div>
-            <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center font-black text-xs text-slate-400 uppercase tracking-widest hover:text-red-600 hover:bg-red-50/30 transition-all cursor-default select-none">
-              & MORE BRAND
+          <div v-if="isLoadingBrands" class="text-center py-10 text-slate-400 text-sm font-bold uppercase tracking-wider">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-red-600 border-t-transparent mx-auto mb-2"></div>
+            Đang tải danh sách nhãn hàng...
+          </div>
+          
+          <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+            <div 
+              v-for="brand in brands" 
+              :key="brand.id"
+              @click="$router.push('/brand/' + brand.id)"
+              class="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center h-28 hover:bg-red-50/30 transition-all cursor-pointer select-none"
+            >
+              <img 
+                v-if="brand.logoUrl" 
+                :src="brand.logoUrl" 
+                :alt="brand.name" 
+                class="max-h-12 max-w-full object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
+              />
+              <span v-else class="font-black text-xs text-slate-400 uppercase tracking-widest">
+                {{ brand.name }}
+              </span>
             </div>
           </div>
         </div>
@@ -145,25 +154,46 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { db } from '../firebase'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore'
 
 const aboutData = ref({
   title: '',
   content: '',
   imageUrl: ''
 })
+const brands = ref([])
 const loading = ref(true)
+const isLoadingBrands = ref(true)
 let unsubscribe = null
 
+const fetchBrands = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'brands'))
+    const fetchedBrands = []
+    querySnapshot.forEach((doc) => {
+      fetchedBrands.push({
+        id: doc.id,
+        ...doc.data()
+      })
+    })
+    brands.value = fetchedBrands
+  } catch (error) {
+    console.error("Lỗi khi lấy dữ liệu nhãn hàng từ collection brands:", error)
+  } finally {
+    isLoadingBrands.value = false
+  }
+}
+
 onMounted(() => {
+  // 1. Fetch danh sách nhãn hàng từ collection brands có sẵn
+  fetchBrands()
+
+  // 2. Lắng nghe real-time cấu hình trang giới thiệu chính
   const docRef = doc(db, 'settings', 'about')
-  
-  // Real-time lắng nghe từ Firestore settings/about
   unsubscribe = onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       aboutData.value = docSnap.data()
     } else {
-      // Data fallback nếu Database trống
       aboutData.value = {
         title: 'Sài Gòn Precision Industrial Tool',
         content: '<p>Chào mừng bạn đến với SPIT. Chúng tôi cung cấp các giải pháp công cụ công nghiệp chính xác hoàn hảo...</p>',
@@ -172,19 +202,17 @@ onMounted(() => {
     }
     loading.value = false
   }, (error) => {
-    console.error("Lỗi khi lắng nghe dữ liệu:", error)
+    console.error("Lỗi khi lắng nghe dữ liệu settings/about:", error)
     loading.value = false
   })
 })
 
-// Hủy đăng ký lắng nghe khi component bị unmount để tối ưu tài nguyên
 onUnmounted(() => {
   if (unsubscribe) unsubscribe()
 })
 </script>
 
 <style scoped>
-/* Reset nhẹ CSS v-html để định dạng các thẻ p trong phần văn bản giới thiệu */
 :deep(.custom-about-content p) {
   margin-bottom: 1.25rem;
   line-height: 1.75;

@@ -1,3 +1,5 @@
+// 1. Import component ở phía trên cùng của file router
+import BrandAdminView from '../views/BrandAdminView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { getAuth, onAuthStateChanged } from "firebase/auth"
@@ -10,6 +12,13 @@ NProgress.configure({ showSpinner: false, speed: 500 });
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 2. Thêm object này vào trong mảng routes = [ ... ]
+{
+  path: '/admin/brands',
+  name: 'BrandAdmin',
+  component: BrandAdminView,
+  // Nếu sau này có làm trang tổng quan admin, bạn có thể chuyển nó thành route con (children)
+},
     { path: '/', name: 'home', component: HomeView },
     { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
@@ -27,6 +36,9 @@ const router = createRouter({
 
     // ROUTE GIỚI THIỆU (ABOUT) CHO NGƯỜI DÙNG
     { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
+
+    // ROUTE CHI TIẾT NHÃN HÀNG (MỚI CẬP NHẬT)
+    { path: '/brand/:id', name: 'brand-detail', component: () => import('../views/BrandDetailView.vue'), props: true },
 
     // --- ADMIN ROUTES ---
     { 

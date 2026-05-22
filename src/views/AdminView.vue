@@ -15,8 +15,12 @@ const loginError = ref(false)
 const passwordInput = ref('')
 const ADMIN_EMAIL = 'spitsaigon@gmail.com'
 
+// --- BIẾN ĐIỀU HƯỚNG TAB TRONG ADMIN ---
+const currentTab = ref('products') // Có 2 chế độ: 'products' hoặc 'brands'
+
 // --- BIẾN TÌM KIẾM ---
 const searchQuery = ref('')
+const brandSearchQuery = ref('')
 
 // --- BIẾN QUẢN LÝ KHUYẾN MÃI ---
 const hasPromotion = ref(false)
@@ -24,15 +28,24 @@ const promotionType = ref('percentage')
 const promotionValue = ref('')
 const activePromotions = ref([]) 
 
-// --- [MỚI] BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
+// --- BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
 const subImages = ref([])       // Lưu các chuỗi URL (ảnh đã có trên server hoặc link ngoài)
 const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy tính để chuẩn bị upload
+
+// --- [ĐỒNG BỘ] BIẾN QUẢN LÝ NHÃN HÀNG (BRANDS) ---
+const brands = ref([])
+const brandName = ref('')
+const brandLogoUrl = ref('')
+const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn từ máy
+const brandDescription = ref('')
+const editingBrandId = ref(null)
 
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       isAuthenticated.value = true
       fetchProducts()
+      fetchBrands()
       fetchActivePromotions() 
     } else {
       isAuthenticated.value = false
@@ -67,12 +80,33 @@ const editingId = ref(null)
 const name_vi = ref(''); const name_en = ref('');
 const category_vi = ref(''); const category_en = ref('');
 const description_vi = ref(''); const description_en = ref('');
-// --- BIẾN ƯU ĐÃI MỚI ---
 const gift_vi = ref(''); const gift_en = ref('');
 
-const brand = ref(''); const price = ref(0); const stock = ref(0);
+const brand = ref(''); 
+const brandId = ref(''); // Lưu ID document của Brand để đồng bộ truy vấn
+const price = ref(0); const stock = ref(0);
 const image = ref('');
 const imageFile = ref(null);
+
+// --- HÀM LẤY DANH SÁCH NHÃN HÀNG ---
+const fetchBrands = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "brands"))
+    brands.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name))
+  } catch (e) {
+    console.error("Lỗi lấy danh sách hãng:", e)
+  }
+}
+
+// Tự động gán trường tên hãng (brand) dựa trên ID hãng được chọn ở dropdown
+const handleBrandSelectChange = () => {
+  const selected = brands.value.find(b => b.id === brandId.value)
+  if (selected) {
+    brand.value = selected.name
+  } else {
+    brand.value = ''
+  }
+}
 
 const fetchActivePromotions = async () => {
   try {
@@ -111,6 +145,13 @@ const filteredProducts = computed(() => {
   )
 })
 
+// Bộ lọc tìm kiếm thời gian thực cho danh sách nhãn hàng
+const filteredBrands = computed(() => {
+  return brands.value.filter(b => 
+    b.name?.toLowerCase().includes(brandSearchQuery.value.toLowerCase())
+  )
+})
+
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
@@ -126,7 +167,6 @@ const uploadImage = async () => {
   return await getDownloadURL(fileRef)
 }
 
-// --- [MỚI] XỬ LÝ LỰA CHỌN NHIỀU ẢNH PHỤ ---
 const onSubFilesChange = (e) => {
   const files = Array.from(e.target.files)
   files.forEach(file => {
@@ -135,28 +175,23 @@ const onSubFilesChange = (e) => {
   })
 }
 
-// --- [MỚI] XÓA ẢNH PHỤ KHỎI DANH SÁCH CHỌN TẠM ---
 const removeSubImage = (index) => {
   subImages.value.splice(index, 1)
   subImageFiles.value.splice(index, 1)
 }
 
-// --- [MỚI] HÀM UPLOAD TOÀN BỘ ẢNH PHỤ LÊN STORAGE ---
 const uploadSubImages = async () => {
   const uploadedUrls = []
-  
   for (let i = 0; i < subImages.value.length; i++) {
     const currentUrl = subImages.value[i]
     const currentFile = subImageFiles.value[i]
 
     if (currentFile) {
-      // Nếu là file mới chọn từ máy -> Tiến hành upload lên Storage
       const fileRef = storageRef(storage, `products/subs/${Date.now()}_${currentFile.name}`)
       await uploadBytes(fileRef, currentFile)
       const downloadUrl = await getDownloadURL(fileRef)
       uploadedUrls.push(downloadUrl)
     } else if (currentUrl && !currentUrl.startsWith('blob:')) {
-      // Nếu là URL cũ đã có sẵn từ trước khi sửa sản phẩm -> Giữ nguyên URL
       uploadedUrls.push(currentUrl)
     }
   }
@@ -168,13 +203,13 @@ const fetchProducts = async () => {
   products.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 }
 
+// --- THAO TÁC SUBMIT SẢN PHẨM ---
 const handleSubmit = async () => {
-  if (!name_vi.value || !brand.value || !price.value) return alert("Thiếu thông tin quan trọng!")
+  if (!name_vi.value || !brandId.value || !price.value) return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Giá bán)!")
   
   try {
     isSubmitting.value = true
     const finalImageUrl = await uploadImage()
-    // [MỚI] Chạy tiến trình tải mảng ảnh phụ lên Firebase Storage
     const finalSubImageUrls = await uploadSubImages()
 
     const data = {
@@ -184,14 +219,13 @@ const handleSubmit = async () => {
       category_en: category_en.value || category_vi.value,
       description_vi: description_vi.value,
       description_en: description_en.value || description_vi.value,
-      // --- LƯU DỮ LIỆU ƯU ĐÃI ---
       gift_vi: gift_vi.value || '',
       gift_en: gift_en.value || '',
       brand: brand.value,
+      brandId: brandId.value, // Lưu trữ phục vụ lọc On-page SEO
       price: Number(price.value),
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
-      // [MỚI] Đưa mảng dữ liệu ảnh chi tiết vào trường cấu trúc mới
       sub_images: finalSubImageUrls,
       updatedAt: serverTimestamp()
     }
@@ -212,9 +246,57 @@ const handleSubmit = async () => {
     resetForm(); fetchProducts()
     alert("Cập nhật hàng hóa thành công!")
   } catch (e) { 
-    alert("Lỗi kết nối Firebase!") 
+    alert("Lỗi kết nối Firebase khi lưu sản phẩm!") 
   } finally { 
     isSubmitting.value = false 
+  }
+}
+
+// --- LOGIC TẢI ẢNH LOGO NHÃN HÀNG LÊN FIREBASE STORAGE ---
+const onBrandLogoChange = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    brandLogoFile.value = file
+    brandLogoUrl.value = URL.createObjectURL(file) 
+  }
+}
+
+const uploadBrandLogo = async () => {
+  if (!brandLogoFile.value) return brandLogoUrl.value 
+  const fileRef = storageRef(storage, `brands/${Date.now()}_${brandLogoFile.value.name}`)
+  await uploadBytes(fileRef, brandLogoFile.value)
+  return await getDownloadURL(fileRef)
+}
+
+// --- THAO TÁC SUBMIT NHÃN HÀNG (BRANDS CRU) ---
+const handleBrandSubmit = async () => {
+  if (!brandName.value.trim() || (!brandLogoFile.value && !brandLogoUrl.value.trim()) || !brandDescription.value.trim()) {
+    return alert("Vui lòng điền đủ thông tin nhãn hàng và cập nhật logo!")
+  }
+
+  try {
+    isSubmitting.value = true
+    const finalLogoUrl = await uploadBrandLogo()
+
+    const brandData = {
+      name: brandName.value.trim(),
+      logoUrl: finalLogoUrl,
+      description: brandDescription.value.trim(),
+      updatedAt: serverTimestamp()
+    }
+
+    if (editingBrandId.value) {
+      await updateDoc(doc(db, "brands", editingBrandId.value), brandData)
+      alert(`Đã cập nhật thương hiệu ${brandName.value} thành công!`)
+    } else {
+      await addDoc(collection(db, "brands"), { ...brandData, createdAt: serverTimestamp() })
+      alert(`Đã thêm mới thương hiệu ${brandName.value} thành công!`)
+    }
+    resetBrandForm(); fetchBrands(); fetchProducts(); 
+  } catch (e) {
+    alert("Lỗi kết nối Firebase khi lưu thương hiệu!")
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -226,16 +308,15 @@ const startEdit = (p) => {
   category_en.value = p.category_en || '';
   description_vi.value = p.description_vi || p.description || '';
   description_en.value = p.description_en || '';
-  // --- GÁN DỮ LIỆU ƯU ĐÃI KHI SỬA ---
   gift_vi.value = p.gift_vi || '';
   gift_en.value = p.gift_en || '';
+  brandId.value = p.brandId || brands.value.find(b => b.name === p.brand)?.id || '';
   brand.value = p.brand || '';
   price.value = p.price || 0;
   stock.value = p.stock || 0;
   image.value = p.image || '';
   imageFile.value = null;
 
-  // [MỚI] Đọc dữ liệu ảnh phụ đã có của sản phẩm khi ấn sửa
   subImages.value = p.sub_images ? [...p.sub_images] : []
   subImageFiles.value = p.sub_images ? new Array(p.sub_images.length).fill(null) : []
 
@@ -250,10 +331,26 @@ const startEdit = (p) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+const startEditBrand = (b) => {
+  editingBrandId.value = b.id
+  brandName.value = b.name
+  brandLogoUrl.value = b.logoUrl
+  brandLogoFile.value = null 
+  brandDescription.value = b.description
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 const confirmDelete = async (id, pName) => {
   if (confirm(`Xóa ${pName}?`)) { 
     await deleteDoc(doc(db, "products", id)); 
     fetchProducts() 
+  }
+}
+
+const confirmDeleteBrand = async (id, bName) => {
+  if (confirm(`Bạn chắc chắn muốn xóa vĩnh viễn nhãn hàng "${bName}"?\nHành động này có thể làm ảnh hưởng đến các sản phẩm đang liên kết thuộc nhãn hàng này.`)) {
+    await deleteDoc(doc(db, "brands", id))
+    resetBrandForm(); fetchBrands(); fetchProducts();
   }
 }
 
@@ -262,15 +359,21 @@ const resetForm = () => {
   name_vi.value = ''; name_en.value = '';
   category_vi.value = ''; category_en.value = '';
   description_vi.value = ''; description_en.value = '';
-  // --- RESET TRƯỜNG ƯU ĐÃI ---
   gift_vi.value = ''; gift_en.value = '';
-  brand.value = ''; price.value = 0; stock.value = 0; image.value = '';
+  brandId.value = ''; brand.value = ''; 
+  price.value = 0; stock.value = 0; image.value = '';
   imageFile.value = null;
   hasPromotion.value = false; promotionValue.value = '';
-
-  // [MỚI] Làm sạch mảng quản lý ảnh bổ sung
   subImages.value = []
   subImageFiles.value = []
+}
+
+const resetBrandForm = () => {
+  editingBrandId.value = null
+  brandName.value = ''
+  brandLogoUrl.value = ''
+  brandLogoFile.value = null
+  brandDescription.value = ''
 }
 </script>
 
@@ -294,12 +397,33 @@ const resetForm = () => {
         </div>
 
         <div v-else-if="isAuthenticated" class="max-w-6xl mx-auto p-6 md:p-10">
-          <div class="flex justify-between items-center mb-10">
-            <h1 class="text-2xl font-black text-slate-900 uppercase italic">Quản lý hàng hóa</h1>
+          
+          <div class="flex justify-between items-center mb-6">
+            <div class="space-y-1">
+              <h1 class="text-2xl font-black text-slate-900 uppercase italic">
+                {{ currentTab === 'products' ? 'Quản lý hàng hóa' : 'Quản lý nhãn hàng đối tác' }}
+              </h1>
+              <p class="text-[10px] font-bold text-slate-400 uppercase">Hệ thống dữ liệu lõi SPIT</p>
+            </div>
             <button @click="handleLogout" class="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-all">Đăng xuất</button>
           </div>
 
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div class="flex gap-6 mb-8 border-b border-slate-200/60 pb-3">
+            <button 
+              @click="currentTab = 'products'" 
+              :class="['text-xs font-black uppercase tracking-wider pb-2 transition-all border-b-2 cursor-pointer', currentTab === 'products' ? 'text-slate-900 border-slate-900' : 'text-slate-400 border-transparent hover:text-slate-600']"
+            >
+              📦 Kho sản phẩm
+            </button>
+            <button 
+              @click="currentTab = 'brands'" 
+              :class="['text-xs font-black uppercase tracking-wider pb-2 transition-all border-b-2 cursor-pointer', currentTab === 'brands' ? 'text-slate-900 border-slate-900' : 'text-slate-400 border-transparent hover:text-slate-600']"
+            >
+              🏷️ Danh mục hãng đối tác
+            </button>
+          </div>
+
+          <div v-if="currentTab === 'products'" class="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-fade-in">
             <div class="xl:col-span-5">
               <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6">
                 
@@ -316,13 +440,11 @@ const resetForm = () => {
 
                   <div class="mt-4 pt-4 border-t border-slate-100">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
-                    
                     <div class="grid grid-cols-4 gap-2">
                       <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
                         <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
                         <span class="text-sm font-bold text-slate-400">+ Ảnh</span>
                       </div>
-
                       <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb">
                         <img :src="imgUrl" class="w-full h-full object-contain" />
                         <button type="button" @click="removeSubImage(index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity">
@@ -346,7 +468,18 @@ const resetForm = () => {
                   </div>
 
                   <div class="grid grid-cols-2 gap-2">
-                    <input v-model="brand" placeholder="Hãng / Brand" class="p-3 bg-slate-50 rounded-xl outline-none text-sm" />
+                    <div class="space-y-1">
+                      <select 
+                        v-model="brandId" 
+                        @change="handleBrandSelectChange"
+                        class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200"
+                      >
+                        <option value="">-- Chọn Hãng * --</option>
+                        <option v-for="b in brands" :key="b.id" :value="b.id">
+                          {{ b.name.toUpperCase() }}
+                        </option>
+                      </select>
+                    </div>
                     <div class="space-y-1">
                       <input v-model="category_vi" placeholder="Loại (VI)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm" />
                       <input v-model="category_en" placeholder="Category (EN)" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic" />
@@ -366,8 +499,7 @@ const resetForm = () => {
                       <input type="checkbox" v-model="hasPromotion" id="promo" class="w-4 h-4 accent-blue-600" />
                       <label for="promo" class="text-[10px] font-black uppercase text-slate-700 italic">Khuyến mãi (nếu có)</label>
                     </div>
-                    
-                    <div class="v-if='hasPromotion' grid grid-cols-2 gap-2 mt-3 animate-slide-up" v-if="hasPromotion">
+                    <div class="grid grid-cols-2 gap-2 mt-3 animate-slide-up" v-if="hasPromotion">
                       <select v-model="promotionType" class="p-2 bg-white rounded-xl text-[10px] font-bold border border-slate-100 outline-none">
                         <option value="percentage">Phần trăm (%)</option>
                         <option value="fixed">Tiền mặt (VNĐ)</option>
@@ -383,10 +515,10 @@ const resetForm = () => {
                     <textarea v-model="description_en" rows="3" placeholder="Technical Description (EN)..." class="w-full p-3 bg-slate-100/50 rounded-xl outline-none text-sm italic leading-relaxed"></textarea>
                   </div>
 
-                  <button @click="handleSubmit" :disabled="isSubmitting" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all uppercase text-[10px] tracking-[0.2em]">
+                  <button @click="handleSubmit" :disabled="isSubmitting" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all uppercase text-[10px] tracking-[0.2em] cursor-pointer">
                     {{ isSubmitting ? 'ĐANG XỬ LÝ...' : (editingId ? 'CẬP NHẬT SẢN PHẨM' : 'XÁC NHẬN THÊM MỚI') }}
                   </button>
-                  <button v-if="editingId" @click="resetForm" class="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest">Hủy chỉnh sửa</button>
+                  <button v-if="editingId" @click="resetForm" class="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer">Hủy chỉnh sửa</button>
                 </div>
               </div>
             </div>
@@ -420,12 +552,7 @@ const resetForm = () => {
                         <div class="text-[10px] font-medium text-slate-400 italic mb-1">{{ p.name_en }}</div>
                         <div class="inline-flex items-center gap-2">
                            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
-                           <span class="text-[8px] font-bold text-slate-300 uppercase">{{ p.brand }}</span>
-                           <span v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
-                                 class="text-[8px] font-black uppercase"
-                                 :class="p.isCampaign ? 'text-orange-500' : 'text-red-500'">
-                            -{{ p.displayPromoValue }}{{ p.displayPromoType === 'percentage' ? '%' : 'đ' }}
-                           </span>
+                           <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
                         </div>
                       </div>
                     </td>
@@ -434,10 +561,10 @@ const resetForm = () => {
                     </td>
                     <td class="p-5 text-right">
                       <div class="flex justify-end gap-2">
-                        <button @click="startEdit(p)" class="p-2 hover:bg-blue-100 rounded-lg transition-colors group/btn">
+                        <button @click="startEdit(p)" class="p-2 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer">
                           <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
                         </button>
-                        <button @click="confirmDelete(p.id, p.name_vi || p.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                        <button @click="confirmDelete(p.id, p.name_vi || p.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                           <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
                         </button>
                       </div>
@@ -450,8 +577,132 @@ const resetForm = () => {
               </table>
             </div>
           </div>
+
+          <div v-else-if="currentTab === 'brands'" class="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-fade-in">
+            <div class="xl:col-span-5">
+              <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6 space-y-4">
+                <div class="border-b border-slate-100 pb-2">
+                  <h3 class="text-xs font-black uppercase text-slate-400 tracking-wider">Thông tin dữ liệu thương hiệu</h3>
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="text-[10px] font-black uppercase text-slate-500">Tên nhãn hàng *</label>
+                  <input 
+                    v-model="brandName" 
+                    type="text" 
+                    placeholder="Ví dụ: KORLOY, LAMINA, SUMITOMO..."
+                    class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-bold border border-transparent focus:border-red-400"
+                  />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="text-[10px] font-black uppercase text-slate-500">Logo nhãn hàng *</label>
+                  <div class="relative group w-full h-32 overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-red-400 transition-all flex items-center justify-center bg-slate-50">
+                    <input type="file" @change="onBrandLogoChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+                    <img v-if="brandLogoUrl" :src="brandLogoUrl" class="max-h-full max-w-full object-contain p-2" />
+                    <div v-else class="text-center p-4">
+                       <span class="text-xl block">🖼️</span>
+                       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn logo từ máy tính</p>
+                    </div>
+                  </div>
+                  <input v-model="brandLogoUrl" placeholder="Hoặc dán trực tiếp link ảnh tại đây..." class="w-full p-2 bg-slate-100/50 rounded-xl outline-none text-[9px] font-mono border border-transparent mt-1" />
+                </div>
+
+                <div class="space-y-1.5">
+                  <div class="flex justify-between items-center">
+                    <label class="text-[10px] font-black uppercase text-slate-500">Bài viết giới thiệu (Mã HTML) *</label>
+                    <span class="text-[9px] text-slate-400 font-bold">Dùng &lt;p&gt;, &lt;h2&gt;, &lt;strong&gt;</span>
+                  </div>
+                  
+                  <div class="p-2.5 bg-slate-900 rounded-xl text-[9.5px] text-slate-300 font-mono leading-relaxed space-y-1 shadow-inner">
+                    <span class="text-amber-400 font-black block">💡 KHUNG CẤU TRÚC B2B SEO GỢI Ý:</span>
+                    <p class="text-slate-400">&lt;p&gt;[Giới thiệu ngắn về lịch sử & xuất xứ của hãng]&lt;/p&gt;</p>
+                    <p class="text-slate-400">&lt;h2&gt;Các dòng sản phẩm mũi nhọn của thương hiệu&lt;/h2&gt;</p>
+                    <p class="text-slate-400">&lt;p&gt;Mô tả thế mạnh đặc thù kỹ thuật, dùng &lt;strong&gt;từ khóa công nghệ&lt;/strong&gt;.&lt;/p&gt;</p>
+                    <p class="text-slate-400">&lt;h3&gt;Lý do nên chọn giải pháp gia công từ hãng&lt;/h3&gt;</p>
+                    <p class="text-slate-400">&lt;p&gt;[Cam kết chất lượng hoặc ưu thế phân phối của SPIT]&lt;/p&gt;</p>
+                  </div>
+
+                  <textarea 
+                    v-model="brandDescription" 
+                    rows="6"
+                    placeholder="<h2>Giới thiệu thương hiệu</h2> <p>Nhập thông tin giới thiệu bọc trong thẻ p.</p> <p>Dùng thẻ <strong>để nhấn mạnh</strong> kỹ thuật.</p>"
+                    class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-mono leading-relaxed border border-transparent focus:border-red-400 mt-2"
+                  ></textarea>
+                </div>
+
+                <div v-if="brandDescription" class="p-3 bg-amber-50/50 rounded-xl border border-amber-100/70 space-y-1">
+                  <span class="text-[9px] font-black uppercase text-amber-700 block">Xem trước hiển thị:</span>
+                  <div class="text-[11px] text-slate-600 leading-relaxed max-w-none font-medium prose" v-html="brandDescription"></div>
+                </div>
+
+                <button 
+                  @click.prevent="handleBrandSubmit"
+                  :disabled="isSubmitting"
+                  class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-red-600 transition-all uppercase text-[10px] tracking-[0.2em] cursor-pointer"
+                >
+                  {{ isSubmitting ? 'ĐANG XỬ LÝ DỮ LIỆU...' : (editingBrandId ? 'CẬP NHẬT THƯƠNG HIỆU' : 'XÁC NHẬN THÊM HÃNG') }}
+                </button>
+                <button v-if="editingBrandId" @click="resetBrandForm" class="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer">Hủy chỉnh sửa</button>
+              </div>
+            </div>
+
+            <div class="xl:col-span-7 bg-white rounded-4xl shadow-xl overflow-hidden border border-slate-100">
+              <div class="p-5 border-b border-slate-50">
+                <input v-model="brandSearchQuery" placeholder="Tìm kiếm nhanh tên hãng..." class="w-full px-4 py-2 bg-slate-50 rounded-full text-xs outline-none border border-transparent focus:border-slate-200" />
+              </div>
+
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo & Nhãn hàng</th>
+                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã định danh ID</th>
+                    <th class="p-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  <tr v-for="b in filteredBrands" :key="b.id" class="hover:bg-red-50/20 transition-colors group">
+                    <td class="p-5 flex items-center gap-4">
+                      <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                        <img v-if="b.logoUrl" :src="b.logoUrl" :alt="b.name" class="max-h-full max-w-full object-contain" />
+                        <span v-else class="text-[8px] font-black text-slate-300">NO LOGO</span>
+                      </div>
+                      <span class="text-sm font-black text-slate-800 uppercase tracking-tight">{{ b.name }}</span>
+                    </td>
+                    <td class="p-5 text-xs font-mono text-slate-400 select-all">
+                      {{ b.id }}
+                    </td>
+                    <td class="p-5 text-right">
+                      <div class="flex justify-end gap-2">
+                        <button @click="startEditBrand(b)" class="p-2 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
+                          <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
+                        </button>
+                        <button @click="confirmDeleteBrand(b.id, b.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
+                          <span class="text-red-400 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredBrands.length === 0">
+                    <td colspan="3" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy nhãn hàng đối tác nào...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </Transition>
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
