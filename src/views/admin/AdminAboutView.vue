@@ -4,7 +4,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
       <div>
         <div class="flex items-center gap-2">
-          <span class="text-xl">📝</span>
+          <span>📝</span>
           <h1 class="text-xl md:text-2xl font-black uppercase text-slate-900 tracking-tight">Quản lý trang giới thiệu</h1>
         </div>
         <p class="text-slate-500 text-xs md:text-sm mt-1">Cấu hình tiêu đề, nội dung cốt lõi và banner hiển thị của trang About Us.</p>
@@ -39,18 +39,30 @@
         </div>
 
         <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-2">
-          <div class="flex justify-between items-center">
-            <label class="block text-[10px] font-black uppercase text-slate-400 tracking-widest">Nội dung chi tiết (Hỗ trợ thẻ HTML / Paragraph)</label>
-            <span class="text-[10px] font-bold text-slate-400 font-mono">Định dạng văn bản thoáng đạt</span>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-[10px] font-black uppercase text-slate-400 tracking-widest">Nội dung chi tiết (Trình soạn thảo văn bản trực quan)</label>
+            <span class="text-[10px] font-bold text-slate-400 font-mono">Định dạng văn bản trực quan chuẩn SEO</span>
           </div>
-          <textarea 
-            v-model="aboutData.content" 
-            rows="14" 
-            placeholder="Nhập nội dung câu chuyện thương hiệu tại đây. Bạn có thể xuống dòng hoặc dùng các đoạn thẻ <p> để phân chia nội dung..."
-            class="w-full bg-slate-50 border border-transparent rounded-xl p-4 text-sm font-medium text-slate-700 focus:bg-white focus:border-red-500/30 focus:ring-4 focus:ring-red-500/5 outline-none transition-all leading-relaxed font-sans"
-          ></textarea>
+          
+          <div class="editor-wrapper border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50 focus-within:bg-white focus-within:border-red-500/30 focus-within:ring-4 focus-within:ring-red-500/5 transition-all">
+            <div id="quill-toolbar" class="border-b border-slate-200 bg-slate-100/70 p-2 flex flex-wrap gap-1 items-center">
+              <button class="ql-bold font-bold px-2 py-1 rounded hover:bg-slate-200 text-sm" title="In đậm">B</button>
+              <button class="ql-italic italic px-2 py-1 rounded hover:bg-slate-200 text-sm" title="In nghiêng">I</button>
+              <button class="ql-underline underline px-2 py-1 rounded hover:bg-slate-200 text-sm" title="Gạch chân">U</button>
+              <div class="w-px h-4 bg-slate-300 mx-1"></div>
+              <button class="ql-header px-1 py-0.5 rounded hover:bg-slate-200 text-[11px] font-black" value="2" title="Tiêu đề H2">H2</button>
+              <button class="ql-header px-1 py-0.5 rounded hover:bg-slate-200 text-[11px] font-black" value="3" title="Tiêu đề H3">H3</button>
+              <div class="w-px h-4 bg-slate-300 mx-1"></div>
+              <button class="ql-list px-2 py-1 rounded hover:bg-slate-200 text-sm" value="ordered" title="Danh sách số">1.</button>
+              <button class="ql-list px-2 py-1 rounded hover:bg-slate-200 text-sm" value="bullet" title="Danh sách chấm">•</button>
+              <div class="w-px h-4 bg-slate-300 mx-1"></div>
+              <button class="ql-clean px-2 py-1 rounded hover:bg-slate-200 text-xs text-slate-500" title="Xóa định dạng">Clear</button>
+            </div>
+            <div ref="editorContainer" class="prose max-w-none text-sm p-4 min-h-87.5 outline-none leading-relaxed font-sans"></div>
+          </div>
+
           <div class="text-[11px] text-slate-400 italic flex items-center gap-1 mt-1">
-            <span>💡</span> Mẹo: Hệ thống ngoài trang chủ sẽ tự động giãn dòng (Line-height 1.75) giúp đối tác đọc dữ liệu cực kỳ dễ chịu.
+            <span>💡</span> Mẹo: Bạn có thể bôi đen văn bản để tùy chỉnh nhanh Tiêu đề hoặc In đậm. Hệ thống sẽ tự tạo cấu trúc HTML chuẩn SEO B2B.
           </div>
         </div>
       </div>
@@ -130,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { db, storage } from '../../firebase' 
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -144,13 +156,57 @@ const aboutData = ref({
 const isSaving = ref(false)
 const isUploading = ref(false)
 const fileInput = ref(null)
+const editorContainer = ref(null)
+let quillInstance = null
 
-// 1. Xử lý tải ảnh lên Firebase Storage với cấu trúc thư mục sạch sẽ
+// Hàm nạp mã Quill từ CDN độc lập để tối ưu tốc độ tải trang
+const loadQuillScripts = () => {
+  return new Promise((resolve) => {
+    if (window.Quill) return resolve()
+
+    // Thêm file CSS của Quill vào thẻ head
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.core.css'
+    document.head.appendChild(link)
+
+    // Thêm file JS của Quill vào body
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.core.js'
+    script.onload = () => resolve()
+    document.body.appendChild(script)
+  })
+}
+
+// Khởi tạo trình soạn thảo văn bản trực quan sau khi tải xong dữ liệu
+const initializeQuill = async () => {
+  await loadQuillScripts()
+  if (!editorContainer.value) return
+
+  // Cấu hình Quill liên kết động với các nút bấm HTML custom ở trên toolbar
+  quillInstance = new window.Quill(editorContainer.value, {
+    modules: {
+      toolbar: '#quill-toolbar'
+    },
+    placeholder: 'Nhập nội dung câu chuyện thương hiệu tại đây. Bạn có thể sử dụng các thanh công cụ ở trên để căn chỉnh đậm, nhạt, xuống dòng tự do...',
+    readOnly: false
+  })
+
+  // Đổ dữ liệu HTML sẵn có từ Firestore vào khung soạn thảo mượt mà
+  if (aboutData.value.content) {
+    quillInstance.root.innerHTML = aboutData.value.content
+  }
+
+  // Lắng nghe sự kiện người dùng gõ chữ để đồng bộ trực tiếp vào biến reactive content
+  quillInstance.on('text-change', () => {
+    aboutData.value.content = quillInstance.root.innerHTML
+  })
+}
+
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (!file) return
 
-  // Chặn file không phải ảnh ngay từ đầu
   if (!file.type.includes('image')) {
     alert('Vui lòng chọn đúng file định dạng hình ảnh (png, jpg, webp)!')
     return
@@ -158,41 +214,36 @@ const handleFileUpload = async (event) => {
 
   isUploading.value = true
   try {
-    // Lưu vào thư mục b2b-about gọn gàng kèm timestamp để tránh trùng lặp đè file
     const filePath = `b2b-about/banner_${Date.now()}_${file.name}`
     const sRef = storageRef(storage, filePath)
-
-    // Tiến hành upload
     await uploadBytes(sRef, file)
-
-    // Lấy URL công khai sau khi upload hoàn tất
     const downloadURL = await getDownloadURL(sRef)
-    
-    // Đẩy link vào reactive state để hiển thị lên khung preview
     aboutData.value.imageUrl = downloadURL
   } catch (error) {
     console.error("Lỗi upload ảnh lên Firebase Storage:", error)
     alert('Có lỗi xảy ra trong quá trình upload ảnh. Vui lòng kiểm tra lại cấu hình Firebase Storage của bạn.')
   } finally {
     isUploading.value = false
-    // Reset value input file để có thể chọn lại chính file đó nếu muốn
     if (event.target) event.target.value = ''
   }
 }
 
-// 2. Fetch dữ liệu từ Firestore settings/about khi khởi chạy trang quản trị
 const fetchAboutData = async () => {
   try {
     const docSnap = await getDoc(doc(db, "settings", "about"))
     if (docSnap.exists()) {
       aboutData.value = { ...aboutData.value, ...docSnap.data() }
+      // Sau khi lấy được dữ liệu về, đợi DOM cập nhật xong rồi đẩy nội dung vào Quill Editor
+      await nextTick()
+      if (quillInstance) {
+        quillInstance.root.innerHTML = aboutData.value.content || ''
+      }
     }
   } catch (error) {
     console.error("Lỗi khi fetch dữ liệu cấu hình giới thiệu:", error)
   }
 }
 
-// 3. Đẩy toàn bộ cục dữ liệu sạch lên Firestore
 const saveAboutData = async () => {
   if (!aboutData.value.title.trim()) {
     alert('Vui lòng điền tiêu đề trang giới thiệu trước khi lưu!')
@@ -205,7 +256,7 @@ const saveAboutData = async () => {
       title: aboutData.value.title,
       content: aboutData.value.content,
       imageUrl: aboutData.value.imageUrl,
-      updatedAt: new Date().toISOString() // Thêm dấu mốc thời gian sửa đổi nếu cần log dữ liệu
+      updatedAt: new Date().toISOString()
     })
     alert('Hệ thống đã lưu và cập nhật trang Giới thiệu thành công!')
   } catch (error) {
@@ -216,5 +267,48 @@ const saveAboutData = async () => {
   }
 }
 
-onMounted(fetchAboutData)
+onMounted(async () => {
+  await fetchAboutData()
+  await initializeQuill()
+})
 </script>
+
+<style scoped>
+/* Định dạng bổ sung để đồng bộ khung soạn thảo mượt mà với lớp CSS Tailwind */
+:deep(.ql-editor) {
+  min-height: 350px;
+  outline: none;
+}
+
+/* ÉP XUỐNG DÒNG VÀ DÃN ĐOẠN RÕ RÀNG KHI NHẤN ENTER */
+:deep(.ql-editor p) {
+  margin-bottom: 1rem !important; /* Tạo khoảng cách dòng thoáng giữa các đoạn <p> */
+  line-height: 1.75;
+}
+
+:deep(.ql-editor h2) {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #0f172a;
+}
+
+:deep(.ql-editor h3) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #1e293b;
+}
+
+:deep(.ql-editor ul), :deep(.ql-editor ol) {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+:deep(.ql-editor.ql-blank::before) {
+  color: #94a3b8;
+  font-style: italic;
+}
+</style>

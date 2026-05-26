@@ -54,7 +54,7 @@
             
             <div class="prose prose-slate max-w-none">
               <div 
-                class="text-slate-600 leading-relaxed text-[15px] md:text-base font-medium space-y-4 custom-about-content"
+                class="text-slate-600 leading-relaxed text-[15px] md:text-base font-medium custom-about-content"
                 v-html="aboutData.content"
               ></div>
             </div>
@@ -213,11 +213,51 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* NÂNG CẤP BỘ CHỌ CHUYÊN SÂU ĐỂ ÉP KHỐI HTML V-HTML PHẢI TỰ ĐỘNG XUỐNG DÒNG */
 :deep(.custom-about-content p) {
-  margin-bottom: 1.25rem;
-  line-height: 1.75;
+  display: block !important;
+  margin-bottom: 1.25rem !important; /* Tạo dãn cách đoạn rõ ràng khi nhấn Enter ngoài admin */
+  line-height: 1.8 !important;
 }
+
 :deep(.custom-about-content p:last-child) {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
+}
+
+:deep(.custom-about-content strong) {
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Hỗ trợ hiển thị chuẩn SEO nếu trong bài viết bạn chọn thêm tiêu đề H2, H3 */
+:deep(.custom-about-content h2) {
+  display: block !important;
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #0f172a !important;
+}
+
+:deep(.custom-about-content h3) {
+  display: block !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #1e293b !important;
+}
+
+/* Hỗ trợ hiển thị nếu bạn định dạng danh sách dấu chấm/số */
+:deep(.custom-about-content ul) {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+:deep(.custom-about-content ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-bottom: 1.25rem !important;
 }
 </style>
