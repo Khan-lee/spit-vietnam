@@ -1,13 +1,13 @@
 <template>
-  <div class="p-4 md:p-8 max-w-6xl mx-auto font-sans antialiased text-slate-800">
+  <div class="p-4 md:p-8 max-w-7xl mx-auto font-sans antialiased text-slate-800">
     
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
       <div>
         <div class="flex items-center gap-2">
           <span>📝</span>
-          <h1 class="text-xl md:text-2xl font-black uppercase text-slate-900 tracking-tight">Quản lý trang giới thiệu</h1>
+          <h1 class="text-xl md:text-2xl font-black uppercase text-slate-900 tracking-tight">Quản lý trang giới thiệu & SEO</h1>
         </div>
-        <p class="text-slate-500 text-xs md:text-sm mt-1">Cấu hình tiêu đề, nội dung cốt lõi và banner hiển thị của trang About Us.</p>
+        <p class="text-slate-500 text-xs md:text-sm mt-1">Cấu hình thông tin doanh nghiệp, nội dung cốt lõi và tối ưu hóa hiển thị Schema, thực thể Local SEO.</p>
       </div>
       
       <button 
@@ -26,7 +26,7 @@
         
         <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-2">
           <div class="flex justify-between items-center">
-            <label class="block text-[10px] font-black uppercase text-slate-400 tracking-widest">Tiêu đề chính (H1 Banner)</label>
+            <label class="block text-[10px] font-black uppercase text-slate-400 tracking-widest">Tiêu đề chính (H1 Banner ngoài client)</label>
             <span class="text-[10px] font-bold text-slate-400 font-mono">{{ aboutData.title?.length || 0 }}/80 ký tự</span>
           </div>
           <input 
@@ -44,27 +44,86 @@
             <span class="text-[10px] font-bold text-slate-400 font-mono">Định dạng văn bản trực quan chuẩn SEO</span>
           </div>
           
-          <div class="editor-wrapper border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50 focus-within:bg-white focus-within:border-red-500/30 focus-within:ring-4 focus-within:ring-red-500/5 transition-all">
-            <div id="quill-toolbar" class="border-b border-slate-200 bg-slate-100/70 p-2 flex flex-wrap gap-1 items-center">
-              <button class="ql-bold font-bold px-2 py-1 rounded hover:bg-slate-200 text-sm" title="In đậm">B</button>
-              <button class="ql-italic italic px-2 py-1 rounded hover:bg-slate-200 text-sm" title="In nghiêng">I</button>
-              <button class="ql-underline underline px-2 py-1 rounded hover:bg-slate-200 text-sm" title="Gạch chân">U</button>
-              <div class="w-px h-4 bg-slate-300 mx-1"></div>
-              <button class="ql-header px-1 py-0.5 rounded hover:bg-slate-200 text-[11px] font-black" value="2" title="Tiêu đề H2">H2</button>
-              <button class="ql-header px-1 py-0.5 rounded hover:bg-slate-200 text-[11px] font-black" value="3" title="Tiêu đề H3">H3</button>
-              <div class="w-px h-4 bg-slate-300 mx-1"></div>
-              <button class="ql-list px-2 py-1 rounded hover:bg-slate-200 text-sm" value="ordered" title="Danh sách số">1.</button>
-              <button class="ql-list px-2 py-1 rounded hover:bg-slate-200 text-sm" value="bullet" title="Danh sách chấm">•</button>
-              <div class="w-px h-4 bg-slate-300 mx-1"></div>
-              <button class="ql-clean px-2 py-1 rounded hover:bg-slate-200 text-xs text-slate-500" title="Xóa định dạng">Clear</button>
-            </div>
-            <div ref="editorContainer" class="prose max-w-none text-sm p-4 min-h-87.5 outline-none leading-relaxed font-sans"></div>
+          <div class="quill-editor-wrapper">
+            <QuillEditor
+              v-model:content="aboutData.content"
+              content-type="html"
+              theme="snow"
+              :toolbar="customToolbarOptions"
+              placeholder="Nhập nội dung câu chuyện thương hiệu tại đây. Bạn có thể sử dụng các thanh công cụ ở trên để căn chỉnh đậm, nhạt, xuống dòng tự do..."
+            />
           </div>
 
-          <div class="text-[11px] text-slate-400 italic flex items-center gap-1 mt-1">
+          <div class="text-[11px] text-slate-400 italic flex items-center gap-1 mt-2">
             <span>💡</span> Mẹo: Bạn có thể bôi đen văn bản để tùy chỉnh nhanh Tiêu đề hoặc In đậm. Hệ thống sẽ tự tạo cấu trúc HTML chuẩn SEO B2B.
           </div>
         </div>
+
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="text-xs font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+              <span>🔍</span> Cấu hình tối ưu On-Page SEO nâng cao
+            </h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Meta Title (Tiêu đề Google)</label>
+                <span class="text-[10px] font-mono text-slate-400">{{ aboutData.metaTitle?.length || 0 }}/60</span>
+              </div>
+              <input 
+                v-model="aboutData.metaTitle" 
+                type="text" 
+                placeholder="Ví dụ: Giới thiệu về SPIT - Dụng cụ cắt gọt & Thiết bị phụ trợ cơ khí"
+                maxLength="60"
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-red-500/30 focus:ring-4 focus:ring-red-500/5 outline-none transition-all placeholder:text-slate-400" 
+              />
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-[10px] font-black uppercase text-slate-400 tracking-widest">SEO Keywords (Từ khóa cách nhau bởi dấu phẩy)</label>
+              <input 
+                v-model="aboutData.seoKeywords" 
+                type="text" 
+                placeholder="Ví dụ: dung cu cat got, co khi chinh xac, thiet bi phu tro, spit"
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-red-500/30 focus:ring-4 focus:ring-red-500/5 outline-none transition-all placeholder:text-slate-400" 
+              />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Meta Description (Mô tả công cụ tìm kiếm)</label>
+              <span class="text-[10px] font-mono text-slate-400">{{ aboutData.metaDescription?.length || 0 }}/160</span>
+            </div>
+            <textarea 
+              v-model="aboutData.metaDescription" 
+              placeholder="Nhập đoạn tóm tắt ngắn giới thiệu năng lực doanh nghiệp giúp tăng tỷ lệ click khi khách hàng tìm kiếm trên Google..."
+              maxLength="160"
+              rows="3"
+              class="w-full bg-slate-50 border border-transparent rounded-xl p-3 text-xs font-medium text-slate-800 focus:bg-white focus:border-red-500/30 focus:ring-4 focus:ring-red-500/5 outline-none transition-all placeholder:text-slate-400 resize-none leading-relaxed"
+            ></textarea>
+          </div>
+
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-1.5 select-none">
+            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Mô phỏng kết quả hiển thị trên Google Search</span>
+            <div class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-4 h-4 bg-white border border-slate-200 rounded-full flex items-center justify-center text-[9px]">🌐</span>
+              <div class="flex flex-col leading-tight">
+                <span class="text-[11px] font-medium text-slate-800">spit.com.vn</span>
+                <span class="text-[9px] text-slate-400 font-mono">https://spit.com.vn › gioi-thieu</span>
+              </div>
+            </div>
+            <h4 class="text-blue-800 text-sm md:text-base font-medium hover:underline cursor-pointer leading-tight tracking-wide">
+              {{ aboutData.metaTitle || (aboutData.title || 'SÀI GÒN PRECISION INDUSTRIAL TOOL') }}
+            </h4>
+            <p class="text-slate-600 text-xs leading-relaxed max-w-2xl font-normal">
+              {{ aboutData.metaDescription || 'Vui lòng điền thẻ mô tả Meta Description để tối ưu hóa hiển thị tóm tắt câu chuyện thương hiệu của bạn trên các bot tìm kiếm toàn cầu.' }}
+            </p>
+          </div>
+        </div>
+
       </div>
 
       <div class="lg:col-span-4 space-y-6">
@@ -128,12 +187,68 @@
           </div>
         </div>
 
-        <div class="bg-slate-900 p-5 rounded-3xl text-white space-y-2 relative overflow-hidden shadow-md">
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+          <div class="border-b border-slate-100 pb-2">
+            <h3 class="text-xs font-black uppercase text-slate-900 tracking-wider flex items-center gap-1.5">
+              <span>🏢</span> Thực thể doanh nghiệp (Local SEO)
+            </h3>
+          </div>
+
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Mã số thuế / Giấy phép ĐKKD</label>
+              <input 
+                v-model="aboutData.taxCode" 
+                type="text" 
+                placeholder="Nhập mã số thuế doanh nghiệp..."
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-red-500/30 outline-none transition-all" 
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Địa chỉ trụ sở chính (Tân Bình...)</label>
+              <input 
+                v-model="aboutData.businessAddress" 
+                type="text" 
+                placeholder="Nhập địa chỉ chính xác của văn phòng..."
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-red-500/30 outline-none transition-all" 
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Đường dẫn Google Maps (Nhúng/URL)</label>
+              <input 
+                v-model="aboutData.mapsUrl" 
+                type="text" 
+                placeholder="https://maps.app.goo.gl/..."
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-2.5 text-[10px] font-mono text-slate-600 focus:bg-white focus:border-red-500/30 outline-none transition-all" 
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Đường dẫn Fanpage Facebook</label>
+              <input 
+                v-model="aboutData.facebookUrl" 
+                type="text" 
+                placeholder="https://facebook.com/spit..."
+                class="w-full bg-slate-50 border border-transparent rounded-xl p-2.5 text-[10px] font-mono text-slate-600 focus:bg-white focus:border-red-500/30 outline-none transition-all" 
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 p-5 rounded-3xl text-white space-y-2.5 relative overflow-hidden shadow-md">
           <div class="absolute -right-6 -bottom-6 text-5xl opacity-10 select-none pointer-events-none">⚡</div>
-          <h4 class="text-xs font-black uppercase tracking-wider text-red-500">Cơ chế đồng bộ Real-time</h4>
+          <h4 class="text-xs font-black uppercase tracking-wider text-red-500 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Cơ chế đồng bộ Real-time
+          </h4>
           <p class="text-[11px] text-slate-400 leading-relaxed font-medium">
-            Hệ thống quản trị được liên kết trực tiếp với document <code class="bg-slate-800 text-slate-300 px-1 py-0.5 rounded font-mono">settings/about</code>. Ngay sau khi bạn nhấn nút lưu, toàn bộ dữ liệu ở trang chủ sẽ lập tức thay đổi mà khách hàng không cần tải lại trang.
+            Hệ thống quản trị liên kết trực tiếp với document <code class="bg-slate-800 text-slate-300 px-1 py-0.5 rounded font-mono">settings/about</code>. Sau khi nhấn lưu, dữ liệu ngoài client thay đổi lập tức.
           </p>
+          <div v-if="aboutData.updatedAt" class="pt-2 border-t border-slate-800/80 text-[10px] text-slate-400 font-mono flex justify-between">
+            <span>Cập nhật cuối:</span>
+            <span class="text-slate-300 font-bold">{{ new Date(aboutData.updatedAt).toLocaleString('vi-VN') }}</span>
+          </div>
         </div>
 
       </div>
@@ -142,66 +257,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import { db, storage } from '../../firebase' 
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
+// ĐÃ FIX: Import trực tiếp component và CSS từ vue-quill đã install trong node_modules
+import { QuillEditor } from '@vueup/vue-quill'
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
+
 const aboutData = ref({
   title: '',
   content: '',
-  imageUrl: ''
+  imageUrl: '',
+  metaTitle: '',
+  metaDescription: '',
+  seoKeywords: '',
+  taxCode: '',
+  businessAddress: '',
+  mapsUrl: '',
+  facebookUrl: '',
+  updatedAt: ''
 })
 
 const isSaving = ref(false)
 const isUploading = ref(false)
 const fileInput = ref(null)
-const editorContainer = ref(null)
-let quillInstance = null
 
-// Hàm nạp mã Quill từ CDN độc lập để tối ưu tốc độ tải trang
-const loadQuillScripts = () => {
-  return new Promise((resolve) => {
-    if (window.Quill) return resolve()
-
-    // Thêm file CSS của Quill vào thẻ head
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.core.css'
-    document.head.appendChild(link)
-
-    // Thêm file JS của Quill vào body
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.core.js'
-    script.onload = () => resolve()
-    document.body.appendChild(script)
-  })
-}
-
-// Khởi tạo trình soạn thảo văn bản trực quan sau khi tải xong dữ liệu
-const initializeQuill = async () => {
-  await loadQuillScripts()
-  if (!editorContainer.value) return
-
-  // Cấu hình Quill liên kết động với các nút bấm HTML custom ở trên toolbar
-  quillInstance = new window.Quill(editorContainer.value, {
-    modules: {
-      toolbar: '#quill-toolbar'
-    },
-    placeholder: 'Nhập nội dung câu chuyện thương hiệu tại đây. Bạn có thể sử dụng các thanh công cụ ở trên để căn chỉnh đậm, nhạt, xuống dòng tự do...',
-    readOnly: false
-  })
-
-  // Đổ dữ liệu HTML sẵn có từ Firestore vào khung soạn thảo mượt mà
-  if (aboutData.value.content) {
-    quillInstance.root.innerHTML = aboutData.value.content
-  }
-
-  // Lắng nghe sự kiện người dùng gõ chữ để đồng bộ trực tiếp vào biến reactive content
-  quillInstance.on('text-change', () => {
-    aboutData.value.content = quillInstance.root.innerHTML
-  })
-}
+// ĐÃ FIX: Định nghĩa mảng tùy chọn Toolbar khớp với giao diện của bạn
+const customToolbarOptions = [
+  ['bold', 'italic', 'underline'],
+  [{ 'header': '2' }, { 'header': '3' }],
+  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+  ['clean']
+]
 
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
@@ -221,7 +310,7 @@ const handleFileUpload = async (event) => {
     aboutData.value.imageUrl = downloadURL
   } catch (error) {
     console.error("Lỗi upload ảnh lên Firebase Storage:", error)
-    alert('Có lỗi xảy ra trong quá trình upload ảnh. Vui lòng kiểm tra lại cấu hình Firebase Storage của bạn.')
+    alert('Có lỗi xảy ra trong quá trình upload ảnh.')
   } finally {
     isUploading.value = false
     if (event.target) event.target.value = ''
@@ -233,11 +322,6 @@ const fetchAboutData = async () => {
     const docSnap = await getDoc(doc(db, "settings", "about"))
     if (docSnap.exists()) {
       aboutData.value = { ...aboutData.value, ...docSnap.data() }
-      // Sau khi lấy được dữ liệu về, đợi DOM cập nhật xong rồi đẩy nội dung vào Quill Editor
-      await nextTick()
-      if (quillInstance) {
-        quillInstance.root.innerHTML = aboutData.value.content || ''
-      }
     }
   } catch (error) {
     console.error("Lỗi khi fetch dữ liệu cấu hình giới thiệu:", error)
@@ -245,20 +329,31 @@ const fetchAboutData = async () => {
 }
 
 const saveAboutData = async () => {
-  if (!aboutData.value.title.trim()) {
+  if (!aboutData.value.title?.trim()) {
     alert('Vui lòng điền tiêu đề trang giới thiệu trước khi lưu!')
     return
   }
 
   isSaving.value = true
+  const currentIsoDate = new Date().toISOString()
+  
   try {
     await setDoc(doc(db, "settings", "about"), {
-      title: aboutData.value.title,
-      content: aboutData.value.content,
-      imageUrl: aboutData.value.imageUrl,
-      updatedAt: new Date().toISOString()
+      title: aboutData.value.title || '',
+      content: aboutData.value.content || '',
+      imageUrl: aboutData.value.imageUrl || '',
+      metaTitle: aboutData.value.metaTitle || '',
+      metaDescription: aboutData.value.metaDescription || '',
+      seoKeywords: aboutData.value.seoKeywords || '',
+      taxCode: aboutData.value.taxCode || '',
+      businessAddress: aboutData.value.businessAddress || '',
+      mapsUrl: aboutData.value.mapsUrl || '',
+      facebookUrl: aboutData.value.facebookUrl || '',
+      updatedAt: currentIsoDate
     })
-    alert('Hệ thống đã lưu và cập nhật trang Giới thiệu thành công!')
+    
+    aboutData.value.updatedAt = currentIsoDate
+    alert('Hệ thống đã lưu và cập nhật trang Giới thiệu cùng cấu hình SEO thành công!')
   } catch (error) {
     console.error("Lỗi khi lưu dữ liệu lên Firestore:", error)
     alert('Lỗi kết nối cơ sở dữ liệu! Không thể lưu thay đổi.')
@@ -269,21 +364,42 @@ const saveAboutData = async () => {
 
 onMounted(async () => {
   await fetchAboutData()
-  await initializeQuill()
 })
 </script>
 
 <style scoped>
-/* Định dạng bổ sung để đồng bộ khung soạn thảo mượt mà với lớp CSS Tailwind */
-:deep(.ql-editor) {
-  min-height: 350px;
-  outline: none;
+/* ĐÃ FIX: Tùy biến CSS mịn màng cho khối vue-quill mới */
+.quill-editor-wrapper :deep(.ql-toolbar.ql-snow) {
+  border: 1px solid #e2e8f0 !important;
+  border-top-left-radius: 1rem !important;
+  border-top-right-radius: 1rem !important;
+  background-color: #f1f5f9 !important;
+  padding: 0.6rem 0.8rem !important;
 }
 
-/* ÉP XUỐNG DÒNG VÀ DÃN ĐOẠN RÕ RÀNG KHI NHẤN ENTER */
+.quill-editor-wrapper :deep(.ql-container.ql-snow) {
+  border: 1px solid #e2e8f0 !important;
+  border-bottom-left-radius: 1rem !important;
+  border-bottom-right-radius: 1rem !important;
+  min-height: 350px !important;
+  background-color: #f8fafc !important;
+  font-family: inherit !important;
+}
+
+.quill-editor-wrapper :deep(.ql-editor) {
+  padding: 1.25rem !important;
+  font-size: 14px !important;
+  line-height: 1.75 !important;
+  color: #334155 !important;
+}
+
+.quill-editor-wrapper :deep(.ql-container:focus-within) {
+  background-color: #ffffff !important;
+}
+
+/* Định dạng các thẻ HTML sinh ra khi bôi đen định dạng */
 :deep(.ql-editor p) {
-  margin-bottom: 1rem !important; /* Tạo khoảng cách dòng thoáng giữa các đoạn <p> */
-  line-height: 1.75;
+  margin-bottom: 1rem !important;
 }
 
 :deep(.ql-editor h2) {
@@ -310,5 +426,6 @@ onMounted(async () => {
 :deep(.ql-editor.ql-blank::before) {
   color: #94a3b8;
   font-style: italic;
+  left: 1.25rem !important;
 }
 </style>

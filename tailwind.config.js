@@ -6,6 +6,10 @@ export default {
   ],
   theme: {
     extend: {
+      // ĐÃ SỬA: Đưa font Inter lên làm ưu tiên số 1 cho class font-sans
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+      },
       colors: {
         // Cập nhật màu chủ đạo từ Đỏ sang Xám #888888
         primary: {

@@ -20,7 +20,7 @@
           {{ aboutData.title || 'SÀI GÒN PRECISION INDUSTRIAL TOOL' }}
         </h1>
         <p class="text-slate-400 max-w-2xl mx-auto text-sm md:text-md font-medium tracking-wide">
-          Nhà cung cấp giải pháp toàn diện và phân phối dụng cụ cắt gọt, thiết bị phụ trợ gia công cơ khí chính xác hàng đầu Việt Nam.
+          {{ aboutData.metaDescription || 'Nhà cung cấp giải pháp toàn diện và phân phối dụng cụ cắt gọt, thiết bị phụ trợ gia công cơ khí chính xác hàng đầu Việt Nam.' }}
         </p>
         <div class="h-1.5 w-20 bg-red-600 mx-auto rounded-full shadow-lg shadow-red-500/50"></div>
       </div>
@@ -33,6 +33,7 @@
       </div>
 
       <template v-else>
+        
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white p-6 md:p-12 rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100">
           
           <div class="lg:col-span-5 relative group">
@@ -115,6 +116,54 @@
           </div>
         </div>
 
+        <div v-if="aboutData.taxCode || aboutData.businessAddress" class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 md:p-10 rounded-[3rem] shadow-md border border-slate-100">
+          <div class="space-y-4 flex flex-col justify-center">
+            <div>
+              <span class="text-[10px] font-black uppercase tracking-widest text-red-600 block mb-1">Xác thực pháp lý</span>
+              <h3 class="text-xl md:text-2xl font-black text-slate-900 uppercase">Thông tin thực thể doanh nghiệp</h3>
+            </div>
+            <p class="text-xs md:text-sm text-slate-500 leading-relaxed font-medium">
+              Sài Gòn Precision Industrial Tool (SPIT) hoạt động chính thức dưới hệ thống pháp lý minh bạch, cung cấp đầy đủ hóa đơn chứng từ và cam kết nguồn gốc thiết bị rõ ràng cho mọi doanh nghiệp, nhà xưởng đối tác.
+            </p>
+            <div class="flex flex-wrap gap-3 pt-2">
+              <a 
+                v-if="aboutData.mapsUrl" 
+                :href="aboutData.mapsUrl" 
+                target="_blank" 
+                class="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                📍 Vị trí trên Google Maps
+              </a>
+              <a 
+                v-if="aboutData.facebookUrl" 
+                :href="aboutData.facebookUrl" 
+                target="_blank" 
+                class="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-2.5 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-100/60 transition-colors"
+              >
+                👥 Kết nối Fanpage Facebook
+              </a>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-center space-y-4">
+            <div v-if="aboutData.taxCode" class="flex gap-3 items-start">
+              <span class="text-xl p-2 bg-white rounded-xl border border-slate-200 shadow-xs">💼</span>
+              <div>
+                <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Mã số thuế / Số ĐKKD</h4>
+                <p class="text-sm font-black text-slate-800 font-mono mt-0.5 select-all">{{ aboutData.taxCode }}</p>
+              </div>
+            </div>
+            <div v-if="aboutData.businessAddress" class="w-full h-px bg-slate-200/60 my-1"></div>
+            <div v-if="aboutData.businessAddress" class="flex gap-3 items-start">
+              <span class="text-xl p-2 bg-white rounded-xl border border-slate-200 shadow-xs">🏢</span>
+              <div>
+                <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Trụ sở & Địa chỉ giao dịch</h4>
+                <p class="text-xs md:text-sm font-bold text-slate-700 mt-0.5 leading-relaxed">{{ aboutData.businessAddress }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
           <div class="text-center space-y-1">
             <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">Đại diện phân phối trực tiếp</h4>
@@ -152,19 +201,52 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { db } from '../firebase'
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore'
 
 const aboutData = ref({
   title: '',
   content: '',
-  imageUrl: ''
+  imageUrl: '',
+  metaTitle: '',
+  metaDescription: '',
+  seoKeywords: '',
+  taxCode: '',
+  businessAddress: '',
+  mapsUrl: '',
+  facebookUrl: ''
 })
 const brands = ref([])
 const loading = ref(true)
 const isLoadingBrands = ref(true)
 let unsubscribe = null
+
+// Hàm cập nhật thẻ Meta trên Client Head phục vụ SEO
+const updatePageMeta = (data) => {
+  // 1. Cập nhật Tiêu đề tab trình duyệt
+  document.title = data.metaTitle || data.title || 'Giới thiệu về SPIT - Sài Gòn Precision Industrial Tool'
+
+  // 2. Cập nhật Thẻ Meta Description
+  let metaDescTag = document.querySelector('meta[name="description"]')
+  if (!metaDescTag) {
+    metaDescTag = document.createElement('meta')
+    metaDescTag.setAttribute('name', 'description')
+    document.head.appendChild(metaDescTag)
+  }
+  metaDescTag.setAttribute('content', data.metaDescription || 'Nhà cung cấp giải pháp toàn diện dụng cụ cắt gọt cơ khí chính xác.')
+
+  // 3. Cập nhật Thẻ Meta Keywords (Tùy chọn phụ)
+  if (data.seoKeywords) {
+    let metaKeyTag = document.querySelector('meta[name="keywords"]')
+    if (!metaKeyTag) {
+      metaKeyTag = document.createElement('meta')
+      metaKeyTag.setAttribute('name', 'keywords')
+      document.head.appendChild(metaKeyTag)
+    }
+    metaKeyTag.setAttribute('content', data.seoKeywords)
+  }
+}
 
 const fetchBrands = async () => {
   try {
@@ -185,19 +267,21 @@ const fetchBrands = async () => {
 }
 
 onMounted(() => {
-  // 1. Fetch danh sách nhãn hàng từ collection brands có sẵn
+  // 1. Fetch danh sách nhãn hàng
   fetchBrands()
 
-  // 2. Lắng nghe real-time cấu hình trang giới thiệu chính
+  // 2. Lắng nghe cấu hình trang giới thiệu thời gian thực (Real-time)
   const docRef = doc(db, 'settings', 'about')
   unsubscribe = onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       aboutData.value = docSnap.data()
+      // Tự động kích hoạt bộ cập nhật Meta dữ liệu cho robot Google cào
+      updatePageMeta(aboutData.value)
     } else {
       aboutData.value = {
         title: 'Sài Gòn Precision Industrial Tool',
         content: '<p>Chào mừng bạn đến với SPIT. Chúng tôi cung cấp các giải pháp công cụ công nghiệp chính xác hoàn hảo...</p>',
-        imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070'
+        imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070}'
       }
     }
     loading.value = false
@@ -213,10 +297,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* NÂNG CẤP BỘ CHỌ CHUYÊN SÂU ĐỂ ÉP KHỐI HTML V-HTML PHẢI TỰ ĐỘNG XUỐNG DÒNG */
+/* NÂNG CẤP BỘ CHỌ CHUYÊN SÂU ĐỂ ÉP KHỐI HTML V-HTML PHẢI TỰ ĐỘNG XUỐNG DÒNG VÀ ĐỀU NHAU */
 :deep(.custom-about-content p) {
   display: block !important;
-  margin-bottom: 1.25rem !important; /* Tạo dãn cách đoạn rõ ràng khi nhấn Enter ngoài admin */
+  margin-bottom: 1.25rem !important;
   line-height: 1.8 !important;
 }
 
