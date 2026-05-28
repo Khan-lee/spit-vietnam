@@ -10,10 +10,9 @@ const promotions = ref([])
 const loading = ref(true)
 const selectedCategory = ref('Tất cả')
 const selectedBrand = ref('Tất cả Hãng')
-const currentTime = ref(new Date()) // Để cập nhật đồng hồ đếm ngược
-const localSearch = ref('') // Thanh tìm kiếm tại trang
+const currentTime = ref(new Date()) 
+const localSearch = ref('') 
 
-// Cập nhật thời gian mỗi giây
 let timer
 onMounted(() => {
   timer = setInterval(() => {
@@ -37,7 +36,6 @@ const fetchData = async () => {
   }
 }
 
-// Lấy chương trình KM đang áp dụng cho SP
 const getActivePromo = (product) => {
   return promotions.value.find(p => {
     const start = p.start_date ? new Date(p.start_date) : null
@@ -56,7 +54,6 @@ const getSalePrice = (product) => {
   return product.price - activePromo.discount_value
 }
 
-// Logic đếm ngược (Countdown)
 const getCountdown = (endDate) => {
   if (!endDate) return null
   const diff = new Date(endDate) - currentTime.value
@@ -69,7 +66,6 @@ const getCountdown = (endDate) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Banner thông báo KM mới nhất (Tự động)
 const latestGlobalPromo = computed(() => {
   return promotions.value
     .filter(p => p.is_active && (!p.end_date || new Date(p.end_date) > currentTime.value))
@@ -93,7 +89,6 @@ const filteredProducts = computed(() => {
     const matchCat = selectedCategory.value === 'Tất cả' || currentCat === selectedCategory.value
     const matchBrand = selectedBrand.value === 'Tất cả Hãng' || p.brand === selectedBrand.value
     
-    // Ưu tiên localSearch, nếu không có thì dùng searchQuery từ props
     const query = localSearch.value.trim() || props.searchQuery?.trim() || ''
     const matchSearch = !query || 
       [currentName, p.brand, currentCat].some(f => f?.toLowerCase().includes(query.toLowerCase()))
@@ -106,62 +101,68 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div v-if="latestGlobalPromo" class="bg-red-600 text-white py-2 px-4 text-center overflow-hidden relative">
-    <p class="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] animate-pulse">
+  <div v-if="latestGlobalPromo" class="bg-linear-to-r from-red-700 via-red-600 to-red-700 text-white py-2.5 px-4 text-center relative shadow-inner z-50">
+    <p class="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] flex items-center justify-center gap-2">
+      <span class="inline-block w-2 h-2 rounded-full bg-white animate-ping"></span>
       🔥 {{ latestGlobalPromo.title }}: GIẢM ĐẾN {{ latestGlobalPromo.discount_value }}{{ latestGlobalPromo.discount_type === 'percentage' ? '%' : 'Đ' }} 🔥
     </p>
   </div>
 
-  <div class="min-h-screen bg-white py-12 px-4 md:px-8">
+  <div class="min-h-screen bg-[#f8fafc] py-16 px-4 sm:px-6 lg:px-8 font-sans">
     <div class="max-w-7xl mx-auto">
       
-      <div class="text-center mb-10">
-        <h1 class="text-3xl font-black uppercase tracking-tighter text-slate-900 italic">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-black uppercase tracking-tighter text-slate-900 italic leading-none">
           SPIT <span class="text-red-600">COLLECTION</span>
         </h1>
-        <div class="h-1 w-12 bg-red-600 mx-auto mt-2"></div>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-3">Giải pháp dụng cụ cắt gọt & Thiết bị công nghiệp chính xác</p>
+        <div class="h-1 w-16 bg-red-600 mx-auto mt-4 rounded-full"></div>
       </div>
 
-      <div class="max-w-2xl mx-auto mb-10 relative group px-4">
-        <div class="absolute inset-y-0 left-8 flex items-center pointer-events-none">
-          <svg class="w-4 h-4 text-slate-400 group-focus-within:text-red-600 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+      <div class="max-w-2xl mx-auto mb-14 relative group px-2">
+        <div class="absolute inset-y-0 left-6 flex items-center pointer-events-none z-10">
+          <svg class="w-5 h-5 text-slate-400 group-focus-within:text-red-600 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </div>
         <input 
           v-model="localSearch"
           type="text" 
-          placeholder="TÌM KIẾM SẢN PHẨM TẠI ĐÂY..."
-          class="w-full bg-slate-50 border-2 border-transparent focus:border-red-600/10 focus:bg-white py-4 pl-14 pr-6 rounded-2xl text-[11px] font-black uppercase tracking-widest outline-none transition-all shadow-sm"
+          placeholder="Tìm sản phẩm, thương hiệu hoặc mã dụng cụ..."
+          class="w-full bg-white border border-slate-200 focus:border-red-500 focus:ring-4 focus:ring-red-500/5 py-4 pl-14 pr-16 rounded-2xl text-[12px] font-bold text-slate-800 tracking-wide outline-none transition-all shadow-md shadow-slate-100 placeholder:text-slate-400 placeholder:font-medium"
         />
-        <button v-if="localSearch" @click="localSearch = ''" class="absolute inset-y-0 right-8 flex items-center text-slate-400 hover:text-red-600">
-          <span class="text-[10px] font-black">XOÁ</span>
+        <button v-if="localSearch" @click="localSearch = ''" class="absolute inset-y-0 right-6 flex items-center text-slate-400 hover:text-red-600 transition-colors">
+          <span class="text-[10px] font-black tracking-widest bg-slate-100 group-hover:bg-red-50 px-2.5 py-1.5 rounded-xl transition-all">XÓA</span>
         </button>
       </div>
 
-      <div class="sticky top-20 z-30 bg-white/80 backdrop-blur-md py-4 mb-12 border-y border-slate-100 flex flex-wrap items-center justify-center gap-6">
-        <div class="flex items-center gap-4 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+      <div class="sticky top-4 z-40 bg-white/80 backdrop-blur-xl py-4 px-6 mb-12 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 lg:pb-0 w-full lg:w-auto">
           <button 
             v-for="cat in categoryStats" :key="cat"
             @click="selectedCategory = cat"
             :class="[
-              'whitespace-nowrap text-[11px] font-black uppercase tracking-widest transition-all',
-              selectedCategory === cat ? 'text-red-600' : 'text-slate-400 hover:text-slate-900'
+              'whitespace-nowrap px-4 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all active:scale-95',
+              selectedCategory === cat 
+                ? 'bg-red-600 text-white shadow-lg shadow-red-100' 
+                : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
             ]"
           >
             {{ cat }}
           </button>
         </div>
-        <div class="hidden md:block w-px h-4 bg-slate-200"></div>
-        <div class="flex items-center gap-2">
+
+        <div class="hidden lg:block w-px h-6 bg-slate-200"></div>
+
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
           <button 
             v-for="brand in brandStats" :key="brand"
             @click="selectedBrand = brand"
             :class="[
-              'px-4 py-1.5 rounded-full text-[10px] font-bold border transition-all',
+              'whitespace-nowrap px-4 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wider border transition-all active:scale-95',
               selectedBrand === brand 
-                ? 'bg-slate-900 border-slate-900 text-white' 
-                : 'bg-transparent border-slate-200 text-slate-500 hover:border-slate-900'
+                ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10' 
+                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800'
             ]"
           >
             {{ brand }}
@@ -169,8 +170,13 @@ onMounted(fetchData)
         </div>
       </div>
 
-      <div v-if="loading" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div v-for="n in 8" :key="n" class="aspect-3/4 bg-slate-50 animate-pulse rounded-2xl"></div>
+      <div v-if="loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div v-for="n in 8" :key="n" class="bg-white border border-slate-100 rounded-3xl p-4 space-y-4 shadow-sm">
+          <div class="aspect-square bg-slate-50 animate-pulse rounded-2xl"></div>
+          <div class="h-3 bg-slate-100 animate-pulse rounded w-1/3"></div>
+          <div class="h-4 bg-slate-100 animate-pulse rounded w-3/4"></div>
+          <div class="h-5 bg-slate-100 animate-pulse rounded w-1/2"></div>
+        </div>
       </div>
 
       <div v-else>
@@ -178,53 +184,67 @@ onMounted(fetchData)
           <RouterLink 
             v-for="product in filteredProducts" :key="product.id"
             :to="'/product/' + product.id"
-            class="group"
+            class="group bg-white rounded-4xl border border-slate-100 p-4 shadow-sm hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-500 flex flex-col justify-between"
           >
-            <div class="relative aspect-square bg-[#f9f9f9] rounded-2xl overflow-hidden mb-4 flex items-center justify-center p-6 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-slate-200">
-              <img :src="product.image" class="max-h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700" />
-              
-              <div v-if="getSalePrice(product)" class="absolute top-3 right-3 bg-red-600 text-white px-2 py-1 rounded-lg text-[9px] font-black shadow-lg z-10 animate-pulse">
-                SALE
+            <div>
+              <div class="relative aspect-square bg-[#f8fafc] rounded-2xl overflow-hidden mb-4 flex items-center justify-center p-6 transition-all duration-500">
+                <img :src="product.image" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-700 ease-out" />
+                
+                <div v-if="getSalePrice(product)" class="absolute top-3 right-3 bg-linear-to-r from-red-600 to-orange-500 text-white px-2.5 py-1 rounded-xl text-[9px] font-black shadow-md shadow-red-100 z-10 tracking-widest">
+                  ƯU ĐÃI
+                </div>
+
+                <div v-if="getActivePromo(product)?.end_date && getCountdown(getActivePromo(product).end_date)" class="absolute bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur-sm py-2 text-center transition-all opacity-0 group-hover:opacity-100 duration-300">
+                   <p class="text-[8px] text-white font-bold uppercase tracking-widest flex items-center justify-center gap-1">
+                     ⏱️ Kết thúc: <span class="text-red-400 font-mono text-[9px] font-black">{{ getCountdown(getActivePromo(product).end_date) }}</span>
+                   </p>
+                </div>
+
+                <div class="absolute bottom-3 left-3 bg-white border border-slate-100 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider text-slate-500 shadow-sm">
+                  {{ product.brand }}
+                </div>
               </div>
 
-              <div v-if="getActivePromo(product)?.end_date" class="absolute bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur-sm py-1.5 text-center transition-transform translate-y-full group-hover:translate-y-0 duration-300">
-                 <p class="text-[8px] text-white font-bold uppercase tracking-widest">
-                   Kết thúc sau: <span class="text-red-400 font-mono">{{ getCountdown(getActivePromo(product).end_date) }}</span>
-                 </p>
-              </div>
-
-              <div class="absolute bottom-3 left-3 bg-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-tighter shadow-sm border border-slate-50">
-                {{ product.brand }}
+              <div class="px-1">
+                <p class="text-[9px] font-extrabold text-red-600 uppercase tracking-wider mb-1">
+                  {{ product.category_vi || product.category }}
+                </p>
+                
+                <h3 class="text-xs md:text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-3 group-hover:text-red-600 transition-colors">
+                  {{ product.name_vi || product.name }}
+                </h3>
               </div>
             </div>
 
-            <div class="px-1">
-              <p class="text-[9px] font-bold text-red-600 uppercase mb-1">
-                {{ product.category_vi || product.category }}
-              </p>
-              
-              <h3 class="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
-                {{ product.name_vi || product.name }}
-              </h3>
-              
+            <div class="px-1 mt-2 pt-3 border-t border-slate-50 flex items-center justify-between">
               <div v-if="getSalePrice(product)" class="flex flex-col">
-                <div class="text-base font-black text-red-600">
-                  {{ Math.round(getSalePrice(product)).toLocaleString() }} <span class="text-[10px] font-normal">đ</span>
-                </div>
-                <div class="text-[11px] font-medium text-slate-400 line-through">
+                <span class="text-xs font-semibold text-slate-400 line-through leading-none mb-1">
                   {{ product.price?.toLocaleString() }} đ
-                </div>
+                </span>
+                <span class="text-sm md:text-base font-black text-red-600 leading-none">
+                  {{ Math.round(getSalePrice(product)).toLocaleString() }}<span class="text-[10px] font-bold ml-0.5">đ</span>
+                </span>
               </div>
-              <div v-else class="text-base font-black text-slate-900">
-                {{ product.price?.toLocaleString() }} <span class="text-[10px] font-normal">đ</span>
+              <div v-else class="text-sm md:text-base font-black text-slate-900 leading-none">
+                {{ product.price?.toLocaleString() }}<span class="text-[10px] font-bold ml-0.5">đ</span>
+              </div>
+
+              <div class="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-red-600 group-hover:text-white flex items-center justify-center transition-all duration-300 transform group-hover:translate-x-1">
+                <svg class="w-3 h-3 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
               </div>
             </div>
           </RouterLink>
         </div>
 
-        <div v-else class="text-center py-40">
-          <p class="text-slate-300 font-black uppercase tracking-[0.5em] text-xs">No Results Found</p>
-          <button @click="selectedBrand = 'Tất cả Hãng'; selectedCategory = 'Tất cả'; localSearch = ''" class="mt-4 text-[10px] font-bold underline uppercase tracking-widest text-red-600">Reset Filters</button>
+        <div v-else class="text-center py-36 bg-white rounded-[3rem] border border-slate-100 shadow-sm">
+          <div class="text-4xl mb-3">⚙️</div>
+          <p class="text-slate-400 font-black uppercase tracking-[0.3em] text-[11px]">Không tìm thấy sản phẩm phù hợp</p>
+          <button @click="selectedBrand = 'Tất cả Hãng'; selectedCategory = 'Tất cả'; localSearch = ''" class="mt-4 text-[10px] font-black bg-slate-900 hover:bg-slate-800 text-white uppercase tracking-widest px-5 py-3 rounded-xl transition-all shadow-md active:scale-95">
+            Đặt lại bộ lọc
+          </button>
         </div>
       </div>
     </div>

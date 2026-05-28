@@ -1,26 +1,26 @@
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue'
+import { ref, onMounted, reactive, computed, watch } from 'vue'
 import { db, storage } from '../firebase' 
 import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' 
 import Editor from '@tinymce/tinymce-vue'
 import slugify from 'slugify'
 
-// --- TRẠNG THÁI FORM (ĐÃ MỞ RỘNG TOÀN DIỆN CHO SEO) ---
+// --- TRẠNG THÁI FORM ---
 const newPost = ref({
   title: '',
   slug: '',
-  category: 'Tin tức',
+  category: 'technical', // [ĐÃ CẬP NHẬT] Đổi giá trị mặc định thành 'technical' hoặc 'news' để đồng bộ Frontend
   image: '', 
-  imageAlt: '',         // Alt text cho hình ảnh (Cực kỳ quan trọng cho SEO Image)
+  imageAlt: '',         
   content: '',
   seoTitle: '',
   metaDescription: '',
   focusKeyword: '',
-  metaKeywords: '',     // Thẻ từ khóa bổ trợ / Tags
-  canonicalUrl: '',     // URL chuẩn hóa để tránh lỗi trùng lặp nội dung
-  robotsMeta: 'index, follow', // Điều hướng Robots Thẻ meta (index/noindex)
-  schemaJson: ''        // Cấu trúc dữ liệu nâng cao Structured Data JSON-LD
+  metaKeywords: '',     
+  canonicalUrl: '',     
+  robotsMeta: 'index, follow', 
+  schemaJson: ''        
 })
 
 const posts = ref([])
@@ -28,15 +28,20 @@ const isSubmitting = ref(false)
 const imageFile = ref(null) 
 const isEditingSlug = ref(false)
 const isEditing = ref(false) 
+const originalSlug = ref('') 
 
-// --- BỘ ĐẾM KÝ TỰ & TỪ VỰNG ---
+// Lưu trữ URL preview của ảnh để giải phóng bộ nhớ tránh memory leak
+const previewImageUrl = ref('')
+
+// --- BỘ ĐẾM KÝ TỰ & TỪ VỰNG TỐI ƯU ---
 const wordCount = computed(() => {
   if (!newPost.value.content) return 0
-  const text = newPost.value.content.replace(/<[^>]*>/g, ' ') // Loại bỏ thẻ HTML
-  return text.trim().split(/\s+/).filter(Boolean).length
+  const text = newPost.value.content.replace(/|<[^>]*>/g, ' ')
+  const words = text.trim().match(/\S+/g)
+  return words ? words.length : 0
 })
 
-// --- LOGIC PHÂN TÍCH SEO REAL-TIME NÂNG CAO (CHUẨN YOAST/RANKMATH) ---
+// --- LOGIC PHÂN TÍCH SEO REAL-TIME NÂNG CAO ---
 const seoAnalysis = computed(() => {
   const contentLower = (newPost.value.content || '').toLowerCase()
   const keywordLower = (newPost.value.focusKeyword || '').trim().toLowerCase()
@@ -53,8 +58,8 @@ const seoAnalysis = computed(() => {
     keywordInTitle: keywordLower !== '' && (titleLower.includes(keywordLower) || seoTitleLower.includes(keywordLower)),
     keywordInMeta: keywordLower !== '' && metaLower.includes(keywordLower),
     keywordInSlug: keywordLower !== '' && slugLower.includes(slugify(keywordLower, { lower: true, locale: 'vi' })),
-    contentLength: wordCount.value >= 600, // Tiêu chuẩn bài viết chia sẻ kỹ thuật chuyên sâu
-    hasHeadings: /<h2[^>]*>|<h3[^>]*>/i.test(newPost.value.content), // Kiểm tra phân bổ cấu trúc H2/H3
+    contentLength: wordCount.value >= 600, 
+    hasHeadings: /<h2[^>]*>|<h3[^>]*>/i.test(newPost.value.content), 
     hasImageAlt: keywordLower !== '' && imageAltLower.includes(keywordLower)
   }
   
@@ -72,21 +77,28 @@ const seoAnalysis = computed(() => {
   return { score, checks }
 })
 
-// Tự động sinh dữ liệu Schema cấu trúc JSON-LD mẫu chuẩn Google
+const getPlainTextSummary = (htmlContent, maxLength = 150) => {
+  if (!htmlContent) return ''
+  const pureText = htmlContent.replace(/<[^>]*>/g, ' ').trim().replace(/\s+/g, ' ')
+  return pureText.slice(0, maxLength) + (pureText.length > maxLength ? '...' : '')
+}
+
 const generateAutoSchema = () => {
   if (!newPost.value.title) {
     alert("Vui lòng nhập tiêu đề bài viết trước khi sinh dữ liệu cấu trúc!")
     return
   }
   const domain = 'https://spit.com.vn'
-  const postUrl = `${domain}/blog/${newPost.value.slug || slugify(newPost.value.title, { lower: true, locale: 'vi' })}`
+  const finalSlug = newPost.value.slug || slugify(newPost.value.title, { lower: true, locale: 'vi' })
+  const postUrl = `${domain}/blog/${finalSlug}`
+  const fallbackDescription = getPlainTextSummary(newPost.value.content, 150) || newPost.value.title
   
   const schemaObj = {
     "@context": "https://schema.org",
     "@type": "TechArticle",
     "headline": newPost.value.seoTitle || newPost.value.title,
     "image": [newPost.value.image || "https://spit.com.vn/default-share.jpg"],
-    "description": newPost.value.metaDescription || newPost.value.title,
+    "description": newPost.value.metaDescription || fallbackDescription,
     "url": postUrl,
     "mainEntityOfPage": {
       "@type": "WebPage",
@@ -111,59 +123,81 @@ const handleTitleInput = () => {
   }
 }
 
-// Cấu hình Editor mở rộng định dạng blocks để viết tiêu đề H2, H3
 const editorConfig = {
   height: 450,
   menubar: true,
-  plugins: 'lists link image table code wordcount advlist lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount',
-  toolbar: 'undo redo | blocks | bold italic underline striir | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | table code'
+  plugins: 'lists link image table code wordcount advlist charmap preview anchor searchreplace visualblocks fullscreen insertdatetime media help',
+  toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | table code'
 }
 
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
+    if (previewImageUrl.value) {
+      URL.revokeObjectURL(previewImageUrl.value)
+    }
     imageFile.value = file
-    newPost.value.image = URL.createObjectURL(file)
+    previewImageUrl.value = URL.createObjectURL(file)
+    newPost.value.image = previewImageUrl.value
   }
 }
 
 const uploadImageToStorage = async () => {
-  if (imageFile.value) {
+  if (imageFile.value && newPost.value.image.startsWith('blob:')) {
     const fileRef = storageRef(storage, `posts/${Date.now()}_${imageFile.value.name}`)
-    await uploadBytes(fileRef, imageFile.value)
+    await uploadBytes(fileRef, fileRef)
     return await getDownloadURL(fileRef)
   }
   return newPost.value.image
 }
 
 const fetchPosts = async () => {
-  const q = query(collection(db, "posts"), orderBy("createdAt", "desc"))
-  const querySnapshot = await getDocs(q)
-  posts.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  try {
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"))
+    const querySnapshot = await getDocs(q)
+    posts.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  } catch (err) {
+    console.error("Lỗi lấy danh sách bài viết:", err)
+  }
 }
 
 const loadPostToEdit = (post) => {
   isEditing.value = true
+  originalSlug.value = post.id || post.slug 
+  
   newPost.value = {
-    imageAlt: '',
-    metaKeywords: '',
-    canonicalUrl: '',
-    robotsMeta: 'index, follow',
-    schemaJson: '',
-    ...post
+    title: post.title || '',
+    slug: post.id || post.slug || '',
+    // Fallback nếu bài viết cũ lưu tiếng Việt, tự động chuyển đổi về dạng mã định danh
+    category: post.category === 'Tin tức' ? 'news' : (post.category || 'technical'),
+    image: post.image || '',
+    imageAlt: post.imageAlt || '',
+    content: post.content || '',
+    seoTitle: post.seoTitle || '',
+    metaDescription: post.metaDescription || '',
+    focusKeyword: post.focusKeyword || '',
+    metaKeywords: post.metaKeywords || '',
+    canonicalUrl: post.canonicalUrl || '',
+    robotsMeta: post.robotsMeta || 'index, follow',
+    schemaJson: post.schemaJson || ''
   }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const resetForm = () => {
+  if (previewImageUrl.value) {
+    URL.revokeObjectURL(previewImageUrl.value)
+    previewImageUrl.value = ''
+  }
   newPost.value = { 
-    title: '', slug: '', category: 'Tin tức', image: '', imageAlt: '', content: '', 
+    title: '', slug: '', category: 'technical', image: '', imageAlt: '', content: '', 
     seoTitle: '', metaDescription: '', focusKeyword: '', metaKeywords: '', 
     canonicalUrl: '', robotsMeta: 'index, follow', schemaJson: '' 
   }
   imageFile.value = null
   isEditingSlug.value = false
   isEditing.value = false
+  originalSlug.value = ''
 }
 
 const handleSavePost = async () => {
@@ -175,31 +209,47 @@ const handleSavePost = async () => {
   isSubmitting.value = true
   try {
     const finalImageUrl = await uploadImageToStorage()
-    const slug = newPost.value.slug || slugify(newPost.value.title, { lower: true, locale: 'vi' })
+    const currentSlug = newPost.value.slug ? slugify(newPost.value.slug, { lower: true, locale: 'vi' }) : slugify(newPost.value.title, { lower: true, locale: 'vi' })
     
     const postData = {
-      ...newPost.value,
-      image: finalImageUrl, 
-      slug: slug,
+      title: newPost.value.title,
+      slug: currentSlug,
+      category: newPost.value.category,
+      image: finalImageUrl,
+      imageAlt: newPost.value.imageAlt,
+      content: newPost.value.content,
+      seoTitle: newPost.value.seoTitle,
+      metaDescription: newPost.value.metaDescription,
+      focusKeyword: newPost.value.focusKeyword,
+      metaKeywords: newPost.value.metaKeywords,
+      canonicalUrl: newPost.value.canonicalUrl,
+      robotsMeta: newPost.value.robotsMeta,
+      schemaJson: newPost.value.schemaJson,
       seoScore: seoAnalysis.value.score,
       wordCount: wordCount.value,
       updatedAt: serverTimestamp()
     }
 
     if (isEditing.value) {
-      const postRef = doc(db, "posts", slug)
-      await updateDoc(postRef, postData)
+      if (originalSlug.value !== currentSlug) {
+        postData.createdAt = serverTimestamp() 
+        await setDoc(doc(db, "posts", currentSlug), postData)
+        await deleteDoc(doc(db, "posts", originalSlug.value))
+      } else {
+        const postRef = doc(db, "posts", originalSlug.value)
+        await updateDoc(postRef, postData)
+      }
       alert("Cập nhật bài viết thành công!")
     } else {
       postData.createdAt = serverTimestamp()
-      await setDoc(doc(db, "posts", slug), postData)
+      await setDoc(doc(db, "posts", currentSlug), postData)
       alert("Đăng bài viết mới thành công!")
     }
     
     resetForm()
     fetchPosts()
   } catch (error) {
-    console.error("Lỗi:", error)
+    console.error("Lỗi khi lưu bài viết vào Firestore:", error)
     alert("Có lỗi xảy ra khi lưu bài viết.")
   } finally {
     isSubmitting.value = false
@@ -208,9 +258,20 @@ const handleSavePost = async () => {
 
 const deletePost = async (id) => {
   if (confirm("Xác nhận xóa bài viết này?")) {
-    await deleteDoc(doc(db, "posts", id))
-    fetchPosts()
+    try {
+      await deleteDoc(doc(db, "posts", id))
+      fetchPosts()
+    } catch (err) {
+      console.error("Lỗi khi xóa bài viết:", err)
+    }
   }
+}
+
+// Hàm format text hiển thị danh mục bài viết ở danh sách đã xuất bản
+const formatCategory = (cat) => {
+  if (cat === 'technical') return 'Kiến thức kỹ thuật'
+  if (cat === 'news' || cat === 'Tin tức') return 'Tin tức & Sự kiện'
+  return cat
 }
 
 onMounted(fetchPosts)
@@ -247,21 +308,34 @@ onMounted(fetchPosts)
             <input v-model="newPost.title" @input="handleTitleInput" type="text" placeholder="Nhập tiêu đề thu hút người đọc..." 
               class="w-full text-2xl font-bold border-none focus:ring-0 placeholder:text-slate-200" />
             
-            <div class="flex flex-col gap-1 mt-4 ml-2">
-              <label class="text-[9px] font-black text-slate-400 uppercase">Đường dẫn tĩnh (Slug URL)</label>
-              <div class="flex items-center gap-2">
-                <div class="flex items-center bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-all focus-within:border-blue-200 w-full max-w-xl">
-                  <span class="text-[10px] text-slate-400 font-medium italic select-none">spit.com.vn/blog/</span>
-                  <input 
-                    v-model="newPost.slug" 
-                    :readonly="!isEditingSlug || isEditing"
-                    class="bg-transparent border-none focus:ring-0 text-[10px] font-bold text-blue-600 p-0 flex-1 min-w-0"
-                    :class="{'cursor-not-allowed text-slate-400': !isEditingSlug || isEditing}"
-                  />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div class="flex flex-col gap-1 ml-2">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Đường dẫn tĩnh (Slug URL)</label>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-all focus-within:border-blue-200 w-full">
+                    <span class="text-[10px] text-slate-400 font-medium italic select-none">spit.com.vn/blog/</span>
+                    <input 
+                      v-model="newPost.slug" 
+                      :readonly="!isEditingSlug || isEditing"
+                      class="bg-transparent border-none focus:ring-0 text-[10px] font-bold text-blue-600 p-0 flex-1 min-w-0"
+                      :class="{'cursor-not-allowed text-slate-400': !isEditingSlug || isEditing}"
+                    />
+                  </div>
+                  <button v-if="!isEditing" @click="isEditingSlug = !isEditingSlug" type="button" class="bg-blue-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-xl transition-all active:scale-95 shrink-0">
+                    {{ isEditingSlug ? 'Xong' : 'Sửa' }}
+                  </button>
                 </div>
-                <button v-if="!isEditing" @click="isEditingSlug = !isEditingSlug" type="button" class="bg-blue-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-xl transition-all active:scale-95 shrink-0">
-                  {{ isEditingSlug ? 'Xong' : 'Sửa' }}
-                </button>
+              </div>
+
+              <div class="flex flex-col gap-1 ml-2">
+                <label class="text-[9px] font-black text-slate-400 uppercase">Chủ đề phân loại bài viết</label>
+                <select 
+                  v-model="newPost.category"
+                  class="w-full bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 text-[11px] font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all cursor-pointer"
+                >
+                  <option value="technical">🔧 Kiến thức kỹ thuật</option>
+                  <option value="news">📰 Tin tức & Sự kiện</option>
+                </select>
               </div>
             </div>
           </div>
@@ -422,7 +496,7 @@ onMounted(fetchPosts)
               <div class="flex-1 min-w-0">
                 <h4 class="font-bold text-slate-800 text-xs truncate">{{ post.title }}</h4>
                 <div class="flex items-center gap-2 mt-1">
-                  <span class="text-[7px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-500 rounded">{{ post.category }}</span>
+                  <span class="text-[7px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-500 rounded">{{ formatCategory(post.category) }}</span>
                   <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded" :class="post.seoScore >= 80 ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'">{{ post.seoScore || 0 }} PTS</span>
                   <span class="text-[7px] font-bold text-slate-400">{{ post.wordCount || 0 }} từ</span>
                 </div>
@@ -445,7 +519,6 @@ onMounted(fetchPosts)
 </template>
 
 <style scoped>
-/* Tuỳ chỉnh thanh cuộn danh sách mượt mà */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }

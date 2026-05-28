@@ -81,7 +81,7 @@ const router = createRouter({
     // ROUTE QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
     { 
       path: '/spit-system-manager/about', 
-      name: 'AdminAbout', 
+      name: 'AdminAbout',
       component: () => import('../views/admin/AdminAboutView.vue'),
       meta: { requiresAuth: true } 
     }

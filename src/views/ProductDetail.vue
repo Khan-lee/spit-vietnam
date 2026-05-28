@@ -16,7 +16,7 @@ const toastMessage = ref('')
 // --- BIẾN LƯU TRỮ CHIẾN DỊCH KHUYẾN MÃI ĐANG CHẠY ---
 const activePromotions = ref([])
 
-// --- [MỚI] BIẾN QUẢN LÝ ẢNH ĐANG ĐƯỢC CHỌN HIỂN THỊ LỚN ---
+// --- BIẾN QUẢN LÝ ẢNH ĐANG ĐƯỢC CHỌN HIỂN THỊ LỚN ---
 const activeImage = ref('')
 
 // --- HÀM XỬ LÝ SỐ CỰC MẠNH (Trị dấu phẩy) ---
@@ -52,7 +52,7 @@ const effectivePromo = computed(() => {
     };
   }
 
-  // Kiểm tra khuyến mãi riêng lẻ trong product (code cũ của bạn)
+  // Kiểm tra khuyến mãi riêng lẻ trong product
   const val = cleanNumber(product.value.promotionValue);
   const type = product.value.promotionType;
   if (val > 0 && (type === 'percentage' || type === 'fixed')) {
@@ -67,7 +67,7 @@ const effectivePromo = computed(() => {
 });
 
 // Check khuyến mãi có thực sự tồn tại không (Dùng cho UI)
-const hasPromo = (item) => {
+const hasPromo = () => {
   return !!effectivePromo.value;
 }
 
@@ -86,6 +86,32 @@ const getDiscountedPrice = (item) => {
   }
   return basePrice;
 }
+
+// Tự động phân tách nội dung mô tả thành mảng các thông số kỹ thuật (Dành cho Spec Table)
+const parsedSpecifications = computed(() => {
+  if (!product.value) return [];
+  const desc = product.value[`description_${locale.value}`] || product.value.description || '';
+  
+  // Tìm các dòng chứa dấu hai chấm ":" để chuyển đổi thành cặp Key - Value
+  return desc.split('\n')
+    .filter(line => line.includes(':'))
+    .map(line => {
+      const parts = line.split(':');
+      return {
+        key: parts[0].trim(),
+        value: parts.slice(1).join(':').trim()
+      };
+    });
+});
+
+// Nội dung văn bản mô tả thuần túy còn lại (bỏ các dòng thông số dạng key:value)
+const pureDescription = computed(() => {
+  if (!product.value) return '';
+  const desc = product.value[`description_${locale.value}`] || product.value.description || '';
+  return desc.split('\n')
+    .filter(line => !line.includes(':'))
+    .join('\n').trim();
+});
 
 const addToCart = (item) => {
   if (item.stock <= 0) return;
@@ -106,7 +132,7 @@ const addToCart = (item) => {
     localStorage.setItem('spit_cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart-updated'))
     isAdding.value = false
-    toastMessage.value = locale.value === 'vi' ? `Đã thêm vào giỏ hàng!` : `Added to cart!`
+    toastMessage.value = locale.value === 'vi' ? `Đã thêm vào giỏ hàng thành công!` : `Added to cart successfully!`
     showToast.value = true
     setTimeout(() => { showToast.value = false }, 3000)
   }, 200)
@@ -119,13 +145,12 @@ onMounted(async () => {
     const docSnap = await getDoc(docRef)
     if (docSnap.exists()) {
       product.value = { id: docSnap.id, ...docSnap.data() }
-      // [MỚI] Thiết lập ảnh lớn mặc định ban đầu chính là ảnh đại diện của sản phẩm
       if (product.value.image) {
         activeImage.value = product.value.image
       }
     }
   } catch (error) {
-    console.error("Lỗi:", error)
+    console.error("Lỗi kết nối dữ liệu:", error)
   } finally {
     loading.value = false
   }
@@ -133,90 +158,160 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 font-sans antialiased text-slate-900 selection:bg-blue-100 italic" v-if="product">
+  <div v-if="loading" class="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tải chi tiết sản phẩm...</p>
+    </div>
+  </div>
+
+  <div class="min-h-screen bg-[#f8fafc] font-sans antialiased text-slate-900 selection:bg-red-100" v-else-if="product">
     
     <transition name="slide-fade">
-      <div v-if="showToast" class="fixed top-24 right-6 md:right-10 z-100 max-w-sm bg-slate-900 text-white p-5 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700">
-        <div class="shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-xl shadow-lg">✓</div>
-        <p class="text-xs font-bold grow">{{ toastMessage }}</p>
+      <div v-if="showToast" class="fixed top-24 right-6 z-100 max-w-sm bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-800">
+        <div class="shrink-0 w-8 h-8 bg-red-600 rounded-xl flex items-center justify-center text-sm font-bold shadow-md shadow-red-900/30">✓</div>
+        <p class="text-xs font-bold grow tracking-wide">{{ toastMessage }}</p>
       </div>
     </transition>
 
-    <div class="container mx-auto max-w-6xl py-12 md:py-20 px-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-start bg-white p-8 md:p-12 rounded-[3rem] border border-slate-100 shadow-xl">
+    <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
         
-        <div class="lg:sticky lg:top-24 space-y-4 w-full">
-          <div class="relative bg-slate-50 p-10 rounded-[2.5rem] border border-slate-100 flex items-center justify-center aspect-square shadow-inner">
-            <div v-if="hasPromo(product)" 
-                 class="absolute top-6 left-6 z-10 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg animate-bounce"
-                 :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-orange-500' : 'bg-red-600'">
-              {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
+        <div class="lg:sticky lg:top-24 space-y-5 w-full">
+          <div class="relative bg-[#f8fafc] p-8 md:p-12 rounded-4xl border border-slate-100 flex items-center justify-center aspect-square shadow-inner overflow-hidden group">
+            
+            <div v-if="hasPromo()" 
+                 class="absolute top-5 left-5 z-10 text-white font-black text-[10px] tracking-wider px-3 py-1.5 rounded-xl shadow-md uppercase"
+                 :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-linear-to-r from-orange-500 to-amber-500' : 'bg-linear-to-r from-red-600 to-red-500'">
+              🔥 {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
             </div>
-            <img :src="activeImage" class="max-h-full object-contain hover:scale-105 transition-transform duration-500" />
+            
+            <img :src="activeImage" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out" />
           </div>
 
-          <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-2 justify-center lg:justify-start">
+          <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
             <div @click="activeImage = product.image" 
-                 :class="['w-16 h-16 p-1 rounded-xl bg-slate-50 border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-blue-600 shadow-md' : 'border-slate-100 hover:border-slate-300']">
-              <img :src="product.image" class="max-h-full max-w-full object-contain rounded-lg" />
+                 :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="product.image" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
             </div>
 
             <div v-for="(subImg, index) in product.sub_images" :key="index"
                  @click="activeImage = subImg"
-                 :class="['w-16 h-16 p-1 rounded-xl bg-slate-50 border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-blue-600 shadow-md' : 'border-slate-100 hover:border-slate-300']">
-              <img :src="subImg" class="max-h-full max-w-full object-contain rounded-lg" />
+                 :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="subImg" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
             </div>
           </div>
         </div>
         
-        <div class="space-y-8">
+        <div class="space-y-6">
           <div>
-            <span class="inline-block bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-blue-100 mb-6 italic">
-              {{ product.brand }}
-            </span>
-            <h1 class="text-4xl md:text-5xl font-black text-slate-950 uppercase italic leading-none tracking-tighter mb-2">
+            <div class="flex flex-wrap gap-2 items-center mb-4">
+              <span class="inline-block bg-slate-900 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                {{ product.brand }}
+              </span>
+              <span class="inline-block bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider">
+                MÃ SP: {{ product.sku || product.id?.substring(0,7).toUpperCase() }}
+              </span>
+            </div>
+
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2">
               {{ product[`name_${locale}`] || product.name }}
             </h1>
-            <p class="text-slate-400 font-bold uppercase text-[10px] tracking-widest mb-6">{{ product[`category_${locale}`] || product.category }}</p>
+            
+            <p class="text-red-600 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-100 pb-4">
+              {{ product[`category_${locale}`] || product.category }}
+            </p>
 
-            <div v-if="product[`gift_${locale}`] || product.gift_vi" class="p-4 bg-orange-50 border-l-4 border-orange-400 rounded-r-2xl">
-              <h4 class="text-[9px] font-black uppercase text-orange-600 mb-1 tracking-widest italic">🎁 Ưu đãi đặc biệt:</h4>
-              <p class="text-sm font-bold text-slate-800 uppercase leading-snug">
+            <div v-if="product[`gift_${locale}`] || product.gift_vi" class="mt-4 p-4 bg-orange-50/70 border-l-4 border-orange-500 rounded-r-2xl shadow-sm shadow-orange-100">
+              <h4 class="text-[9px] font-black uppercase text-orange-700 mb-1 tracking-widest flex items-center gap-1.5">
+                <span>🎁</span> Ưu đãi tặng kèm đặc biệt:
+              </h4>
+              <p class="text-xs sm:text-sm font-bold text-slate-800 uppercase leading-snug">
                 {{ product[`gift_${locale}`] || product.gift_vi }}
               </p>
             </div>
           </div>
           
-          <div class="p-5 sm:p-8 rounded-[2.5rem] transition-all duration-500" 
-               :class="hasPromo(product) ? 'bg-red-50 border-red-100 shadow-red-100/50 shadow-lg' : 'bg-slate-900 border-slate-800 text-white shadow-2xl'">
+          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500" 
+               :class="hasPromo() ? 'bg-red-50/50 border-red-100' : 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10'">
                <div class="flex flex-col gap-1">
-                 <div v-if="hasPromo(product)" class="text-slate-400 font-bold text-sm sm:text-lg line-through opacity-60 whitespace-nowrap">
-                   {{ cleanNumber(product.price).toLocaleString('vi-VN') }} VNĐ
+                 <div v-if="hasPromo()" class="text-slate-400 font-bold text-xs sm:text-sm line-through opacity-70">
+                   {{ cleanNumber(product.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
                  </div>
                  
-                 <div class="text-3xl min-[390px]:text-4xl sm:text-5xl md:text-6xl font-black tracking-tight flex items-baseline gap-1.5 whitespace-nowrap"
-                      :class="hasPromo(product) ? 'text-red-600' : 'text-white'">
+                 <div class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5"
+                      :class="hasPromo() ? 'text-red-600' : 'text-white'">
                    {{ getDiscountedPrice(product).toLocaleString('vi-VN') }} 
-                   <span class="text-xs min-[390px]:text-sm sm:text-base md:text-xl font-bold opacity-40 uppercase shrink-0">VNĐ</span>
+                   <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">VNĐ</span>
                  </div>
                </div>
           </div>
 
-          <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-6 rounded-2xl font-black uppercase text-xs transition-all shadow-xl active:scale-95" :class="product.stock > 0 ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-400'">
-            <span v-if="product.stock > 0" class="absolute inset-0 bg-blue-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+          <button @click="addToCart(product)" 
+                  :disabled="isAdding || product.stock <= 0" 
+                  class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]" 
+                  :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
+            <span v-if="product.stock > 0" class="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
             <span class="relative z-10 tracking-[0.2em] flex items-center justify-center gap-2">
-                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? 'THÊM VÀO GIỎ HÀNG 🛒' : 'ADD TO CART 🛒') : 'HẾT HÀNG') }}
+                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? 'Thêm vào giỏ hàng 🛒' : 'Add to cart 🛒') : 'Hết hàng tạm thời') }}
             </span>
           </button>
 
-          <div class="mt-10 pt-8 border-t border-slate-100">
-            <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900 mb-4 italic underline decoration-red-600 decoration-4 underline-offset-8">Thông số/đặc điểm</h3>
-            <p class="text-slate-500 text-sm leading-relaxed font-medium whitespace-pre-line">
-              {{ product[`description_${locale}`] || product.description }}
-            </p>
+          <div class="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-center">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="text-lg mb-0.5">🛡️</div>
+              <p class="text-[9px] font-black uppercase text-slate-800 tracking-wider">Chính Hãng 100%</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="text-lg mb-0.5">🎯</div>
+              <p class="text-[9px] font-black uppercase text-slate-800 tracking-wider">Chính Xác Micro</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="text-lg mb-0.5">🚚</div>
+              <p class="text-[9px] font-black uppercase text-slate-800 tracking-wider">Giao Toàn Quốc</p>
+            </div>
           </div>
+
         </div>
       </div>
+
+      <div class="bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
+        
+        <div :class="parsedSpecifications.length > 0 ? 'md:col-span-7' : 'md:col-span-12'" class="space-y-4">
+          <h3 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-900 border-l-4 border-red-600 pl-3 mb-6">
+            {{ locale === 'vi' ? 'Thông Số Kỹ Thuật Chi Tiết' : 'Technical Specifications' }}
+          </h3>
+          
+          <div v-if="parsedSpecifications.length > 0" class="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <tbody>
+                <tr v-for="(spec, idx) in parsedSpecifications" :key="idx" 
+                    :class="idx % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'" 
+                    class="border-b border-slate-100 hover:bg-slate-100/40 transition-colors">
+                  <td class="px-4 py-3.5 font-bold text-slate-500 w-1/3 bg-slate-50/30 border-r border-slate-100 uppercase text-[10px] tracking-wider">{{ spec.key }}</td>
+                  <td class="px-4 py-3.5 font-extrabold text-slate-800 font-mono">{{ spec.value }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div v-else class="text-slate-400 text-xs py-4 italic">
+            Không có bảng thông số kỹ thuật riêng lẻ cho thiết bị này.
+          </div>
+        </div>
+
+        <div :class="parsedSpecifications.length > 0 ? 'md:col-span-5 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8' : 'md:col-span-12'" class="space-y-4">
+          <h3 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-900 border-l-4 border-slate-900 pl-3 mb-6">
+            {{ locale === 'vi' ? 'Đặc Tính & Mô Tả Dụng Cụ' : 'Product Features' }}
+          </h3>
+          <p class="text-slate-600 text-xs sm:text-sm leading-relaxed font-medium whitespace-pre-line">
+            {{ pureDescription || product[`description_${locale}`] || product.description }}
+          </p>
+        </div>
+
+      </div>
+
     </div>
   </div>
 </template>
