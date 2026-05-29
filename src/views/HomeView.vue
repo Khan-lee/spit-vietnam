@@ -290,7 +290,7 @@ onMounted(fetchData)
           <div v-if="promoProducts.length > 0">
             <div class="flex items-center justify-between mb-8">
               <h2 class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>⚡</span> Giải Pháp Đang Áp Dụng Ưu Đãi
+                <span>Giải Pháp Đang Áp Dụng Ưu Đãi</span>
               </h2>
             </div>
             
@@ -328,7 +328,7 @@ onMounted(fetchData)
 
           <div>
             <h2 class="text-xl md:text-2xl font-extrabold text-slate-900 mb-8 tracking-tight flex items-center gap-2">
-              <span>⭐</span> Danh Mục Thiết Bị & Dụng Cụ Tiêu Biểu
+              <span>Danh Mục Thiết Bị & Dụng Cụ Tiêu Biểu</span>
             </h2>
             
             <div class="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-4 md:gap-6 md:pb-0">

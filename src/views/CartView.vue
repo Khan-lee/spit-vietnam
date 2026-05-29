@@ -1,54 +1,79 @@
 <template>
-  <div class="fixed inset-0 z-9999 flex justify-end">
-    <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+  <div class="fixed inset-0 flex justify-end" style="z-index: 99999;">
     
-    <div class="relative w-full max-w-md bg-white h-full shadow-2xl p-6 md:p-8 flex flex-col">
-      <div class="flex justify-between items-center mb-8">
+    <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"></div>
+    
+    <div class="relative w-full max-w-md bg-white h-full shadow-2xl p-5 sm:p-6 md:p-8 flex flex-col border-l border-slate-100">
+      
+      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
         <div>
-          <h2 class="text-xl font-black uppercase tracking-tighter text-[#1e293b]">Giỏ hàng của bạn</h2>
-          <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Đang có {{ cart?.length || 0 }} loại sản phẩm</p>
+          <h2 class="text-xl font-black uppercase tracking-tight text-slate-900">Giỏ hàng của bạn</h2>
+          <p class="text-[10px] text-slate-400 font-black uppercase tracking-wider mt-0.5">
+            Đang chọn {{ cart?.length || 0 }} mã sản phẩm kỹ thuật
+          </p>
         </div>
-        <button @click="$emit('close')" class="p-2 hover:bg-slate-100 rounded-full transition-all group">
-          <svg class="group-hover:rotate-90 transition-transform" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <button @click="$emit('close')" class="p-2 hover:bg-slate-100 rounded-xl transition-all group border border-transparent hover:border-slate-200">
+          <svg class="group-hover:rotate-90 text-slate-500 group-hover:text-slate-900 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
-      <div class="grow overflow-y-auto pr-2 custom-scrollbar">
-        <div v-if="isCartEmpty" class="text-center py-20">
-          <p class="text-slate-400 text-sm font-bold uppercase">Giỏ hàng đang trống</p>
+      <div class="grow overflow-y-auto pr-1 custom-scrollbar">
+        <div v-if="isCartEmpty" class="text-center py-24 flex flex-col items-center justify-center">
+          <span class="text-3xl mb-3 opacity-40">🛒</span>
+          <p class="text-slate-400 text-xs font-black uppercase tracking-widest">Giỏ hàng đang trống</p>
+          <button @click="$emit('close')" class="mt-4 text-[10px] font-black text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 transition-colors uppercase tracking-wider">Tiếp tục xem sản phẩm</button>
         </div>
         
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-3.5">
           <div v-for="item in cart" :key="item.id" 
-            :class="['group flex gap-4 p-3 rounded-2xl border border-slate-100 transition-all relative', 
-                     item.isSoldOut ? 'bg-slate-50 opacity-60' : 'hover:bg-slate-50']"
+               :class="['group flex gap-4 p-3.5 bg-white rounded-xl border border-slate-200/70 transition-all duration-300 relative overflow-hidden', 
+                        item.isSoldOut ? 'bg-slate-50/80 opacity-60 border-slate-200' : 'hover:border-slate-900 hover:shadow-xs']"
           >
-            <div class="relative overflow-hidden rounded-xl w-20 h-20 shadow-sm border border-slate-50">
-              <img :src="item.image" :alt="item.name" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-              <div v-if="item.isSoldOut" class="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span class="text-[8px] font-black text-white border border-white px-1 py-0.5 rounded uppercase">Hết hàng</span>
+            <div class="relative overflow-hidden rounded-xl w-20 h-20 shadow-2xs border border-slate-100 shrink-0 bg-slate-50">
+              <img :src="item.image" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div v-if="item.isSoldOut" class="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
+                <span class="text-[8px] font-black text-white border border-white/60 px-1 py-0.5 rounded-sm uppercase tracking-wide">Hết hàng</span>
               </div>
             </div>
             
-            <div class="flex flex-col justify-between grow">
+            <div class="flex flex-col justify-between grow min-w-0">
               <div class="flex justify-between items-start gap-2">
-                <h3 class="text-[12px] font-black text-slate-800 line-clamp-2 leading-tight uppercase">{{ item.name }}</h3>
-                <button @click="removeItem(item.id)" class="text-slate-300 hover:text-[#e11d48]">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                <div>
+                  <span v-if="item.brand" class="inline-block text-[9px] font-black uppercase text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md mb-1">
+                    {{ item.brand }}
+                  </span>
+                  <h3 class="text-[12px] font-black text-slate-900 line-clamp-2 leading-tight uppercase tracking-tight">{{ item.name }}</h3>
+                </div>
+                <button @click="removeItemWithoutPopup(item.id)" class="text-slate-300 hover:text-red-600 transition-colors shrink-0 p-1 rounded-lg hover:bg-red-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
               </div>
               
-              <div class="flex items-end justify-between mt-2">
-                <div>
-                  <p class="text-[13px] font-black text-[#e11d48] tracking-tight">{{ item.price?.toLocaleString() }}₫</p>
-                  <p class="text-[9px] font-bold text-slate-400 uppercase">SL: {{ item.quantity }}</p>
+              <div class="flex items-end justify-between mt-2.5">
+                <div class="space-y-0.5">
+                  <div v-if="item.originalPrice && item.price < item.originalPrice" class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-slate-400 line-through font-bold">{{ item.originalPrice.toLocaleString() }}₫</span>
+                    <span class="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">
+                      -{{ Math.round((1 - item.price / item.originalPrice) * 100) }}%
+                    </span>
+                  </div>
+                  <p class="text-[14px] font-black text-red-600 tracking-tight">
+                    {{ item.price?.toLocaleString() }}₫
+                  </p>
                 </div>
 
-                <div :class="['flex items-center bg-white border border-slate-200 rounded-lg shadow-sm', 
+                <div :class="['flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden h-8', 
                                item.isSoldOut ? 'pointer-events-none opacity-30' : '']">
-                  <button @click="changeQty(item.id, -1)" class="px-2 py-1 hover:text-[#e11d48]">-</button>
-                  <span class="px-2 text-[11px] font-black min-w-6 text-center">{{ item.quantity }}</span>
-                  <button @click="changeQty(item.id, 1)" class="px-2 py-1 hover:text-[#e11d48]">+</button>
+                  <button @click="changeQty(item.id, -1)" class="w-8 h-full font-black text-slate-500 hover:text-red-600 hover:bg-slate-100/80 transition-colors flex items-center justify-center text-sm">
+                    <span v-if="item.quantity > 1">−</span>
+                    <span v-else class="text-[10px]">🗑️</span>
+                  </button>
+                  <span class="px-2 text-[11px] font-black min-w-7 text-center text-slate-900 bg-white border-x border-slate-200 h-full flex items-center justify-center">
+                    {{ item.quantity }}
+                  </span>
+                  <button @click="changeQty(item.id, 1)" class="w-8 h-full font-black text-slate-500 hover:text-red-600 hover:bg-slate-100/80 transition-colors flex items-center justify-center text-sm">
+                    +
+                  </button>
                 </div>
               </div>
             </div>
@@ -56,20 +81,31 @@
         </div>
       </div>
 
-      <div class="mt-8 border-t border-slate-900 pt-6 space-y-4">
-        <p v-if="hasSoldOutInCart" class="text-[10px] font-bold text-red-500 text-center animate-pulse">Vui lòng xóa sản phẩm đã hết hàng!</p>
+      <div class="mt-6 border-t border-slate-900 pt-5 space-y-4 shrink-0">
+        <div v-if="hasSoldOutInCart" class="p-3 bg-red-50 border border-red-100 rounded-xl text-center">
+          <p class="text-[10px] font-black text-red-600 uppercase tracking-wider animate-pulse">
+            ⚠️ Phát hiện sản phẩm đã hết hàng trong giỏ!
+          </p>
+        </div>
         
-        <div v-if="!isCartEmpty" class="flex justify-between items-center mb-2">
-          <span class="text-[11px] font-black uppercase text-slate-400">Tổng cộng:</span>
-          <span class="text-2xl font-black text-[#0f172a] tracking-tighter">{{ totalAmount.toLocaleString() }}₫</span>
+        <div v-if="!isCartEmpty" class="space-y-2">
+          <div v-if="totalSavedAmount > 0" class="flex justify-between items-center text-[11px] font-bold text-emerald-600">
+            <span>Ưu đãi tiết kiệm:</span>
+            <span>-{{ totalSavedAmount.toLocaleString() }}₫</span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] font-black uppercase text-slate-400 tracking-wider">Tổng cộng tạm tính:</span>
+            <span class="text-2xl font-black text-slate-950 tracking-tight">{{ totalAmount.toLocaleString() }}₫</span>
+          </div>
         </div>
 
         <button 
           @click="handleProceed"
           :disabled="isCartEmpty || hasSoldOutInCart"
-          class="w-full py-5 rounded-3xl font-black uppercase text-[12px] tracking-widest transition-all duration-300 flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-400 bg-[#e11d48] text-white shadow-xl shadow-red-100 active:scale-95"
+          class="w-full py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all duration-300 flex items-center justify-center gap-2 disabled:bg-slate-100 disabled:text-slate-400 bg-red-600 text-white shadow-lg shadow-red-600/10 hover:bg-slate-950 active:scale-[0.98] cursor-pointer"
         >
-          <span>TIẾN HÀNH THANH TOÁN NGAY 🚀</span>
+          <span>TIẾN HÀNH THANH TOÁN ĐƠN HÀNG 🚀</span>
         </button>
       </div>
     </div>
@@ -79,18 +115,55 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+
 const router = useRouter()
 const props = defineProps(['cart'])
 const emit = defineEmits(['close', 'change-qty', 'remove-item'])
+
 const isCartEmpty = computed(() => !props.cart || props.cart.length === 0)
-const totalAmount = computed(() => props.cart?.reduce((t, i) => t + (i.isSoldOut ? 0 : (i.price * i.quantity)), 0) || 0)
+
+// Tính tổng tiền dựa trên giá hiện tại
+const totalAmount = computed(() => 
+  props.cart?.reduce((t, i) => t + (i.isSoldOut ? 0 : (i.price * i.quantity)), 0) || 0
+)
+
+// Tính tổng số tiền tiết kiệm được từ các chiến dịch giảm giá
+const totalSavedAmount = computed(() => 
+  props.cart?.reduce((t, i) => {
+    if (i.isSoldOut || !i.originalPrice || i.originalPrice <= i.price) return t;
+    return t + ((i.originalPrice - i.price) * i.quantity);
+  }, 0) || 0
+)
+
 const hasSoldOutInCart = computed(() => props.cart?.some(item => item.isSoldOut))
-const changeQty = (id, delta) => emit('change-qty', id, delta)
-const removeItem = (id) => { if(confirm('Bạn muốn xóa sản phẩm này?')) emit('remove-item', id) }
-const handleProceed = () => { if (!isCartEmpty.value && !hasSoldOutInCart.value) { emit('close'); router.push('/checkout') } }
+
+// Tối ưu UX tăng giảm: Nếu giảm khi đang ở mức 1, tự động kích hoạt xóa luôn
+const changeQty = (id, delta) => {
+  const item = props.cart?.find(i => i.id === id)
+  if (item && item.quantity === 1 && delta === -1) {
+    emit('remove-item', id)
+  } else {
+    emit('change-qty', id, delta)
+  }
+}
+
+// Xóa sản phẩm không qua hộp thoại popup alert thô sơ để giữ độ mượt giao diện
+const removeItemWithoutPopup = (id) => {
+  emit('remove-item', id)
+}
+
+const handleProceed = () => { 
+  if (!isCartEmpty.value && !hasSoldOutInCart.value) { 
+    emit('close')
+    router.push('/checkout') 
+  } 
+}
 </script>
 
 <style scoped>
+/* Đồng bộ cấu trúc tham chiếu tài nguyên CSS của hệ thống Tailwind v4 */
+@reference "../style.css";
+
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
