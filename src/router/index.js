@@ -13,12 +13,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     // 2. Thêm object này vào trong mảng routes = [ ... ]
-{
-  path: '/admin/brands',
-  name: 'BrandAdmin',
-  component: BrandAdminView,
-  // Nếu sau này có làm trang tổng quan admin, bạn có thể chuyển nó thành route con (children)
-},
+    {
+      path: '/admin/brands',
+      name: 'BrandAdmin',
+      component: BrandAdminView,
+      // Nếu sau này có làm trang tổng quan admin, bạn có thể chuyển nó thành route con (children)
+    },
     { path: '/', name: 'home', component: HomeView },
     { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
@@ -39,6 +39,13 @@ const router = createRouter({
 
     // ROUTE CHI TIẾT NHÃN HÀNG (MỚI CẬP NHẬT)
     { path: '/brand/:id', name: 'brand-detail', component: () => import('../views/BrandDetailView.vue'), props: true },
+
+    // ROUTE TRỢ LÝ AI TƯ VẤN KỸ THUẬT SẢN PHẨM (CẬP NHẬT MỚI)
+    { 
+      path: '/ai-consultant', 
+      name: 'AIConsultant', 
+      component: () => import('../views/AIConsultantView.vue') 
+    },
 
     // --- ADMIN ROUTES ---
     { 

@@ -115,7 +115,7 @@
             <button :disabled="isSubmitting" type="submit" class="w-full group relative overflow-hidden bg-slate-950 text-white py-4.5 rounded-xl font-black uppercase text-[10px] tracking-[0.25em] transition-all shadow-lg active:scale-[0.99] disabled:opacity-50">
               <span class="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
               <span class="relative z-10 flex items-center justify-center gap-2">
-                {{ isSubmitting ? 'ĐANG GỬI DỮ LIỆU ĐẾN SPIT...' : 'GỬI YÊU CẦU BÁO GIÁ CƠ KHÍ 🚀' }}
+                {{ isSubmitting ? 'ĐANG GỬI DỮ LIỆU ĐẾN SPIT...' : 'GỬI YÊU CẦU BÁO GIÁ CƠ KHÍ' }}
               </span>
             </button>
           </form>

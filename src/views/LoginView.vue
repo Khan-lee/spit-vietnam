@@ -18,7 +18,7 @@
           <input v-model="password" type="password" class="w-full mt-2 bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 ring-red-500/5 transition-all outline-none" placeholder="••••••••" required>
         </div>
         <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 transition-all shadow-xl shadow-red-100">
-          Đăng nhập ngay 🚀
+          Đăng nhập ngay
         </button>
       </form>
     </div>

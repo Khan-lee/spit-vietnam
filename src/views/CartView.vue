@@ -105,7 +105,7 @@
           :disabled="isCartEmpty || hasSoldOutInCart"
           class="w-full py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all duration-300 flex items-center justify-center gap-2 disabled:bg-slate-100 disabled:text-slate-400 bg-red-600 text-white shadow-lg shadow-red-600/10 hover:bg-slate-950 active:scale-[0.98] cursor-pointer"
         >
-          <span>TIẾN HÀNH THANH TOÁN ĐƠN HÀNG 🚀</span>
+          <span>TIẾN HÀNH THANH TOÁN ĐƠN HÀNG</span>
         </button>
       </div>
     </div>

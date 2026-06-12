@@ -8,12 +8,17 @@ import PaymentQR from '../components/PaymentQR.vue'
 const router = useRouter()
 const cartItems = ref([])
 const cartSubtotal = ref(0)
-const shippingFee = ref(0) // [MỚI] Tự động đồng bộ từ cấu hình hệ thống
+const shippingFee = ref(0) 
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
-// Quản lý trạng thái hiển thị QR & Toast
+// [MỚI] Quản lý phương thức thanh toán & Yêu cầu báo giá
+const paymentMethod = ref('transfer') // 'transfer' hoặc 'cod'
+const requestQuote = ref(false) // Yêu cầu gửi báo giá/hợp đồng
+
+// Quản lý trạng thái hiển thị Modal & Toast
 const showPaymentQR = ref(false)
+const showSuccessModal = ref(false) // [MỚI] Modal cho đơn COD
 const newOrderId = ref('')
 const toast = ref({ show: false, message: '', type: 'error' })
 
@@ -24,7 +29,7 @@ const triggerToast = (message, type = 'error') => {
   setTimeout(() => { toast.value.show = false }, 3500)
 }
 
-// THÔNG TIN KHÁCH HÀNG (GIỮ NGUYÊN HOÀN TOÀN BIẾN)
+// THÔNG TIN KHÁCH HÀNG
 const customer = ref({ 
   name: '', 
   phone: '', 
@@ -35,16 +40,13 @@ const customer = ref({
   contractEmail: ''
 })
 
-// [MỚI] Tính toán tổng chi phí cuối cùng
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
 onMounted(async () => {
-  // 1. Tải dữ liệu giỏ hàng từ LocalStorage
   const savedCart = JSON.parse(localStorage.getItem('spit_cart')) || []
   cartItems.value = savedCart
   cartSubtotal.value = savedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 
-  // 2. [MỚI] Truy xuất phí ship mặc định từ cấu hình hệ thống trên Firestore
   try {
     const settingsRef = doc(db, "settings", "website")
     const settingsSnap = await getDoc(settingsRef)
@@ -59,12 +61,14 @@ onMounted(async () => {
 })
 
 const handleCheckout = async () => {
-  // Thay thế các hàm alert thô sơ bằng cụm Toast UI cao cấp
   if (!customer.value.name || !customer.value.phone) {
     return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
   }
   if (!customer.value.address) {
     return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
+  }
+  if (requestQuote.value && !customer.value.contractEmail) {
+    return triggerToast("Vui lòng nhập Email để chúng tôi gửi báo giá!")
   }
   if (cartItems.value.length === 0) {
     return triggerToast("Giỏ hàng của bạn đang trống, không thể thanh toán!")
@@ -73,7 +77,7 @@ const handleCheckout = async () => {
   try {
     isProcessing.value = true
 
-    // 1. Lưu đơn hàng vào collection "orders" với cấu trúc dữ liệu chuẩn B2B
+    // 1. Lưu đơn hàng vào collection "orders" (Thêm method và quote)
     const orderData = {
       userId: auth.currentUser ? auth.currentUser.uid : null,
       customerName: customer.value.name,
@@ -85,8 +89,10 @@ const handleCheckout = async () => {
       contractEmail: customer.value.contractEmail,
       items: cartItems.value,
       subtotal: cartSubtotal.value,
-      shippingFee: shippingFee.value, // Lưu kèm phí ship tại thời điểm đặt hàng
-      totalPrice: finalTotal.value,   // Tổng tiền chuẩn sau cộng phí
+      shippingFee: shippingFee.value, 
+      totalPrice: finalTotal.value,  
+      paymentMethod: paymentMethod.value, // [MỚI]
+      requestQuote: requestQuote.value,   // [MỚI]
       status: 'pending',
       createdAt: serverTimestamp()
     }
@@ -94,7 +100,7 @@ const handleCheckout = async () => {
     const docRef = await addDoc(collection(db, "orders"), orderData)
     newOrderId.value = docRef.id
 
-    // 2. Cập nhật số lượng tồn kho (Stock) tối ưu hóa
+    // 2. Cập nhật số lượng tồn kho (Stock)
     const updatePromises = cartItems.value.map(item => {
       const productRef = doc(db, "products", item.id)
       return updateDoc(productRef, {
@@ -107,8 +113,12 @@ const handleCheckout = async () => {
     localStorage.removeItem('spit_cart')
     window.dispatchEvent(new Event('cart-updated'))
     
-    // Kích hoạt hiển thị Modal QR chuyển khoản chuyên nghiệp
-    showPaymentQR.value = true
+    // 4. [MỚI] Điều hướng Modal dựa trên phương thức thanh toán
+    if (paymentMethod.value === 'transfer') {
+      showPaymentQR.value = true
+    } else {
+      showSuccessModal.value = true
+    }
 
   } catch (error) {
     console.error("Lỗi thanh toán:", error)
@@ -155,7 +165,7 @@ const handleCheckout = async () => {
           
           <div class="pt-5 border-t border-dashed border-slate-200/80 mt-4 space-y-4">
             <div class="flex items-center justify-between">
-              <p class="text-[10px] font-black uppercase text-slate-900 tracking-wider">Thông tin xuất hóa đơn VAT (Nếu có)</p>
+              <p class="text-[10px] font-black uppercase text-slate-900 tracking-wider">Thông tin xuất hóa đơn VAT / Báo giá</p>
               <span class="text-[9px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-md">B2B KHỐI NHÀ MÁY</span>
             </div>
             
@@ -173,6 +183,54 @@ const handleCheckout = async () => {
                 <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Email nhận hồ sơ / Hợp đồng</label>
                 <input v-model="customer.contractEmail" type="email" :disabled="isProcessing" placeholder="accounting@company.com" class="admin-input" />
               </div>
+            </div>
+
+            <label class="flex items-start gap-2.5 mt-2 cursor-pointer group">
+              <div class="relative flex items-center justify-center mt-0.5">
+                <input type="checkbox" v-model="requestQuote" :disabled="isProcessing" class="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded bg-white checked:bg-red-600 checked:border-red-600 transition-all cursor-pointer">
+                <svg class="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[11px] font-bold text-slate-700 group-hover:text-red-600 transition-colors">Yêu cầu gửi Báo giá / Đề nghị thanh toán (PDF)</span>
+                <span class="text-[10px] text-slate-500 font-medium mt-0.5">Hệ thống sẽ tự động gửi file báo giá có mộc đỏ công ty vào email phía trên.</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="pt-5 border-t border-dashed border-slate-200/80 mt-4 space-y-3">
+            <p class="text-[10px] font-black uppercase text-slate-900 tracking-wider">Phương thức thanh toán</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              
+              <label class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm focus:outline-none transition-all"
+                     :class="paymentMethod === 'transfer' ? 'border-red-600 bg-red-50/30' : 'border-slate-200 bg-white hover:border-slate-300'">
+                <input type="radio" v-model="paymentMethod" value="transfer" :disabled="isProcessing" class="sr-only" />
+                <span class="flex flex-1">
+                  <span class="flex flex-col">
+                    <span class="block text-xs font-black uppercase" :class="paymentMethod === 'transfer' ? 'text-red-700' : 'text-slate-700'">Chuyển khoản (Mã QR)</span>
+                    <span class="mt-1 flex items-center text-[10px] text-slate-500 font-medium">Thanh toán tự động, xét duyệt ngay</span>
+                  </span>
+                </span>
+                <svg v-if="paymentMethod === 'transfer'" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              </label>
+
+              <label class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm focus:outline-none transition-all"
+                     :class="paymentMethod === 'cod' ? 'border-red-600 bg-red-50/30' : 'border-slate-200 bg-white hover:border-slate-300'">
+                <input type="radio" v-model="paymentMethod" value="cod" :disabled="isProcessing" class="sr-only" />
+                <span class="flex flex-1">
+                  <span class="flex flex-col">
+                    <span class="block text-xs font-black uppercase" :class="paymentMethod === 'cod' ? 'text-red-700' : 'text-slate-700'">Thanh toán khi nhận</span>
+                    <span class="mt-1 flex items-center text-[10px] text-slate-500 font-medium">Nhận hàng, kiểm tra và thanh toán (COD)</span>
+                  </span>
+                </span>
+                <svg v-if="paymentMethod === 'cod'" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              </label>
+
             </div>
           </div>
 
@@ -227,7 +285,7 @@ const handleCheckout = async () => {
             class="w-full mt-5 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md shadow-red-950/40 disabled:bg-slate-800 disabled:text-slate-600 cursor-pointer flex items-center justify-center gap-2"
           >
             <span v-if="isProcessing" class="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin"></span>
-            {{ isProcessing ? 'ĐANG KHÓA & TẠO ĐƠN...' : 'XÁC NHẬN ĐẶT HÀNG NGAY 🚀' }}
+            {{ isProcessing ? 'ĐANG KHÓA & TẠO ĐƠN...' : (requestQuote ? 'ĐẶT HÀNG & NHẬN BÁO GIÁ' : 'XÁC NHẬN ĐẶT HÀNG NGAY') }}
           </button>
         </div>
       </div>
@@ -241,6 +299,9 @@ const handleCheckout = async () => {
           :amount="finalTotal" 
           :orderId="newOrderId" 
         />
+        <p v-if="requestQuote" class="mt-4 text-[11px] text-slate-500 font-medium">
+          Hệ thống đang khởi tạo file Báo Giá và sẽ gửi vào email của bạn trong ít phút tới.
+        </p>
         <button 
           @click="router.push('/')" 
           class="w-full mt-5 py-3.5 bg-slate-950 hover:bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-slate-950/20"
@@ -249,6 +310,33 @@ const handleCheckout = async () => {
         </button>
       </div>
     </div>
+
+    <div v-if="showSuccessModal" class="fixed inset-0 z-999999 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+      
+      <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center animate-in fade-in zoom-in-95 duration-200">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-black uppercase text-slate-900 tracking-tight">ĐẶT HÀNG THÀNH CÔNG!</h3>
+        <p class="text-xs text-slate-500 font-medium mt-2 leading-relaxed">
+          Mã đơn hàng của bạn là: <span class="font-black text-slate-800">{{ newOrderId.slice(0,8).toUpperCase() }}</span><br/>
+          Chúng tôi sẽ sớm liên hệ để xác nhận giao hàng.
+        </p>
+        <p v-if="requestQuote" class="mt-3 p-3 bg-blue-50 rounded-lg text-[10.5px] text-blue-700 font-bold">
+          📄 Báo giá đang được tạo và sẽ gửi vào email của bạn.
+        </p>
+        <button 
+          @click="router.push('/')" 
+          class="w-full mt-6 py-3.5 bg-slate-950 hover:bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-slate-950/20"
+        >
+          Tiếp tục mua sắm
+        </button>
+      </div>
+    </div>
+
   </div>
 </template>
 

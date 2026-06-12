@@ -8,6 +8,7 @@ import CartView from './views/CartView.vue'
 import { db } from './firebase'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { useSearchStore } from './stores/search' // Import Store để đồng bộ
+import AIChatWidget from './components/AIChatWidget.vue'
 
 const route = useRoute()
 const { locale } = useI18n()
@@ -125,6 +126,7 @@ onUnmounted(() => {
     </main>
 
     <Footer v-if="!isHideLayout" :config="webConfig" />
+    <AIChatWidget v-if="!isHideLayout" />
   </div>
 </template>
 

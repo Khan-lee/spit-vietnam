@@ -88,6 +88,9 @@ const price = ref(0); const stock = ref(0);
 const image = ref('');
 const imageFile = ref(null);
 
+// NÂNG CẤP: Thêm biến reactive lưu trữ Link sản phẩm tùy biến cấu hình từ Admin
+const custom_url = ref('')
+
 // --- HÀM LẤY DANH SÁCH NHÃN HÀNG ---
 const fetchBrands = async () => {
   try {
@@ -227,6 +230,7 @@ const handleSubmit = async () => {
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
+      custom_url: custom_url.value.trim(), // ĐỒNG BỘ BACKEND: Lưu link cấu hình tay vào Firestore
       updatedAt: serverTimestamp()
     }
 
@@ -317,6 +321,9 @@ const startEdit = (p) => {
   image.value = p.image || '';
   imageFile.value = null;
 
+  // ĐỒNG BỘ BACKEND: Đổ dữ liệu link sản phẩm cũ ra ô input khi nhấn Edit
+  custom_url.value = p.custom_url || '';
+
   subImages.value = p.sub_images ? [...p.sub_images] : []
   subImageFiles.value = p.sub_images ? new Array(p.sub_images.length).fill(null) : []
 
@@ -364,6 +371,7 @@ const resetForm = () => {
   price.value = 0; stock.value = 0; image.value = '';
   imageFile.value = null;
   hasPromotion.value = false; promotionValue.value = '';
+  custom_url.value = ''; // ĐỒNG BỘ BACKEND: Làm sạch input link sản phẩm khi reset form
   subImages.value = []
   subImageFiles.value = []
 }
@@ -506,6 +514,11 @@ const resetBrandForm = () => {
                       </select>
                       <input v-model="promotionValue" placeholder="Gía trị giảm" class="p-2 bg-white rounded-xl text-[10px] font-black outline-none border border-slate-100" />
                     </div>
+                  </div>
+
+                  <div class="space-y-1">
+                    <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Link sản phẩm điều hướng (Shopee / Landing page nếu có)</label>
+                    <input v-model="custom_url" placeholder="Ví dụ: https://shopee.vn/san-pham-abc..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
                   </div>
 
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
@@ -655,36 +668,31 @@ const resetBrandForm = () => {
               <table class="w-full text-left">
                 <thead class="bg-slate-50 border-b border-slate-100">
                   <tr>
-                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo & Nhãn hàng</th>
-                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã định danh ID</th>
+                    <th class="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thương hiệu</th>
                     <th class="p-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
-                  <tr v-for="b in filteredBrands" :key="b.id" class="hover:bg-red-50/20 transition-colors group">
+                  <tr v-for="b in filteredBrands" :key="b.id" class="hover:bg-red-50/30 transition-colors group">
                     <td class="p-5 flex items-center gap-4">
-                      <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-                        <img v-if="b.logoUrl" :src="b.logoUrl" :alt="b.name" class="max-h-full max-w-full object-contain" />
-                        <span v-else class="text-[8px] font-black text-slate-300">NO LOGO</span>
+                      <img :src="b.logoUrl" class="w-12 h-12 rounded-xl object-contain bg-white border border-slate-100 p-1 shadow-sm" />
+                      <div>
+                        <div class="text-sm font-black text-slate-800 uppercase tracking-wider">{{ b.name }}</div>
                       </div>
-                      <span class="text-sm font-black text-slate-800 uppercase tracking-tight">{{ b.name }}</span>
-                    </td>
-                    <td class="p-5 text-xs font-mono text-slate-400 select-all">
-                      {{ b.id }}
                     </td>
                     <td class="p-5 text-right">
                       <div class="flex justify-end gap-2">
-                        <button @click="startEditBrand(b)" class="p-2 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
-                          <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
+                        <button @click="startEditBrand(b)" class="p-2 hover:bg-red-100 rounded-lg transition-colors cursor-pointer">
+                          <span class="text-red-500 font-black text-[10px] uppercase">Sửa</span>
                         </button>
                         <button @click="confirmDeleteBrand(b.id, b.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
-                          <span class="text-red-400 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
+                          <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
                         </button>
                       </div>
                     </td>
                   </tr>
                   <tr v-if="filteredBrands.length === 0">
-                    <td colspan="3" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy nhãn hàng đối tác nào...</td>
+                    <td colspan="2" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy thương hiệu nào...</td>
                   </tr>
                 </tbody>
               </table>
@@ -698,11 +706,6 @@ const resetBrandForm = () => {
 </template>
 
 <style scoped>
-.animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+.page-fade-enter-active, .page-fade-leave-active { transition: opacity 0.25s ease; }
+.page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
 </style>

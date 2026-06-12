@@ -10,7 +10,7 @@ import slugify from 'slugify'
 const newPost = ref({
   title: '',
   slug: '',
-  category: 'technical', // [ĐÃ CẬP NHẬT] Đổi giá trị mặc định thành 'technical' hoặc 'news' để đồng bộ Frontend
+  category: 'technical',
   image: '', 
   imageAlt: '',         
   content: '',
@@ -32,6 +32,9 @@ const originalSlug = ref('')
 
 // Lưu trữ URL preview của ảnh để giải phóng bộ nhớ tránh memory leak
 const previewImageUrl = ref('')
+
+// --- [MỚI] TRẠNG THÁI AI SEO ---
+const isAIAnalyzing = ref(false)
 
 // --- BỘ ĐẾM KÝ TỰ & TỪ VỰNG TỐI ƯU ---
 const wordCount = computed(() => {
@@ -81,6 +84,80 @@ const getPlainTextSummary = (htmlContent, maxLength = 150) => {
   if (!htmlContent) return ''
   const pureText = htmlContent.replace(/<[^>]*>/g, ' ').trim().replace(/\s+/g, ' ')
   return pureText.slice(0, maxLength) + (pureText.length > maxLength ? '...' : '')
+}
+
+// --- [MỚI] TÍCH HỢP GEMINI API LÀM TRỢ LÝ SEO ---
+const generateSEOWithAI = async () => {
+  if (!newPost.value.title && !newPost.value.content) {
+    alert("Vui lòng nhập tiêu đề hoặc nội dung bài viết trước để AI có dữ liệu phân tích!")
+    return
+  }
+  
+  isAIAnalyzing.value = true
+  try {
+    // URL API Backend/Cloud Function gọi Gemini của bạn (thay thế nếu cần)
+    const apiEndpoint = 'https://us-central1-spit-vietnam.cloudfunctions.net/askSPITAssistant'
+    
+    // Lấy khoảng 1500 ký tự đầu của bài viết để tiết kiệm token gửi lên AI
+    const plainTextContent = getPlainTextSummary(newPost.value.content, 1500)
+
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `Đóng vai chuyên gia SEO B2B ngành dao cụ cơ khí và công nghiệp (cho SPIT Việt Nam). 
+        Phân tích bài viết có Tiêu đề: "${newPost.value.title}" và Nội dung: "${plainTextContent}".
+        Hãy trả về kết quả định dạng JSON duy nhất, KHÔNG bọc trong block code markdown (không dùng \`\`\`json). Bắt buộc tuân thủ cấu trúc sau:
+        {
+          "slug": "viet-lien-khong-dau-cach-nhau-bang-dau-gach-ngang",
+          "metaTitle": "Tiêu đề SEO chuẩn (dưới 60 ký tự)",
+          "metaDescription": "Mô tả SEO hấp dẫn, chuẩn chuyên ngành cơ khí (120-160 ký tự)",
+          "focusKeyword": "1 từ khóa chính quan trọng nhất",
+          "suggestedKeywords": "từ khóa 1, từ khóa 2, từ khóa 3"
+        }`,
+        history: []
+      })
+    })
+
+    if (!response.ok) throw new Error("API request failed")
+    const data = await response.json()
+    
+    // Xử lý text trả về, loại bỏ markdown nếu Gemini lỡ sinh ra
+    let rawText = data.text || data.response || data
+    if (typeof rawText === 'string') {
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim()
+    }
+    
+    let seoResult = null
+
+    // [QUAN TRỌNG] Bọc try-catch riêng cho việc Parse JSON
+    try {
+      seoResult = typeof rawText === 'string' ? JSON.parse(rawText) : rawText
+    } catch (parseError) {
+      console.error('❌ Lỗi Parse JSON. AI không trả về đúng định dạng:', rawText)
+      alert('AI vừa trả lời dưới dạng văn bản bình thường thay vì cấu trúc dữ liệu JSON. Bạn click sinh dữ liệu lại lần nữa nhé!')
+      isAIAnalyzing.value = false // Tắt loading
+      return // Dừng hàm ngay lập tức, không chạy code fill data bên dưới
+    }
+
+    // Fill data vào form (Chỉ chạy tiếp khi parse JSON thành công)
+    if (seoResult) {
+      if (seoResult.slug) newPost.value.slug = seoResult.slug
+      if (seoResult.metaTitle) newPost.value.seoTitle = seoResult.metaTitle
+      if (seoResult.metaDescription) newPost.value.metaDescription = seoResult.metaDescription
+      if (seoResult.focusKeyword) newPost.value.focusKeyword = seoResult.focusKeyword
+      if (seoResult.suggestedKeywords) newPost.value.metaKeywords = seoResult.suggestedKeywords
+    }
+    
+    // Tự động sinh luôn Schema
+    generateAutoSchema()
+
+  } catch (error) {
+    console.error('❌ Lỗi tạo SEO với AI:', error)
+    alert('Không thể kết nối với AI lúc này. Vui lòng kiểm tra lại mạng hoặc thử lại sau.')
+  } finally {
+    isAIAnalyzing.value = false
+  }
 }
 
 const generateAutoSchema = () => {
@@ -168,7 +245,6 @@ const loadPostToEdit = (post) => {
   newPost.value = {
     title: post.title || '',
     slug: post.id || post.slug || '',
-    // Fallback nếu bài viết cũ lưu tiếng Việt, tự động chuyển đổi về dạng mã định danh
     category: post.category === 'Tin tức' ? 'news' : (post.category || 'technical'),
     image: post.image || '',
     imageAlt: post.imageAlt || '',
@@ -267,7 +343,6 @@ const deletePost = async (id) => {
   }
 }
 
-// Hàm format text hiển thị danh mục bài viết ở danh sách đã xuất bản
 const formatCategory = (cat) => {
   if (cat === 'technical') return 'Kiến thức kỹ thuật'
   if (cat === 'news' || cat === 'Tin tức') return 'Tin tức & Sự kiện'
@@ -396,7 +471,7 @@ onMounted(fetchPosts)
 
         <div class="bg-white p-6 md:p-8 rounded-[3rem] shadow-sm border border-slate-100">
           <h3 class="text-xs font-black uppercase mb-6 flex items-center gap-2 text-slate-800">
-            <span class="p-2 bg-blue-50 text-blue-600 rounded-xl text-lg">🔍</span> Bản xem trước trên Google tìm kiếm (SERP)
+            <span class="p-2 bg-blue-50 text-blue-600 rounded-xl text-lg">🔍</span> Bản xem trước trên Google (SERP)
           </h3>
           <div class="max-w-150 border-l-4 border-blue-500 pl-6 py-2 overflow-hidden">
             <div class="text-[#1a0dab] text-xl font-medium mb-1 line-clamp-1 hover:underline cursor-pointer">
@@ -412,9 +487,29 @@ onMounted(fetchPosts)
 
       <div class="col-span-12 lg:col-span-4 space-y-8">
         
+        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-orange-100 bg-linear-to-br from-white to-orange-50/30 relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10">🤖</div>
+          <div class="flex items-center justify-between mb-3 relative z-10">
+            <h3 class="text-xs font-black uppercase tracking-widest italic text-orange-600 flex items-center gap-2">
+              Trợ lý AI SEO 
+            </h3>
+          </div>
+          <p class="text-[10px] text-slate-500 mb-5 leading-relaxed font-medium relative z-10">
+            AI tự động đọc hiểu bài viết kỹ thuật để đề xuất Tiêu đề, Mô tả, Slug và phân tích bộ Từ khóa tối ưu nhất.
+          </p>
+          <button 
+            @click="generateSEOWithAI"
+            :disabled="isAIAnalyzing || (!newPost.title && !newPost.content)"
+            class="w-full bg-linear-to-r from-orange-500 to-red-500 text-white font-black uppercase text-[10px] px-4 py-3.5 rounded-2xl transition-all shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 relative z-10"
+          >
+            <span v-if="isAIAnalyzing" class="animate-pulse">Đang phân tích bài viết... ⏳</span>
+            <span v-else>✨ Sinh Dữ Liệu SEO Tự Động</span>
+          </button>
+        </div>
+        
         <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-blue-50">
           <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xs font-black uppercase tracking-widest italic text-slate-800">Bộ Thống Kê Chỉ Số SEO</h3>
+            <h3 class="text-xs font-black uppercase tracking-widest italic text-slate-800">Bộ Thống Kê Điểm</h3>
             <div :class="seoAnalysis.score >= 80 ? 'bg-green-500 shadow-green-100' : seoAnalysis.score >= 50 ? 'bg-amber-500 shadow-amber-100' : 'bg-red-500 shadow-red-100'" 
               class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white shadow-xl transition-all duration-300">
               <span class="text-[16px] font-black leading-none">{{ seoAnalysis.score }}</span>
@@ -458,14 +553,14 @@ onMounted(fetchPosts)
                 <span :class="val ? 'bg-green-500 ring-4 ring-green-50' : 'bg-slate-200'" class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 transition-all"></span>
                 <span class="text-[10px] font-bold uppercase tracking-tight transition-colors" :class="val ? 'text-slate-700' : 'text-slate-300'">
                   <template v-if="key === 'titleLength'">Độ dài tiêu đề tối ưu (30 - 60 ký tự)</template>
-                  <template v-else-if="key === 'metaLength'">Độ dài Meta Description chuẩn (120 - 160 ký tự)</template>
-                  <template v-else-if="key === 'hasKeyword'">Mật độ từ khóa chính xuất hiện trong nội dung</template>
+                  <template v-else-if="key === 'metaLength'">Độ dài Meta chuẩn (120 - 160 ký tự)</template>
+                  <template v-else-if="key === 'hasKeyword'">Mật độ từ khóa chính xuất hiện</template>
                   <template v-else-if="key === 'keywordInTitle'">Từ khóa chính xuất hiện ở Tiêu Đề</template>
-                  <template v-else-if="key === 'keywordInMeta'">Từ khóa chính xuất hiện ở Meta Description</template>
+                  <template v-else-if="key === 'keywordInMeta'">Từ khóa chính xuất hiện ở Mô Tả</template>
                   <template v-else-if="key === 'keywordInSlug'">Đường dẫn URL chứa từ khóa mục tiêu</template>
-                  <template v-else-if="key === 'contentLength'">Bài viết chuyên sâu dài tối thiểu 600 từ</template>
-                  <template v-else-if="key === 'hasHeadings'">Nội dung bài viết có phân bổ thẻ H2 hoặc H3</template>
-                  <template v-else-if="key === 'hasImageAlt'">Văn bản thay thế Alt hình ảnh chứa từ khóa</template>
+                  <template v-else-if="key === 'contentLength'">Bài viết chuyên sâu dài trên 600 từ</template>
+                  <template v-else-if="key === 'hasHeadings'">Bài viết có phân bổ thẻ H2 hoặc H3</template>
+                  <template v-else-if="key === 'hasImageAlt'">Văn bản Alt hình ảnh chứa từ khóa</template>
                 </span>
               </li>
             </ul>
@@ -531,18 +626,5 @@ onMounted(fetchPosts)
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
-}
-
-.line-clamp-1 {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 </style>

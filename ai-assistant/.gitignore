@@ -1,0 +1,4 @@
+node_modules/
+*.local
+# Bỏ qua các file chứa key bảo mật
+serviceAccountKey.json

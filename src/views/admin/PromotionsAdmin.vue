@@ -288,7 +288,7 @@ onMounted(() => {
           </div>
 
           <button @click="handleAddPromo" class="w-full bg-slate-950 text-white font-black py-3.5 rounded-xl hover:bg-red-600 transition-colors uppercase text-[10px] tracking-widest mt-2 shadow-md shadow-slate-900/10 active:scale-[0.99]">
-            TẠO CHIẾN DỊCH KHUYẾN MÃI 🚀
+            TẠO CHIẾN DỊCH KHUYẾN MÃI
           </button>
         </div>
       </div>
