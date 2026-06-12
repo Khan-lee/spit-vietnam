@@ -121,7 +121,8 @@ onMounted(fetchSettings)
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Địa chỉ văn phòng / Nhà kho</label>
-                <textarea v-model="settings.address" :disabled="isSaving" rows="3" class="admin-input resize-none" placeholder="Số nhà, tên đường, khu công nghiệp..."></textarea>
+                <textarea v-model="settings.address" :disabled="isSaving" rows="4" class="admin-input" placeholder="Trụ sở chính HCM: ...&#10;CN Hà Nội: ..."></textarea>
+                <p class="text-[9px] text-slate-400 font-medium italic mt-1">* Gõ Enter để xuống dòng. Cần thêm class <code class="text-red-500">whitespace-pre-line</code> ở ngoài file giao diện để hiển thị đúng định dạng.</p>
               </div>
             </div>
           </div>

@@ -43,7 +43,7 @@
         <ul class="space-y-4 text-sm text-slate-400">
           <li class="flex items-start gap-3 group">
             <span class="text-primary">📍</span>
-            <span class="hover:text-white transition-colors leading-relaxed">
+            <span class="hover:text-white transition-colors leading-relaxed whitespace-pre-line">
               {{ config[`address_${locale}`] || config.address || '361 Le Trong Tan, Tan Phu, Ho Chi Minh City' }}
             </span>
           </li>
