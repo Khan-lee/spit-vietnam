@@ -28,22 +28,8 @@ import 'swiper/css/effect-fade'
 
 const swiperModules = [Autoplay, Pagination, Navigation, EffectFade]
 
-// Dữ liệu Banners cho Slider (Cập nhật màu sắc & text đồng bộ thương hiệu)
-const mainBanners = ref([
-  {
-    id: 1,
-    image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
-    useI18n: true 
-  },
-  {
-    id: 2,
-    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=2070',
-    title: 'GIẢI PHÁP GIA CÔNG <span class="text-slate-400">CHÍNH XÁC CAO</span>',
-    subtitle: 'CHƯƠNG TRÌNH ĐỒNG HÀNH CÙNG DOANH NGHIỆP KHUÔN MẪU',
-    desc: 'Ưu đãi tối ưu chi phí vận hành: Tặng cán dao tiện khi đặt hàng số lượng lớn các dòng mảnh cắt insert trong tháng này.',
-    useI18n: false
-  }
-])
+// Đã cập nhật: Bỏ data cứng, đổi thành ref rỗng chờ fetch từ Firestore
+const mainBanners = ref([])
 
 let timer
 onMounted(() => {
@@ -55,11 +41,39 @@ onUnmounted(() => clearInterval(timer))
 
 const fetchData = async () => {
   try {
+    // 1. Fetch Products
     const querySnapshot = await getDocs(collection(db, "products"))
     products.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     
+    // 2. Fetch Promotions
     const promoSnap = await getDocs(collection(db, "promotions"))
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+    // 3. ĐÃ CẬP NHẬT: Fetch Banners từ Firestore
+    const bannerSnap = await getDocs(collection(db, "banners"))
+    const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
+    if (fetchedBanners.length > 0) {
+      mainBanners.value = fetchedBanners
+    } else {
+      // Fallback: Nếu Firestore chưa có banner nào, sử dụng banner mặc định cũ của bạn để không hỏng UI
+      mainBanners.value = [
+        {
+          id: 1,
+          image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
+          useI18n: true 
+        },
+        {
+          id: 2,
+          image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=2070',
+          title: 'GIẢI PHÁP GIA CÔNG <span class="text-slate-400">CHÍNH XÁC CAO</span>',
+          subtitle: 'CHƯƠNG TRÌNH ĐỒNG HÀNH CÙNG DOANH NGHIỆP KHUÔN MẪU',
+          desc: 'Ưu đãi tối ưu chi phí vận hành: Tặng cán dao tiện khi đặt hàng số lượng lớn các dòng mảnh cắt insert trong tháng này.',
+          useI18n: false
+        }
+      ]
+    }
+
   } catch (e) { 
     console.error("Lỗi đồng bộ Firestore:", e) 
   } finally { 
@@ -168,14 +182,16 @@ onMounted(fetchData)
 
     <section class="relative h-[60vh] md:h-[75vh] bg-slate-900 text-white overflow-hidden">
       <swiper
+        v-if="mainBanners.length > 0"
         :modules="swiperModules"
         :slides-per-view="1"
-        :loop="true"
+        :loop="mainBanners.length > 1"
         :effect="'fade'"
         :fade-effect="{ crossFade: true }"
-        :autoplay="{ delay: 6000, disableOnInteraction: false }"
-        :pagination="{ clickable: true }"
-        :navigation="true"
+        :autoplay="mainBanners.length > 1 ? { delay: 5000, disableOnInteraction: false } : false"
+        :pagination="mainBanners.length > 1 ? { clickable: true } : false"
+        :navigation="mainBanners.length > 1"
+        :speed="1200"
         class="h-full w-full"
       >
         <swiper-slide v-for="banner in mainBanners" :key="banner.id" class="overflow-hidden">
@@ -190,13 +206,22 @@ onMounted(fetchData)
                   <p class="text-slate-400 max-w-xl font-medium text-lg md:text-xl leading-relaxed">{{ $t('home.hero_subtitle') }}</p>
                 </template>
                 <template v-else>
-                  <h2 class="text-slate-400 text-xs md:text-sm font-bold uppercase tracking-[0.25em] mb-2 bg-white/5 inline-block px-3 py-1 rounded-md border border-white/10">{{ banner.subtitle }}</h2>
-                  <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold uppercase leading-[1.1] tracking-tight text-white" v-html="banner.title"></h1>
-                  <p class="text-slate-400 max-w-xl font-medium text-base opacity-90 leading-relaxed">{{ banner.desc }}</p>
+                  <h2 v-if="banner.subtitle" class="text-slate-400 text-xs md:text-sm font-bold uppercase tracking-[0.25em] mb-2 bg-white/5 inline-block px-3 py-1 rounded-md border border-white/10">{{ banner.subtitle }}</h2>
+                  <h1 v-if="banner.title" class="text-4xl md:text-6xl lg:text-7xl font-extrabold uppercase leading-[1.1] tracking-tight text-white" v-html="banner.title"></h1>
+                  <p v-if="banner.desc" class="text-slate-400 max-w-xl font-medium text-base opacity-90 leading-relaxed">{{ banner.desc }}</p>
                 </template>
+                
                 <div class="pt-4">
-                  <router-link to="/products" class="inline-block bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-xl">
-                    {{ locale === 'vi' ? 'Xem danh mục sản phẩm' : 'Explore Catalog' }}
+                  <a v-if="banner.link && (banner.link.startsWith('http://') || banner.link.startsWith('https://'))"
+                     :href="banner.link"
+                     target="_blank"
+                     class="inline-block bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-xl">
+                    {{ locale === 'vi' ? 'Xem chi tiết' : 'View Details' }}
+                  </a>
+                  <router-link v-else
+                               :to="banner.link || '/products'"
+                               class="inline-block bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-xl">
+                    {{ banner.link ? (locale === 'vi' ? 'Xem chi tiết' : 'View Details') : (locale === 'vi' ? 'Xem danh mục sản phẩm' : 'Explore Catalog') }}
                   </router-link>
                 </div>
               </div>
@@ -251,7 +276,7 @@ onMounted(fetchData)
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div v-for="p in filteredProducts" :key="p.id" class="group bg-white border border-slate-100 rounded-3xl p-5 flex flex-col hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden">
               <div v-if="getSalePrice(p)" class="absolute top-4 right-4 bg-slate-900 text-white border border-slate-700 px-2 py-0.5 rounded-md text-[9px] font-bold z-10 shadow-sm">
-                OFFER
+                OFF
               </div>
               <div class="h-44 mb-4 flex items-center justify-center relative overflow-hidden bg-slate-50/50 rounded-2xl p-4">
                 <img :src="p.image" :alt="p.name" class="max-h-full object-contain group-hover:scale-105 transition-transform duration-500" />
@@ -297,7 +322,7 @@ onMounted(fetchData)
             <div class="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-4 md:gap-6 md:pb-0">
               <div v-for="p in promoProducts" :key="p.id" class="group bg-white border border-slate-100 rounded-3xl p-5 flex flex-col hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden shrink-0 w-64 snap-start md:w-auto md:shrink">
                 <div class="absolute top-4 right-4 bg-slate-900 text-white border border-slate-700 px-2 py-0.5 rounded-md text-[9px] font-bold z-10 shadow-sm">
-                  OFFER
+                  OFF
                 </div>
                 <div class="h-44 mb-4 flex items-center justify-center relative overflow-hidden bg-slate-50/50 rounded-2xl p-4">
                   <img :src="p.image" :alt="p.name" class="max-h-full object-contain group-hover:scale-105 transition-transform duration-500" />
@@ -315,12 +340,14 @@ onMounted(fetchData)
                 </h3>
                 <div class="mt-auto pt-2 border-t border-slate-50 flex items-center justify-between">
                   <div>
-                    <div class="text-sm font-extrabold text-slate-950">{{ Math.round(getSalePrice(p)).toLocaleString() }} VNĐ</div>
-                    <div class="text-[10px] text-slate-400 line-through font-medium">{{ p.price?.toLocaleString() }} VNĐ</div>
+                    <div v-if="getSalePrice(p)">
+                      <div class="text-sm font-extrabold text-slate-950">{{ Math.round(getSalePrice(p)).toLocaleString() }} VNĐ</div>
+                      <div class="text-[10px] text-slate-400 line-through font-medium">{{ p.price?.toLocaleString() }} VNĐ</div>
+                    </div>
+                    <router-link :to="'/product/' + p.id" class="bg-slate-50 text-slate-700 hover:bg-slate-950 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all">
+                      Chi tiết
+                    </router-link>
                   </div>
-                  <router-link :to="'/product/' + p.id" class="bg-slate-50 text-slate-700 hover:bg-slate-950 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all">
-                    Chi tiết
-                  </router-link>
                 </div>
               </div>
             </div>
@@ -334,7 +361,7 @@ onMounted(fetchData)
             <div class="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-4 md:gap-6 md:pb-0">
               <div v-for="p in featuredProducts" :key="p.id" class="group bg-white border border-slate-100 rounded-3xl p-5 flex flex-col hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden shrink-0 w-64 snap-start md:w-auto md:shrink">
                 <div v-if="getSalePrice(p)" class="absolute top-4 right-4 bg-slate-900 text-white border border-slate-700 px-2 py-0.5 rounded-md text-[9px] font-bold z-10 shadow-sm">
-                  OFFER
+                  OFF
                 </div>
                 <div class="h-44 mb-4 flex items-center justify-center relative overflow-hidden bg-slate-50/50 rounded-2xl p-4">
                   <img :src="p.image" :alt="p.name" class="max-h-full object-contain group-hover:scale-105 transition-transform duration-500" />

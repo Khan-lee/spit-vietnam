@@ -85,6 +85,13 @@ const router = createRouter({
       component: () => import('../views/AdminSettingsView.vue'),
       meta: { requiresAuth: true } 
     },
+    // MỤC MỚI CẬP NHẬT: QUẢN LÝ SLIDESHOW BANNER TRANG CHỦ
+    {
+      path: '/spit-system-manager/banners',
+      name: 'AdminBanners',
+      component: () => import('../views/AdminBannerView.vue'),
+      meta: { requiresAuth: true }
+    },
     // ROUTE QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
     { 
       path: '/spit-system-manager/about', 

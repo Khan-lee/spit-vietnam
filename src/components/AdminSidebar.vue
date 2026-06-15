@@ -9,44 +9,40 @@
 
     <nav class="space-y-2 grow">
       <router-link to="/spit-system-manager/dashboard" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">📊</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Bảng điều khiển</span>
       </router-link>
 
       <router-link to="/spit-system-manager" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">📦</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý sản phẩm</span>
       </router-link>
 
       <router-link to="/spit-system-manager/posts" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">📝</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý bài viết</span>
       </router-link>
 
       <router-link to="/spit-system-manager/promotions" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">🎁</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý khuyến mãi</span>
       </router-link>
 
       <router-link to="/spit-system-manager/brands" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">🏢</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý nhãn hàng</span>
       </router-link>
 
+      <router-link to="/spit-system-manager/banners" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
+        <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý banner</span>
+      </router-link>
+
       <router-link to="/spit-system-manager/about" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">ℹ️</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Trang giới thiệu</span>
       </router-link>
 
       <router-link to="/spit-system-manager/settings" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
-        <span class="text-xl">⚙️</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Thiết lập hệ thống</span>
       </router-link>
     </nav>
 
     <div class="pt-6 border-t border-slate-800">
       <router-link to="/" class="flex items-center gap-4 p-4 rounded-2xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-all">
-        <span class="text-xl">🏠</span>
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Về trang chủ</span>
       </router-link>
     </div>
