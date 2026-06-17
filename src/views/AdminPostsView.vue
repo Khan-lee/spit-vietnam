@@ -200,11 +200,36 @@ const handleTitleInput = () => {
   }
 }
 
+// [MỚI ĐƯỢC THÊM VÀO] Hàm xử lý đưa ảnh từ khung soạn thảo TinyMCE lên Firebase Storage
+const handleImageUpload = (blobInfo, progress) => {
+  return new Promise((resolve, reject) => {
+    const file = blobInfo.blob()
+    // Tạo tên file duy nhất tránh trùng lặp
+    const fileRef = storageRef(storage, `posts/tinymce_${Date.now()}_${blobInfo.filename()}`)
+
+    uploadBytes(fileRef, file)
+      .then((snapshot) => {
+        getDownloadURL(snapshot.ref)
+          .then((downloadURL) => {
+            resolve(downloadURL) // Trả về link Firebase gốc cho HTML của trình soạn thảo
+          })
+          .catch((error) => {
+            reject('Lỗi khi lấy link ảnh từ Firebase: ' + error.message)
+          })
+      })
+      .catch((error) => {
+        reject('Lỗi upload ảnh lên Storage: ' + error.message)
+      })
+  })
+}
+
 const editorConfig = {
   height: 450,
   menubar: true,
   plugins: 'lists link image table code wordcount advlist charmap preview anchor searchreplace visualblocks fullscreen insertdatetime media help',
-  toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | table code'
+  // Đã thêm 'image' vào toolbar và nhúng images_upload_handler để xử lý ảnh
+  toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | table image code',
+  images_upload_handler: handleImageUpload 
 }
 
 const onFileChange = (e) => {
@@ -222,7 +247,7 @@ const onFileChange = (e) => {
 const uploadImageToStorage = async () => {
   if (imageFile.value && newPost.value.image.startsWith('blob:')) {
     const fileRef = storageRef(storage, `posts/${Date.now()}_${imageFile.value.name}`)
-    await uploadBytes(fileRef, fileRef)
+    await uploadBytes(fileRef, imageFile.value)
     return await getDownloadURL(fileRef)
   }
   return newPost.value.image
