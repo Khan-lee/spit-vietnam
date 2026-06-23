@@ -190,3 +190,13 @@ onUnmounted(() => {
     <AIChatWidget v-if="!isHideLayout" />
   </div>
 </template>
+<style scoped>
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 40s linear infinite;
+}
+</style>
