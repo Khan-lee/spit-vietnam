@@ -2,23 +2,26 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase'
-import { collection, addDoc, doc, getDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, doc, getDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import PaymentQR from '../components/PaymentQR.vue'
 
 const router = useRouter()
-const cartItems = ref([])
-const cartSubtotal = ref(0)
+
+// Lấy giỏ hàng thô từ localStorage
+const rawCartItems = ref([])
+const promotions = ref([]) // Lưu danh sách CTKM
+
 const shippingFee = ref(0) 
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
-// [MỚI] Quản lý phương thức thanh toán & Yêu cầu báo giá
-const paymentMethod = ref('transfer') // 'transfer' hoặc 'cod'
-const requestQuote = ref(false) // Yêu cầu gửi báo giá/hợp đồng
+// Quản lý phương thức thanh toán & Yêu cầu báo giá
+const paymentMethod = ref('transfer')
+const requestQuote = ref(false)
 
 // Quản lý trạng thái hiển thị Modal & Toast
 const showPaymentQR = ref(false)
-const showSuccessModal = ref(false) // [MỚI] Modal cho đơn COD
+const showSuccessModal = ref(false)
 const newOrderId = ref('')
 const toast = ref({ show: false, message: '', type: 'error' })
 
@@ -29,23 +32,73 @@ const triggerToast = (message, type = 'error') => {
   setTimeout(() => { toast.value.show = false }, 3500)
 }
 
-// THÔNG TIN KHÁCH HÀNG
 const customer = ref({ 
-  name: '', 
-  phone: '', 
-  address: '', 
-  note: '',
-  companyName: '',
-  taxCode: '',
-  contractEmail: ''
+  name: '', phone: '', address: '', note: '', companyName: '', taxCode: '', contractEmail: ''
 })
 
+// [MỚI] Kéo các CTKM đang chạy về trang Checkout
+const fetchActivePromotions = async () => {
+  try {
+    const now = new Date().getTime()
+    const q = query(collection(db, "promotions"), where("is_active", "==", true))
+    const snap = await getDocs(q)
+    
+    promotions.value = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => {
+        const start = new Date(p.start_date).getTime()
+        const end = new Date(p.end_date).getTime()
+        return now >= start && now <= end
+      })
+  } catch (e) {
+    console.error("Lỗi lấy khuyến mãi ở Checkout:", e)
+  }
+}
+
+// [MỚI] Tự động tính toán lại giá trị giỏ hàng với các mốc Tiers
+const cartItems = computed(() => {
+  return rawCartItems.value.map(item => {
+    let finalPrice = item.price
+    let appliedPromoTitle = null
+
+    const matchedPromo = promotions.value.find(p => 
+      p.apply_to === 'all' || (p.applied_ids && p.applied_ids.includes(item.id))
+    )
+
+    if (matchedPromo && matchedPromo.tiers) {
+      const sortedTiers = [...matchedPromo.tiers].sort((a, b) => b.quantity - a.quantity)
+      const matchedTier = sortedTiers.find(t => item.quantity >= t.quantity)
+
+      if (matchedTier) {
+        appliedPromoTitle = matchedPromo.title
+        let discountAmount = 0
+        if (matchedTier.discount_type === 'percentage') {
+          discountAmount = item.price * (matchedTier.discount_value / 100)
+        } else if (matchedTier.discount_type === 'fixed_amount') {
+          discountAmount = matchedTier.discount_value
+        }
+        finalPrice = Math.max(0, item.price - discountAmount)
+      }
+    }
+
+    return {
+      ...item,
+      finalPrice,
+      appliedPromoTitle,
+      itemTotal: finalPrice * item.quantity
+    }
+  })
+})
+
+// Tổng tiền tự động tính từ giỏ hàng đã giảm giá
+const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
 onMounted(async () => {
-  const savedCart = JSON.parse(localStorage.getItem('spit_cart')) || []
-  cartItems.value = savedCart
-  cartSubtotal.value = savedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  rawCartItems.value = JSON.parse(localStorage.getItem('spit_cart')) || []
+  
+  // Phải fetch khuyến mãi để computed cartItems nó tính ra giá mới
+  await fetchActivePromotions()
 
   try {
     const settingsRef = doc(db, "settings", "website")
@@ -61,23 +114,14 @@ onMounted(async () => {
 })
 
 const handleCheckout = async () => {
-  if (!customer.value.name || !customer.value.phone) {
-    return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
-  }
-  if (!customer.value.address) {
-    return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
-  }
-  if (requestQuote.value && !customer.value.contractEmail) {
-    return triggerToast("Vui lòng nhập Email để chúng tôi gửi báo giá!")
-  }
-  if (cartItems.value.length === 0) {
-    return triggerToast("Giỏ hàng của bạn đang trống, không thể thanh toán!")
-  }
+  if (!customer.value.name || !customer.value.phone) return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
+  if (!customer.value.address) return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
+  if (requestQuote.value && !customer.value.contractEmail) return triggerToast("Vui lòng nhập Email để chúng tôi gửi báo giá!")
+  if (cartItems.value.length === 0) return triggerToast("Giỏ hàng của bạn đang trống, không thể thanh toán!")
 
   try {
     isProcessing.value = true
 
-    // 1. Lưu đơn hàng vào collection "orders" (Thêm method và quote)
     const orderData = {
       userId: auth.currentUser ? auth.currentUser.uid : null,
       customerName: customer.value.name,
@@ -87,12 +131,12 @@ const handleCheckout = async () => {
       companyName: customer.value.companyName,
       taxCode: customer.value.taxCode,
       contractEmail: customer.value.contractEmail,
-      items: cartItems.value,
+      items: cartItems.value, // Đã có finalPrice và itemTotal
       subtotal: cartSubtotal.value,
       shippingFee: shippingFee.value, 
       totalPrice: finalTotal.value,  
-      paymentMethod: paymentMethod.value, // [MỚI]
-      requestQuote: requestQuote.value,   // [MỚI]
+      paymentMethod: paymentMethod.value,
+      requestQuote: requestQuote.value,  
       status: 'pending',
       createdAt: serverTimestamp()
     }
@@ -100,26 +144,20 @@ const handleCheckout = async () => {
     const docRef = await addDoc(collection(db, "orders"), orderData)
     newOrderId.value = docRef.id
 
-    // 2. Cập nhật số lượng tồn kho (Stock)
     const updatePromises = cartItems.value.map(item => {
       const productRef = doc(db, "products", item.id)
-      return updateDoc(productRef, {
-        stock: increment(-item.quantity)
-      })
+      return updateDoc(productRef, { stock: increment(-item.quantity) })
     })
     await Promise.all(updatePromises)
 
-    // 3. Xóa giỏ hàng và đồng bộ trạng thái hệ thống
     localStorage.removeItem('spit_cart')
     window.dispatchEvent(new Event('cart-updated'))
     
-    // 4. [MỚI] Điều hướng Modal dựa trên phương thức thanh toán
     if (paymentMethod.value === 'transfer') {
       showPaymentQR.value = true
     } else {
       showSuccessModal.value = true
     }
-
   } catch (error) {
     console.error("Lỗi thanh toán:", error)
     triggerToast("Hệ thống bận, vui lòng thử lại sau ít phút!")
@@ -251,12 +289,21 @@ const handleCheckout = async () => {
             <img :src="item.image" class="w-11 h-11 object-cover rounded-lg border border-slate-800 bg-slate-900 shrink-0" />
             <div class="min-w-0 grow">
               <h4 class="text-[11px] font-black uppercase tracking-tight text-slate-200 line-clamp-1">{{ item.name }}</h4>
+              
               <p class="text-[10px] text-slate-500 font-bold mt-0.5">
-                Mức giá: {{ item.price.toLocaleString() }}đ <span class="text-red-500 font-black ml-1">x{{ item.quantity }}</span>
+                Mức giá: 
+                <span v-if="item.finalPrice < item.price" class="line-through text-slate-600 mr-1">
+                  {{ item.price.toLocaleString() }}đ
+                </span>
+                <span :class="item.finalPrice < item.price ? 'text-red-400' : 'text-slate-500'">
+                  {{ item.finalPrice.toLocaleString() }}đ
+                </span>
+                <span class="text-red-500 font-black ml-1">x{{ item.quantity }}</span>
               </p>
             </div>
+            
             <div class="text-[12px] font-black text-slate-100 shrink-0 pl-2">
-              {{ (item.price * item.quantity).toLocaleString() }}₫
+              {{ item.itemTotal.toLocaleString() }}₫
             </div>
           </div>
         </div>

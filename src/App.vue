@@ -1,34 +1,32 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted, watch } from 'vue' // Thêm watch
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Header from './components/Header.vue'
 import Footer from './components/Footer.vue'
 import CartView from './views/CartView.vue'
 import { db } from './firebase'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { useSearchStore } from './stores/search' // Import Store để đồng bộ
+import { doc, onSnapshot, collection, getDocs, query, where } from 'firebase/firestore'
+import { useSearchStore } from './stores/search'
 import AIChatWidget from './components/AIChatWidget.vue'
 
 const route = useRoute()
 const { locale } = useI18n()
-const searchStore = useSearchStore() // Khởi tạo store
+const searchStore = useSearchStore()
 
 const webConfig = ref({
   hotline: '',
   email: ''
 })
 const cartItems = ref([])
+const promotions = ref([]) // Thêm state lưu CTKM ngay tại đây
 const isCartOpen = ref(false)
 const searchQuery = ref('')
 
-// Đồng bộ searchQuery của App.vue với Pinia Store
-// Khi searchQuery ở App thay đổi (do Header emit), ta cập nhật vào Store để HomeView nhận được
 watch(searchQuery, (newVal) => {
   searchStore.setSearchQuery(newVal)
 })
 
-// Biến quản lý ngắt kết nối Firebase cho App.vue
 let unsubConfig = null
 
 const displayAnnouncement = computed(() => {
@@ -49,6 +47,7 @@ const updateCart = () => {
   cartItems.value = data ? JSON.parse(data) : []
 }
 
+// Giữ nguyên các hàm quản lý giỏ hàng của mày
 const cartCount = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
 
 const changeQuantity = (productId, delta) => {
@@ -73,8 +72,70 @@ const saveCart = () => {
   window.dispatchEvent(new Event('cart-updated'))
 }
 
+// Lấy các chương trình khuyến mãi đang hoạt động từ Firestore
+const fetchActivePromotions = async () => {
+  try {
+    const now = new Date().getTime()
+    const q = query(collection(db, "promotions"), where("is_active", "==", true))
+    const snap = await getDocs(q)
+    
+    // Lọc các chiến dịch còn trong thời hạn
+    promotions.value = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => {
+        const start = new Date(p.start_date).getTime()
+        const end = new Date(p.end_date).getTime()
+        return now >= start && now <= end
+      })
+  } catch (e) {
+    console.error("Lỗi lấy khuyến mãi ở App.vue:", e)
+  }
+}
+
+// BẬT PHÉP THUẬT: Tự động tính toán giá dựa theo mốc số lượng (Tiers)
+const cartWithDiscounts = computed(() => {
+  return cartItems.value.map(item => {
+    let finalPrice = item.price
+    let discountAmount = 0
+    let appliedPromoTitle = null
+
+    // Tìm xem sản phẩm này có nằm trong chiến dịch nào không
+    const matchedPromo = promotions.value.find(p => 
+      p.apply_to === 'all' || (p.applied_ids && p.applied_ids.includes(item.id))
+    )
+
+    if (matchedPromo && matchedPromo.tiers) {
+      // Sắp xếp các mốc số lượng từ cao xuống thấp để check mốc lớn nhất trước
+      const sortedTiers = [...matchedPromo.tiers].sort((a, b) => b.quantity - a.quantity)
+      const matchedTier = sortedTiers.find(t => item.quantity >= t.quantity)
+
+      if (matchedTier) {
+        appliedPromoTitle = matchedPromo.title
+        if (matchedTier.discount_type === 'percentage') {
+          discountAmount = item.price * (matchedTier.discount_value / 100)
+        } else if (matchedTier.discount_type === 'fixed_amount') {
+          discountAmount = matchedTier.discount_value
+        }
+        
+        finalPrice = Math.max(0, item.price - discountAmount)
+      }
+    }
+
+    return {
+      ...item,
+      finalPrice, // Giá sau giảm cho 1 sản phẩm
+      discountAmount, // Số tiền được giảm trên 1 sản phẩm
+      appliedPromoTitle, // Tên chương trình áp dụng
+      itemTotal: finalPrice * item.quantity, // Tổng tiền dòng này
+      originalTotal: item.price * item.quantity // Tổng tiền gốc dòng này
+    }
+  })
+})
+
 onMounted(() => {
   updateCart()
+  fetchActivePromotions() // Gọi lấy CTKM khi vào web
+  
   window.addEventListener('storage', updateCart)
   window.addEventListener('cart-updated', updateCart)
 
@@ -110,7 +171,7 @@ onUnmounted(() => {
     <transition name="cart-slide">
       <CartView
         v-if="isCartOpen"
-        :cart="cartItems"
+        :cart="cartWithDiscounts"
         @close="isCartOpen = false"
         @change-qty="changeQuantity"
         @remove-item="removeFromCart"
@@ -129,23 +190,3 @@ onUnmounted(() => {
     <AIChatWidget v-if="!isHideLayout" />
   </div>
 </template>
-
-<style scoped>
-@keyframes marquee {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
-}
-.animate-marquee {
-  display: inline-block;
-  animation: marquee 30s linear infinite;
-}
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.cart-slide-enter-active, .cart-slide-leave-active {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.cart-slide-enter-from, .cart-slide-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-</style>

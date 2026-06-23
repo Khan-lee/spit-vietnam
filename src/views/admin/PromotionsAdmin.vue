@@ -12,17 +12,28 @@ const loading = ref(false)
 const adminSearchQuery = ref('')
 const toast = ref({ show: false, message: '', type: 'success' })
 
-// State cho Form thêm mới
+// State cho Form thêm mới (Đã update mảng tiers)
 const newPromo = ref({
   title: '',
-  discount_type: 'percentage', 
-  discount_value: 0,
   apply_to: 'specific_products', 
   applied_ids: [],
   start_date: '', 
   end_date: '',   
-  is_active: true
+  is_active: true,
+  // Thêm mảng chứa các mốc số lượng, mặc định có 1 mốc trống
+  tiers: [
+    { quantity: 1, discount_type: 'percentage', discount_value: 0 }
+  ]
 })
+
+// Các hàm xử lý mốc số lượng (Tiers)
+const addTier = () => {
+  newPromo.value.tiers.push({ quantity: 1, discount_type: 'percentage', discount_value: 0 })
+}
+
+const removeTier = (index) => {
+  newPromo.value.tiers.splice(index, 1)
+}
 
 // Kích hoạt thông báo Toast UI
 const triggerToast = (message, type = 'success') => {
@@ -122,7 +133,7 @@ const formatDiscount = (type, value) => {
 
 // Thêm khuyến mãi mới
 const handleAddPromo = async () => {
-  if (!newPromo.value.title || newPromo.value.discount_value <= 0 || !newPromo.value.start_date || !newPromo.value.end_date) {
+  if (!newPromo.value.title || !newPromo.value.start_date || !newPromo.value.end_date) {
     triggerToast("Vui lòng điền đủ thông tin và chọn thời gian!", "error")
     return
   }
@@ -132,17 +143,31 @@ const handleAddPromo = async () => {
     return
   }
 
+  // Validate các mốc số lượng (không được rỗng, số lượng >= 1, giá trị > 0)
+  const invalidTier = newPromo.value.tiers.find(t => t.quantity < 1 || t.discount_value <= 0)
+  if (invalidTier || newPromo.value.tiers.length === 0) {
+    triggerToast("Vui lòng nhập đầy đủ số lượng và giá trị giảm hợp lệ cho các mốc!", "error")
+    return
+  }
+
   try {
     await addDoc(collection(db, "promotions"), {
-      ...newPromo.value,
+      title: newPromo.value.title,
+      apply_to: newPromo.value.apply_to,
+      applied_ids: newPromo.value.applied_ids,
+      start_date: newPromo.value.start_date,
+      end_date: newPromo.value.end_date,
+      is_active: newPromo.value.is_active,
+      tiers: newPromo.value.tiers, // Lưu mảng tiers thay vì 1 giá trị
       created_at: new Date().toISOString()
     })
     triggerToast("Tạo chiến dịch khuyến mãi thành công!")
     
+    // Reset Form
     newPromo.value = {
-      title: '', discount_type: 'percentage', discount_value: 0,
-      apply_to: 'specific_products', applied_ids: [],
-      start_date: '', end_date: '', is_active: true
+      title: '', apply_to: 'specific_products', applied_ids: [],
+      start_date: '', end_date: '', is_active: true,
+      tiers: [{ quantity: 1, discount_type: 'percentage', discount_value: 0 }]
     }
     fetchPromotions()
   } catch (e) {
@@ -245,17 +270,33 @@ onMounted(() => {
             </div>
           </div>
           
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loại chiết khấu</label>
-              <select v-model="newPromo.discount_type" class="admin-input text-xs cursor-pointer">
-                <option value="percentage">Phần trăm (%)</option>
-                <option value="fixed_amount">Số tiền cố định (đ)</option>
-              </select>
+          <div class="space-y-2 pt-2 border-t border-slate-50">
+            <div class="flex justify-between items-center">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Các mốc giảm giá (Tiers)</label>
+              <button type="button" @click="addTier" class="text-[9px] font-black uppercase text-red-600 bg-red-50 border border-red-100 px-2 py-1 rounded-md hover:bg-red-100 transition-colors shadow-xs">
+                + Thêm mốc
+              </button>
             </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá trị giảm</label>
-              <input v-model="newPromo.discount_value" type="number" class="admin-input">
+            
+            <div class="space-y-2 max-h-45 overflow-y-auto pr-1">
+              <div v-for="(tier, index) in newPromo.tiers" :key="index" class="flex items-center gap-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-200">
+                <div class="flex-1 space-y-1">
+                  <label class="text-[9px] font-bold text-slate-500">Từ (Sản phẩm)</label>
+                  <input v-model="tier.quantity" type="number" min="1" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
+                </div>
+                <div class="flex-1 space-y-1">
+                  <label class="text-[9px] font-bold text-slate-500">Loại giảm</label>
+                  <select v-model="tier.discount_type" class="admin-input mt-0 py-1.5 px-2 text-xs h-8 cursor-pointer">
+                    <option value="percentage">%</option>
+                    <option value="fixed_amount">VNĐ</option>
+                  </select>
+                </div>
+                <div class="flex-1 space-y-1">
+                  <label class="text-[9px] font-bold text-slate-500">Giá trị</label>
+                  <input v-model="tier.discount_value" type="number" min="0" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
+                </div>
+                <button v-if="newPromo.tiers.length > 1" type="button" @click="removeTier(index)" class="mt-4 text-slate-300 hover:text-red-600 px-1 font-black transition-colors">✕</button>
+              </div>
             </div>
           </div>
 
@@ -312,13 +353,22 @@ onMounted(() => {
               </span>
             </div>
 
-            <p class="text-xs text-slate-500 font-medium">
-              Mức chiết khấu: <span class="font-black text-red-600 bg-red-50 border border-red-100/60 px-1.5 py-0.5 rounded-md">{{ formatDiscount(promo.discount_type, promo.discount_value) }}</span>
-              <span class="mx-2 text-slate-300">|</span> 
-              Áp dụng cho: <span class="font-bold text-slate-800">{{ promo.applied_ids?.length || 0 }} dụng cụ kỹ thuật</span>
-            </p>
+            <div class="text-xs text-slate-500 font-medium">
+              <div class="mb-1 inline-flex items-center">Mức chiết khấu:</div>
+              <span v-if="promo.tiers && promo.tiers.length > 0">
+                <span v-for="(t, i) in promo.tiers" :key="i" class="font-black text-red-600 bg-red-50 border border-red-100/60 px-2 py-1 rounded-md mr-1 mb-1 inline-block shadow-xs">
+                  Mua {{ t.quantity }} ➔ Giảm {{ formatDiscount(t.discount_type, t.discount_value) }}
+                </span>
+              </span>
+              <span v-else class="font-black text-red-600 bg-red-50 border border-red-100/60 px-2 py-1 rounded-md">
+                {{ formatDiscount(promo.discount_type, promo.discount_value) }}
+              </span>
+              
+              <span class="mx-2 text-slate-300 hidden sm:inline">|</span> 
+              <div class="mt-1 sm:mt-0 sm:inline-block">Áp dụng cho: <span class="font-bold text-slate-800">{{ promo.applied_ids?.length || 0 }} dụng cụ kỹ thuật</span></div>
+            </div>
             
-            <div v-if="promo.start_date" class="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-200/50">
+            <div v-if="promo.start_date" class="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-200/50 mt-2">
               📅 {{ new Date(promo.start_date).toLocaleString('vi-VN') }} 
               <span class="text-slate-300">➔</span> 
               {{ new Date(promo.end_date).toLocaleString('vi-VN') }}

@@ -233,7 +233,7 @@ exports.syncOrderToLark = onDocumentCreated({
             const mailOptions = {
                 from: '"SPIT Vietnam Sales" <adminspit@gmail.com>',
                 to: targetEmail,
-                subject: `[SPIT BI-NAM] Báo giá đơn hàng thương mại #${orderId.substring(0, 8).toUpperCase()}`,
+                subject: `[SPIT VIET-NAM] Báo giá đơn hàng thương mại #${orderId.substring(0, 8).toUpperCase()}`,
                 html: `
                     <p>Kính gửi quý khách hàng <strong>${orderData.customerName || ""}</strong>,</p>
                     <p>Lời đầu tiên, Sài Gòn Precision Industrial Tool Co. (SPIT) xin chân thành cảm ơn quý công ty đã quan tâm đến hệ thống sản phẩm thiết bị công nghiệp phụ trợ chính xác của chúng tôi.</p>
