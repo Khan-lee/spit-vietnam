@@ -238,7 +238,7 @@ exports.syncOrderToLark = onDocumentCreated({
                     <p>Kính gửi quý khách hàng <strong>${orderData.customerName || ""}</strong>,</p>
                     <p>Lời đầu tiên, Sài Gòn Precision Industrial Tool Co. (SPIT) xin chân thành cảm ơn quý công ty đã quan tâm đến hệ thống sản phẩm thiết bị công nghiệp phụ trợ chính xác của chúng tôi.</p>
                     <p>Hệ thống tự động đã ghi nhận yêu cầu lập báo giá từ tài khoản của quý khách cho đơn hàng mã <strong>#${orderId}</strong>.</p>
-                    <p>👉 Chi tiết bảng báo giá thương mại chính thức (có đóng dấu mộc công ty) đã được đính kèm dưới dạng file <strong>PDF</strong> trong email này. Quý khách vui lòng tải về để kiểm tra quy cách kỹ thuật và làm thủ tục duyệt mua hàng.</p>
+                    <p>Chi tiết bảng báo giá thương mại chính thức (có đóng dấu mộc công ty) đã được đính kèm dưới dạng file <strong>PDF</strong> trong email này. Quý khách vui lòng tải về để kiểm tra quy cách kỹ thuật và làm thủ tục duyệt mua hàng.</p>
                     <br/>
                     <p>Trân trọng cảm ơn,</p>
                     <p>--------------------------------------------------</p>

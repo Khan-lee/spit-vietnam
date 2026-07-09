@@ -517,41 +517,47 @@ onMounted(fetchData)
 
             <div v-if="activeTab === 'orders'" class="space-y-4">
               <div v-for="order in paginatedData" :key="order.id" @click="openOrderDetail(order)" 
-                   :class="['bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm cursor-pointer relative overflow-hidden', order.status === 'pending' ? 'border-l-8 border-red-500' : '']">
-                
-                <div class="flex flex-wrap justify-between items-start gap-4">
-                  <div class="flex gap-4">
-                    <div :class="getStatusBadge(order.status)" class="w-12 h-12 flex flex-col items-center justify-center rounded-2xl text-[10px] shrink-0 border font-black italic uppercase leading-none">
-                      <span class="opacity-40 text-[7px] mb-1">ID</span>
-                      {{ order.id.slice(-6).toUpperCase() }}
-                    </div>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h4 class="text-xs font-black text-slate-800 uppercase italic">{{ order.customerName }}</h4>
-                        <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || 1 }}</span>
-                        <span v-if="order.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
-                        <span v-if="order.status === 'pending'" class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA TRẢ TIỀN</span>
-                      </div>
-                      <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">{{ order.phone }} • {{ order.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
-                    </div>
+                 :class="['bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all group shadow-sm cursor-pointer relative overflow-hidden', order.status === 'pending' ? 'border-l-8 border-red-500' : '']">
+              
+              <div class="flex flex-wrap justify-between items-start gap-4">
+                <div class="flex gap-4">
+                  <div :class="getStatusBadge(order.status)" class="w-12 h-12 flex flex-col items-center justify-center rounded-2xl text-[10px] shrink-0 border font-black italic uppercase leading-none">
+                    <span class="opacity-40 text-[7px] mb-1">ID</span>
+                    {{ order.id.slice(-6).toUpperCase() }}
                   </div>
-                  <div class="text-right flex items-center gap-6">
-                    <div>
-                      <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="text-xs font-black text-slate-800 uppercase italic">{{ order.customerName }}</h4>
+                      <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || 1 }}</span>
+                      <span v-if="order.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
+                      
+                      <span v-if="order.paymentMethod" 
+                            :class="['text-[8px] px-2 py-0.5 rounded font-black italic', 
+                                     order.paymentMethod === 'qr' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600']">
+                        {{ order.paymentMethod === 'transfer' ? 'QR' : 'COD' }}
+                      </span>
+                      <span v-if="order.status === 'pending'" class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA TRẢ TIỀN</span>
                     </div>
-                    <div class="flex gap-2 justify-end">
-                      <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" 
-                              class="text-[9px] font-black bg-red-600 text-white uppercase px-6 py-2 rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-all scale-110">
-                        Đã nhận tiền 💰
-                      </button>
+                    <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">{{ order.phone }} • {{ order.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
+                  </div>
+                </div>
+                <div class="text-right flex items-center gap-6">
+                  <div>
+                    <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
+                  </div>
+                  <div class="flex gap-2 justify-end">
+                    <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" 
+                            class="text-[9px] font-black bg-red-600 text-white uppercase px-6 py-2 rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-all scale-110">
+                      Đã nhận tiền 💰
+                    </button>
 
-                      <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-600 hover:text-white transition-colors">Giao</button>
-                      <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Xong</button>
-                      <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
-                    </div>
+                    <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-600 hover:text-white transition-colors">Giao</button>
+                    <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Xong</button>
+                    <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
                   </div>
                 </div>
               </div>
+            </div>
             </div>
 
             <div v-if="activeTab === 'contacts'" class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
