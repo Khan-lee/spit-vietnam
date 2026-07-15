@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { doc, getDoc, getDocs, collection, query, where } from 'firebase/firestore'
+// Đã thêm 'limit' vào import của firebase để giới hạn số lượng query
+import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const { locale } = useI18n()
@@ -18,6 +19,9 @@ const activePromotions = ref([])
 
 // --- BIẾN QUẢN LÝ ẢNH ĐANG ĐƯỢC CHỌN HIỂN THỊ LỚN ---
 const activeImage = ref('')
+
+// --- THÊM MỚI: BIẾN QUẢN LÝ SẢN PHẨM LIÊN QUAN ---
+const relatedProducts = ref([])
 
 // --- HÀM XỬ LÝ SỐ CỰC MẠNH (Trị dấu phẩy) ---
 const cleanNumber = (val) => {
@@ -138,6 +142,38 @@ const addToCart = (item) => {
   }, 200)
 }
 
+// --- THÊM MỚI: HÀM LẤY SẢN PHẨM CÙNG DANH MỤC (CÓ LOGS DEBUG) ---
+const fetchRelatedProducts = async (categoryStr) => {
+  if (!categoryStr) {
+    console.warn("⚠️ Không tìm thấy tên Category để truy vấn sản phẩm liên quan.");
+    return;
+  }
+  try {
+    console.log("🔍 Đang tìm sản phẩm liên quan với Category keyword:", categoryStr);
+    
+    // Thử tìm theo trường 'category' thông thường
+    let q = query(collection(db, "products"), where("category", "==", categoryStr), limit(6));
+    let snap = await getDocs(q);
+    let items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Nếu không tìm thấy, thử tìm theo trường 'category_vi' (Localized field)
+    if (items.length <= 1) { 
+      console.log("🔍 Tìm theo 'category' không ra hoặc chỉ có chính nó, thử tìm theo 'category_vi'...");
+      q = query(collection(db, "products"), where("category_vi", "==", categoryStr), limit(6));
+      snap = await getDocs(q);
+      items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    console.log("📦 Danh sách thô lấy từ Firestore:", items);
+
+    // Lọc bỏ sản phẩm hiện tại đang xem ra khỏi danh sách liên quan
+    relatedProducts.value = items.filter(item => item.id !== route.params.id).slice(0, 4);
+    console.log("✨ Danh sách sản phẩm liên quan sau khi lọc trùng:", relatedProducts.value);
+  } catch (e) {
+    console.error("❌ Lỗi truy vấn sản phẩm liên quan từ Firestore:", e);
+  }
+}
+
 onMounted(async () => {
   try {
     await fetchActivePromotions();
@@ -145,8 +181,20 @@ onMounted(async () => {
     const docSnap = await getDoc(docRef)
     if (docSnap.exists()) {
       product.value = { id: docSnap.id, ...docSnap.data() }
+      console.log("ℹ️ Dữ liệu sản phẩm hiện tại:", product.value);
+
       if (product.value.image) {
         activeImage.value = product.value.image
+      }
+      
+      // --- Xử lý lấy Category an toàn từ database ---
+      const targetCategory = product.value.category || product.value.category_vi || product.value.category_en;
+      console.log("🎯 Category xác định được:", targetCategory);
+
+      if (targetCategory) {
+        await fetchRelatedProducts(targetCategory);
+      } else {
+        console.warn("⚠️ Sản phẩm này không chứa bất kỳ trường category nào (category, category_vi, category_en) trong Firestore.");
       }
     }
   } catch (error) {
@@ -312,7 +360,37 @@ onMounted(async () => {
 
       </div>
 
-    </div>
+      <div v-if="relatedProducts.length > 0" class="mt-12 md:mt-16">
+        <h2 class="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight mb-6 md:mb-8 flex items-center gap-3">
+          <span class="w-2 h-8 bg-red-600 inline-block rounded-full"></span>
+          {{ locale === 'vi' ? 'Có thể bạn quan tâm' : 'You might also like' }}
+        </h2>
+        
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <a v-for="item in relatedProducts" :key="item.id" :href="`/product/${item.id}`" 
+             class="group bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 flex flex-col">
+            
+            <div class="aspect-square bg-[#f8fafc] rounded-2xl mb-4 overflow-hidden p-4 flex items-center justify-center shrink-0">
+              <img :src="item.image" class="max-h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500 ease-out" />
+            </div>
+            
+            <div class="flex flex-col grow justify-between space-y-3">
+              <div>
+                <p class="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">{{ item.brand || 'SPIT' }}</p>
+                <h3 class="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">
+                  {{ item[`name_${locale}`] || item.name }}
+                </h3>
+              </div>
+              <div class="pt-3 border-t border-slate-50 flex items-baseline gap-1">
+                <span class="font-black text-slate-900 text-sm sm:text-base">{{ cleanNumber(item.price).toLocaleString('vi-VN') }}</span>
+                <span class="text-[9px] font-extrabold text-slate-400 uppercase">VNĐ</span>
+              </div>
+            </div>
+            
+          </a>
+        </div>
+      </div>
+      </div>
   </div>
 </template>
 
