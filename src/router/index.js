@@ -1,4 +1,3 @@
-// 1. Import component ở phía trên cùng của file router
 import BrandAdminView from '../views/BrandAdminView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
@@ -12,12 +11,10 @@ NProgress.configure({ showSpinner: false, speed: 500 });
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // 2. Thêm object này vào trong mảng routes = [ ... ]
     {
       path: '/admin/brands',
       name: 'BrandAdmin',
       component: BrandAdminView,
-      // Nếu sau này có làm trang tổng quan admin, bạn có thể chuyển nó thành route con (children)
     },
     { path: '/', name: 'home', component: HomeView },
     { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
@@ -92,6 +89,13 @@ const router = createRouter({
       component: () => import('../views/AdminBannerView.vue'),
       meta: { requiresAuth: true }
     },
+    // --- ROUTE MỚI: QUẢN LÝ DANH MỤC (FIX LỖI TRẮNG TRANG) ---
+    {
+      path: '/spit-system-manager/categories',
+      name: 'AdminCategories',
+      component: () => import('../views/admin/AdminCategoriesView.vue'),
+      meta: { requiresAuth: true }
+    },
     // ROUTE QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
     { 
       path: '/spit-system-manager/about', 
@@ -137,4 +141,4 @@ router.afterEach(() => {
   NProgress.done();
 });
 
-export default router
+export default router;
