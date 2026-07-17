@@ -12,6 +12,7 @@ const searchStore = useSearchStore()
 
 const products = ref([])
 const promotions = ref([]) 
+const categoryDocs = ref([]) // ĐÃ CẬP NHẬT: State lưu dữ liệu từ kho categories mới
 const isLoading = ref(true)
 const selectedCategory = ref('all') 
 const currentTime = ref(new Date()) 
@@ -57,7 +58,7 @@ const fetchData = async () => {
     const promoSnap = await getDocs(collection(db, "promotions"))
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-    // 3. ĐÃ CẬP NHẬT: Fetch Banners từ Firestore
+    // 3. Fetch Banners từ Firestore
     const bannerSnap = await getDocs(collection(db, "banners"))
     const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     
@@ -81,6 +82,10 @@ const fetchData = async () => {
         }
       ]
     }
+
+    // 4. ĐÃ CẬP NHẬT: Fetch Categories thẳng từ kho danh mục
+    const catSnap = await getDocs(collection(db, "categories"))
+    categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
   } catch (e) { 
     console.error("Lỗi đồng bộ Firestore:", e) 
@@ -126,10 +131,19 @@ const getCountdown = (endDate) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
+// ĐÃ CẬP NHẬT LOGIC MỚI: Chỉ lấy categories có isActive: true và sắp xếp theo order
 const categories = computed(() => {
-  const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
-  const allCats = products.value.map(p => p[catField] || p.category)
-  return ['all', ...new Set(allCats.filter(c => c))]
+  // Lọc, sắp xếp và bóc tách tên danh mục
+  const activeCats = categoryDocs.value
+    .filter(c => c.isActive === true)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map(c => {
+      // Hỗ trợ cả name_vi/name_en, name, hoặc category để trả về string chuẩn khớp với kho product
+      const catField = locale.value === 'vi' ? 'name_vi' : 'name_en'
+      return c[catField] || c.name || c.category || c.id
+    })
+    
+  return ['all', ...new Set(activeCats)]
 })
 
 const filteredProducts = computed(() => {

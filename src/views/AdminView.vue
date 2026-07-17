@@ -40,12 +40,17 @@ const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn t�
 const brandDescription = ref('')
 const editingBrandId = ref(null)
 
+// --- [ĐỒNG BỘ] BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
+const categories = ref([])
+const categoryId = ref('') // Lưu ID document của Category để đồng bộ
+
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       isAuthenticated.value = true
       fetchProducts()
       fetchBrands()
+      fetchCategories() // Tải danh sách danh mục khi vào Admin
       fetchActivePromotions() 
     } else {
       isAuthenticated.value = false
@@ -90,6 +95,32 @@ const imageFile = ref(null);
 
 // NÂNG CẤP: Thêm biến reactive lưu trữ Link sản phẩm tùy biến cấu hình từ Admin
 const custom_url = ref('')
+
+// --- HÀM LẤY DANH SÁCH DANH MỤC ---
+const fetchCategories = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "categories"))
+    // Lấy danh mục đang active và sắp xếp theo số thứ tự order
+    categories.value = querySnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(c => c.isActive === true)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+  } catch (e) {
+    console.error("Lỗi lấy danh sách danh mục:", e)
+  }
+}
+
+// Tự động gán tên danh mục (VI & EN) dựa trên ID được chọn ở dropdown
+const handleCategorySelectChange = () => {
+  const selected = categories.value.find(c => c.id === categoryId.value)
+  if (selected) {
+    category_vi.value = selected.name_vi || ''
+    category_en.value = selected.name_en || ''
+  } else {
+    category_vi.value = ''
+    category_en.value = ''
+  }
+}
 
 // --- HÀM LẤY DANH SÁCH NHÃN HÀNG ---
 const fetchBrands = async () => {
@@ -208,7 +239,7 @@ const fetchProducts = async () => {
 
 // --- THAO TÁC SUBMIT SẢN PHẨM ---
 const handleSubmit = async () => {
-  if (!name_vi.value || !brandId.value || !price.value) return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Giá bán)!")
+  if (!name_vi.value || !brandId.value || !categoryId.value || !price.value) return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Danh mục, Giá bán)!")
   
   try {
     isSubmitting.value = true
@@ -218,6 +249,7 @@ const handleSubmit = async () => {
     const data = {
       name_vi: name_vi.value,
       name_en: name_en.value || name_vi.value,
+      categoryId: categoryId.value, // ĐỒNG BỘ BACKEND: Lưu ID danh mục
       category_vi: category_vi.value,
       category_en: category_en.value || category_vi.value,
       description_vi: description_vi.value,
@@ -308,8 +340,12 @@ const startEdit = (p) => {
   editingId.value = p.id;
   name_vi.value = p.name_vi || p.name || '';
   name_en.value = p.name_en || '';
+  
+  // Tự động fill categoryId nếu đã lưu, nếu bản ghi cũ chưa lưu thì map ngược từ tên category_vi
+  categoryId.value = p.categoryId || categories.value.find(c => c.name_vi === (p.category_vi || p.category))?.id || '';
   category_vi.value = p.category_vi || p.category || '';
   category_en.value = p.category_en || '';
+  
   description_vi.value = p.description_vi || p.description || '';
   description_en.value = p.description_en || '';
   gift_vi.value = p.gift_vi || '';
@@ -364,6 +400,7 @@ const confirmDeleteBrand = async (id, bName) => {
 const resetForm = () => {
   editingId.value = null;
   name_vi.value = ''; name_en.value = '';
+  categoryId.value = ''; // Reset ID Danh mục
   category_vi.value = ''; category_en.value = '';
   description_vi.value = ''; description_en.value = '';
   gift_vi.value = ''; gift_en.value = '';
@@ -488,9 +525,21 @@ const resetBrandForm = () => {
                         </option>
                       </select>
                     </div>
+                    
+                    <!-- [CẬP NHẬT MỚI] Giao diện ô chọn Danh mục thay vì gõ tay -->
                     <div class="space-y-1">
-                      <input v-model="category_vi" placeholder="Loại (VI)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm" />
-                      <input v-model="category_en" placeholder="Category (EN)" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic" />
+                      <select 
+                        v-model="categoryId" 
+                        @change="handleCategorySelectChange"
+                        class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200 cursor-pointer"
+                      >
+                        <option value="">-- Chọn Danh Mục * --</option>
+                        <option v-for="c in categories" :key="c.id" :value="c.id">
+                          {{ c.name_vi.toUpperCase() }}
+                        </option>
+                      </select>
+                      <!-- Input hiển thị tiếng Anh (Chỉ đọc) -->
+                      <input v-model="category_en" readonly placeholder="Category (EN) - Tự động điền" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic text-slate-400 cursor-not-allowed" />
                     </div>
                   </div>
 
