@@ -54,8 +54,26 @@ const categoryBanners = ref({
   'Phụ kiện máy': 'https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=800',
 })
 
-// Sub-banners phụ cạnh Hero Slider (Phong cách CellphoneS)
-const rightSubBanners = [
+// --- BỔ SUNG: Data dự phòng cho Banner Chính (Giữ nguyên code cũ của mày) ---
+const fallbackMainBanners = [
+  {
+    id: 1,
+    image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
+    useI18n: true 
+  },
+  {
+    id: 2,
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=2070',
+    title: 'GIẢI PHÁP GIA CÔNG CHÍNH XÁC',
+    subtitle: 'CHƯƠNG TRÌNH ĐỒNG HÀNH CÙNG DOANH NGHIỆP',
+    desc: 'Tặng cán dao tiện khi đặt hàng số lượng lớn các dòng mảnh cắt insert trong tháng này.',
+    useI18n: false
+  }
+]
+
+// --- UPDATE: Chuyển thành ref() để nhận data động, list cũ lưu thành fallback ---
+const rightSubBanners = ref([])
+const fallbackRightSubBanners = [
   {
     id: 1,
     title: 'GIẢI PHÁP GIA CÔNG',
@@ -95,26 +113,34 @@ const fetchData = async () => {
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
+    // --- UPDATE: Logic tách Banner Chính & Phụ ---
     const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
     if (fetchedBanners.length > 0) {
-      mainBanners.value = fetchedBanners
+      // Sắp xếp banner mới nhất lên trước
+      fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+
+      // 1. Tách Banner Chính
+      const main = fetchedBanners.filter(b => b.position === 'main' || !b.position)
+      mainBanners.value = main.length > 0 ? main : fallbackMainBanners
+
+      // 2. Tách Banner Phụ (Map subtitle sang sub)
+      const sub = fetchedBanners
+        .filter(b => b.position === 'right_sub')
+        .map(b => ({
+          ...b,
+          sub: b.subtitle || b.sub
+        }))
+        .slice(0, 2)
+      
+      rightSubBanners.value = sub.length > 0 ? sub : fallbackRightSubBanners
+
     } else {
-      mainBanners.value = [
-        {
-          id: 1,
-          image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070',
-          useI18n: true 
-        },
-        {
-          id: 2,
-          image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=2070',
-          title: 'GIẢI PHÁP GIA CÔNG CHÍNH XÁC',
-          subtitle: 'CHƯƠNG TRÌNH ĐỒNG HÀNH CÙNG DOANH NGNGHIỆP',
-          desc: 'Tặng cán dao tiện khi đặt hàng số lượng lớn các dòng mảnh cắt insert trong tháng này.',
-          useI18n: false
-        }
-      ]
+      mainBanners.value = fallbackMainBanners
+      rightSubBanners.value = fallbackRightSubBanners
     }
+    // --- KẾT THÚC UPDATE BANNER ---
+
   } catch (e) { 
     console.error("Lỗi đồng bộ Firestore:", e) 
   } finally { 
@@ -426,38 +452,7 @@ const getCategoryBanner = (catName) => {
     </section>
 
     <!-- 3. Thanh Tiện Ích Đặt Hàng -->
-    <section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-4">
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">🎯</div>
-          <div>
-            <h4 class="font-bold text-xs text-slate-800">Độ Chính Xác High-Precision</h4>
-            <p class="text-[10px] text-slate-500">Chuẩn dung sai công nghiệp</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">🛠️</div>
-          <div>
-            <h4 class="font-bold text-xs text-slate-800">Tư Vấn Kỹ Thuật 24/7</h4>
-            <p class="text-[10px] text-slate-500">Tính toán thông số cắt Vb, Fz</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">📦</div>
-          <div>
-            <h4 class="font-bold text-xs text-slate-800">Giao Hàng Tận Kho</h4>
-            <p class="text-[10px] text-slate-500">Cung ứng nhanh chuỗi nhà máy</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">💯</div>
-          <div>
-            <h4 class="font-bold text-xs text-slate-800">Hàng Chính Hãng 100%</h4>
-            <p class="text-[10px] text-slate-500">Đầy đủ CO/CQ chứng nhận</p>
-          </div>
-        </div>
-      </div>
-    </section>
+    
 
     <!-- 4. MAIN CONTENT AREA -->
     <main class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-6">

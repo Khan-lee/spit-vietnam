@@ -13,6 +13,21 @@
       </h2>
       
       <form @submit.prevent="addBanner" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- CHỌN VỊ TRÍ BANNER -->
+        <div class="md:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Vị trí hiển thị Banner *</label>
+          <div class="flex flex-wrap gap-6">
+            <label class="flex items-center gap-2 cursor-pointer group">
+              <input type="radio" v-model="newBanner.position" value="main" class="w-5 h-5 text-blue-600 focus:ring-blue-500 border-slate-300" />
+              <span class="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Banner Slider Chính (Giữa)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer group">
+              <input type="radio" v-model="newBanner.position" value="right_sub" class="w-5 h-5 text-orange-500 focus:ring-orange-500 border-slate-300" />
+              <span class="text-sm font-bold text-slate-700 group-hover:text-orange-500 transition-colors">Banner Phụ (Cột phải)</span>
+            </label>
+          </div>
+        </div>
+
         <div class="space-y-4 md:col-span-2">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div class="md:col-span-1">
@@ -46,8 +61,11 @@
             <input v-model="newBanner.title" type="text" placeholder='Ví dụ: GIẢI PHÁP <span class="text-slate-400">CHÍNH XÁC</span>' class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tiêu đề phụ (Subtitle)</label>
-            <input v-model="newBanner.subtitle" type="text" placeholder="Nhập tiêu đề phụ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400" />
+            <!-- Label đổi tùy theo vị trí -->
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              {{ newBanner.position === 'right_sub' ? 'Thẻ nhỏ màu vàng (Sub)' : 'Tiêu đề phụ (Subtitle)' }}
+            </label>
+            <input v-model="newBanner.subtitle" type="text" placeholder="Nhập tiêu đề phụ / thẻ nhỏ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400" />
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mô tả ngắn (Description)</label>
@@ -61,7 +79,7 @@
         </div>
 
         <div class="md:col-span-2 flex justify-end mt-2">
-          <button type="submit" :disabled="isSaving" class="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50">
+          <button type="submit" :disabled="isSaving" class="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 shadow-md">
             {{ isSaving ? 'Đang lưu...' : 'Lưu Banner' }}
           </button>
         </div>
@@ -73,11 +91,18 @@
     </div>
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div v-for="banner in banners" :key="banner.id" class="bg-white border border-slate-100 rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 relative group">
+        
+        <!-- HIỂN THỊ HUY HIỆU VỊ TRÍ -->
+        <div class="absolute top-3 left-3 z-10 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm"
+             :class="banner.position === 'right_sub' ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white'">
+          {{ banner.position === 'right_sub' ? 'Banner Phụ' : 'Banner Chính' }}
+        </div>
+
         <div class="h-48 relative overflow-hidden bg-slate-100">
           <img :src="banner.image" alt="Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           <div class="absolute inset-0 bg-linear-to-t from-slate-900/80 to-transparent"></div>
           
-          <button @click="deleteBanner(banner.id, banner.image)" class="absolute top-4 right-4 bg-red-500/90 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-lg z-10" title="Xóa Banner">
+          <button @click="deleteBanner(banner.id, banner.image)" class="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-lg z-10" title="Xóa Banner">
             ✕
           </button>
         </div>
@@ -86,7 +111,10 @@
             Sử dụng I18n Text
           </div>
           <div v-else>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ banner.subtitle || 'Không có Subtitle' }}</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+               {{ banner.position === 'right_sub' ? 'Thẻ vàng: ' : 'Subtitle: ' }} 
+               <span class="text-slate-600">{{ banner.subtitle || 'Trống' }}</span>
+            </p>
             <h3 class="font-bold text-slate-800 text-sm mb-2 line-clamp-1" v-html="banner.title || 'Không có tiêu đề'"></h3>
             <p class="text-xs text-slate-500 line-clamp-2">{{ banner.desc || 'Không có mô tả' }}</p>
           </div>
@@ -114,6 +142,7 @@ const imagePreview = ref('')
 const imageFile = ref(null)
 
 const newBanner = ref({
+  position: 'main', // Thêm thuộc tính này, mặc định là banner chính
   image: '',
   useI18n: false,
   title: '',
@@ -126,16 +155,18 @@ const fetchBanners = async () => {
   isLoading.value = true
   try {
     const querySnapshot = await getDocs(collection(db, 'banners'))
-    banners.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    // Sắp xếp thời gian tạo mới nhất lên đầu cho dễ quản lý
+    let fetchedBanners = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    banners.value = fetchedBanners
   } catch (error) {
     console.error("Lỗi khi tải banners:", error)
     alert("Có lỗi xảy ra khi tải dữ liệu!")
-  } bits: {
+  } finally {
     isLoading.value = false
   }
 }
 
-// Logic xử lý khi chọn file hình ảnh từ máy tính
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
@@ -144,7 +175,6 @@ const onFileChange = (e) => {
   }
 }
 
-// Logic đẩy file hình ảnh lên Firebase Storage
 const uploadBannerImage = async () => {
   if (!imageFile.value) return newBanner.value.image
   const fileRef = storageRef(storage, `banners/${Date.now()}_${imageFile.value.name}`)
@@ -159,10 +189,10 @@ const addBanner = async () => {
   
   isSaving.value = true
   try {
-    // Tiến hành tải ảnh lên Storage nếu có file chọn từ máy
     const finalImageUrl = await uploadBannerImage()
 
     const bannerData = {
+      position: newBanner.value.position, // Lưu vị trí xuống DB
       image: finalImageUrl,
       useI18n: newBanner.value.useI18n,
       title: newBanner.value.title.trim(),
@@ -174,8 +204,8 @@ const addBanner = async () => {
 
     await addDoc(collection(db, 'banners'), bannerData)
     
-    // Reset toàn bộ form sau khi thêm thành công
-    newBanner.value = { image: '', useI18n: false, title: '', subtitle: '', desc: '', link: '' }
+    // Reset form
+    newBanner.value = { position: 'main', image: '', useI18n: false, title: '', subtitle: '', desc: '', link: '' }
     imageFile.value = null
     imagePreview.value = ''
     
@@ -191,13 +221,11 @@ const addBanner = async () => {
 const deleteBanner = async (id, imageUrl) => {
   if (!confirm("Bạn có chắc chắn muốn xóa banner này?")) return
   try {
-    // 1. Tự động dọn dẹp file ảnh trên Firebase Storage nếu là ảnh được upload từ máy
     if (imageUrl && imageUrl.includes('firebasestorage')) {
       const fileRef = storageRef(storage, imageUrl)
       await deleteObject(fileRef).catch(e => console.log("Không tìm thấy file trên Storage, tiến hành xóa doc DB:", e))
     }
 
-    // 2. Xóa tài liệu liên kết dưới Firestore
     await deleteDoc(doc(db, 'banners', id))
     await fetchBanners()
   } catch (error) {

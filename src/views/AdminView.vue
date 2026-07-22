@@ -126,7 +126,7 @@ const handleCategorySelectChange = () => {
 const fetchBrands = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "brands"))
-    brands.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name))
+    brands.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   } catch (e) {
     console.error("Lỗi lấy danh sách hãng:", e)
   }
@@ -521,7 +521,7 @@ const resetBrandForm = () => {
                       >
                         <option value="">-- Chọn Hãng * --</option>
                         <option v-for="b in brands" :key="b.id" :value="b.id">
-                          {{ b.name.toUpperCase() }}
+                          {{ b.name?.toUpperCase() }}
                         </option>
                       </select>
                     </div>
@@ -535,7 +535,7 @@ const resetBrandForm = () => {
                       >
                         <option value="">-- Chọn Danh Mục * --</option>
                         <option v-for="c in categories" :key="c.id" :value="c.id">
-                          {{ c.name_vi.toUpperCase() }}
+                          {{ c.name_vi?.toUpperCase() }}
                         </option>
                       </select>
                       <!-- Input hiển thị tiếng Anh (Chỉ đọc) -->
