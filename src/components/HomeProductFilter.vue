@@ -95,7 +95,10 @@ watch(totalActiveFilters, (newVal) => {
 }, { immediate: true })
 
 const filteredProducts = computed(() => {
-  return props.products.filter(product => {
+  // Kéo biến sortType ra ngoài để Vue track Reactivity chính xác 100%
+  const sortType = selectedFilters.sortBy
+
+  const result = props.products.filter(product => {
     const finalPrice = product.salePrice || product.price || 0
 
     // Lọc theo Danh mục
@@ -125,11 +128,16 @@ const filteredProducts = computed(() => {
     }
 
     return true
-  }).sort((a, b) => {
-    const priceA = a.salePrice || a.price || 0
-    const priceB = b.salePrice || b.price || 0
-    if (selectedFilters.sortBy === 'price-asc') return priceA - priceB
-    if (selectedFilters.sortBy === 'price-desc') return priceB - priceA
+  })
+
+  // Sắp xếp kết quả sau khi đã filter
+  return result.sort((a, b) => {
+    // Ép kiểu Number() để xử lý triệt để int64 từ Firebase
+    const priceA = Number(a.salePrice || a.price || 0)
+    const priceB = Number(b.salePrice || b.price || 0)
+    
+    if (sortType === 'price-asc') return priceA - priceB
+    if (sortType === 'price-desc') return priceB - priceA
     return 0
   })
 })
