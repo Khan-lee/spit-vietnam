@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { reactive, computed, watch } from 'vue'
 
 const props = defineProps({
   products: {
@@ -8,41 +8,60 @@ const props = defineProps({
   }
 })
 
-// [MỚI] Thêm emit hasActiveFilter để báo cho file cha biết trạng thái đóng/mở
 const emit = defineEmits(['update:filteredProducts', 'update:hasActiveFilter'])
 
+// Thêm categories vào bộ lọc
 const selectedFilters = reactive({
+  categories: [],
   brands: [],
   priceRanges: [],
   needs: [],
   sortBy: 'default'
 })
 
-const activeDropdown = ref(null)
+// 1. TỰ ĐỘNG LẤY DANH MỤC TỪ SẢN PHẨM (Không hardcode)
+const categoryOptions = computed(() => {
+  if (!props.products) return []
+  return [...new Set(props.products.map(p => p.category_vi).filter(Boolean))]
+})
 
-const toggleDropdown = (name) => {
-  activeDropdown.value = activeDropdown.value === name ? null : name
-}
+// 2. TỰ ĐỘNG LẤY TÍNH NĂNG / NHU CẦU TỪ SẢN PHẨM (Lấy từ field tags/đặc tính của Admin)
+const needsOptions = computed(() => {
+  if (!props.products) return []
+  
+  // Lọc ra các sản phẩm thuộc danh mục đang chọn (nếu có chọn danh mục)
+  // Để hiển thị tính năng tương ứng với danh mục đó
+  let relevantProducts = props.products
+  if (selectedFilters.categories.length > 0) {
+    relevantProducts = relevantProducts.filter(p => selectedFilters.categories.includes(p.category_vi))
+  }
 
+  // Quét toàn bộ tags/đặc tính của các sản phẩm này
+  const allTags = relevantProducts.reduce((acc, product) => {
+    const tags = product.tags || []
+    return acc.concat(tags)
+  }, [])
+
+  // Loại bỏ các tính năng trùng lặp
+  return [...new Set(allTags)]
+})
+
+// Xóa tags đang chọn nếu đổi danh mục (để tránh bị kẹt tag cũ)
+watch(() => selectedFilters.categories, () => {
+  selectedFilters.needs = []
+}, { deep: true })
+
+// 3. TỰ ĐỘNG LẤY THƯƠNG HIỆU TỪ SẢN PHẨM
 const brandOptions = computed(() => {
   return [...new Set(props.products.map(p => p.brand).filter(Boolean))]
 })
 
+// Các mức giá cố định
 const priceOptions = [
   { id: 'under-5m', label: 'Dưới 5 triệu', min: 0, max: 5000000 },
   { id: '5m-10m', label: '5 - 10 triệu', min: 5000000, max: 10000000 },
   { id: '10m-20m', label: '10 - 20 triệu', min: 10000000, max: 20000000 },
   { id: 'above-20m', label: 'Trên 20 triệu', min: 20000000, max: Infinity }
-]
-
-const needsOptions = [
-  { label: 'Gia công cơ khí chính xác (CNC)', value: 'cnc-precision', icon: '' },
-  { label: 'Gia công tốc độ cao (HSM)', value: 'hsm', icon: '' },
-  { label: 'Cắt thô / Chịu tải nặng', value: 'roughing', icon: '' },
-  { label: 'Cắt tinh / Bóng bề mặt', value: 'finishing', icon: '' },
-  { label: 'Gia công thép cứng / Thép nhiệt luyện', value: 'hardened-steel', icon: '' },
-  { label: 'Gia công Nhôm & Kim loại màu', value: 'aluminum-nonferrous', icon: '' },
-  { label: 'Tiết kiệm chi phí / Sản xuất hàng loạt', value: 'cost-effective', icon: '' }
 ]
 
 const toggleFilterItem = (type, value) => {
@@ -60,18 +79,17 @@ const removeSingleFilter = (type, value) => {
 }
 
 const resetAllFilters = () => {
+  selectedFilters.categories = []
   selectedFilters.brands = []
   selectedFilters.priceRanges = []
   selectedFilters.needs = []
   selectedFilters.sortBy = 'default'
-  activeDropdown.value = null
 }
 
 const totalActiveFilters = computed(() => {
-  return selectedFilters.brands.length + selectedFilters.priceRanges.length + selectedFilters.needs.length
+  return selectedFilters.categories.length + selectedFilters.brands.length + selectedFilters.priceRanges.length + selectedFilters.needs.length
 })
 
-// [MỚI] Theo dõi tổng số lượng lọc, báo cho cha biết để ẩn/hiện phần kết quả
 watch(totalActiveFilters, (newVal) => {
   emit('update:hasActiveFilter', newVal > 0)
 }, { immediate: true })
@@ -80,10 +98,17 @@ const filteredProducts = computed(() => {
   return props.products.filter(product => {
     const finalPrice = product.salePrice || product.price || 0
 
+    // Lọc theo Danh mục
+    if (selectedFilters.categories.length > 0) {
+      if (!selectedFilters.categories.includes(product.category_vi)) return false
+    }
+
+    // Lọc theo Thương hiệu
     if (selectedFilters.brands.length > 0) {
       if (!selectedFilters.brands.includes(product.brand)) return false
     }
 
+    // Lọc theo Giá
     if (selectedFilters.priceRanges.length > 0) {
       const matchPrice = selectedFilters.priceRanges.some(priceId => {
         const option = priceOptions.find(o => o.id === priceId)
@@ -92,9 +117,10 @@ const filteredProducts = computed(() => {
       if (!matchPrice) return false
     }
 
+    // Lọc theo Tính năng / Nhu cầu (Tags từ Admin)
     if (selectedFilters.needs.length > 0) {
-      const pTags = product.tags || product.features || []
-      const matchNeed = selectedFilters.needs.some(needId => pTags.includes(needId))
+      const pTags = product.tags || []
+      const matchNeed = selectedFilters.needs.some(need => pTags.includes(need))
       if (!matchNeed) return false
     }
 
@@ -114,184 +140,180 @@ watch(filteredProducts, (newVal) => {
 </script>
 
 <template>
-  <!-- [SỬA LẠI CSS]: Bỏ bo góc dưới (rounded-b-none), bỏ border dưới, bỏ margin bottom để nó liền mạch với khối kết quả -->
-  <div class="bg-white rounded-t-2xl shadow-sm border border-slate-200/80 border-b-0 p-4 relative" :class="totalActiveFilters === 0 ? 'rounded-b-2xl border-b' : ''">
+  <aside class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 flex flex-col gap-6 sticky top-22.5 max-h-[calc(100vh-110px)] overflow-y-auto z-20 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
     
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center gap-2">
-        <span class="text-base"></span>
-        <h2 class="text-xs font-black uppercase text-slate-800 tracking-wide">Bộ Lọc Sản Phẩm</h2>
-        <span v-if="totalActiveFilters > 0" class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-          Đã chọn {{ totalActiveFilters }}
-        </span>
+    <!-- HEADER BỘ LỌC -->
+    <div class="flex flex-col gap-2 border-b border-slate-100 pb-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-black uppercase text-slate-800 tracking-wide flex items-center gap-2">
+          <span class="text-red-600"></span> Bộ Lọc
+        </h2>
+        <button 
+          v-if="totalActiveFilters > 0" 
+          @click="resetAllFilters"
+          class="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+        >
+          Xóa tất cả
+        </button>
       </div>
+      <div class="text-xs font-semibold text-slate-500">
+        Tìm thấy <span class="font-black text-red-600">{{ filteredProducts.length }}</span> kết quả
+      </div>
+    </div>
 
-      <button 
-        v-if="totalActiveFilters > 0" 
-        @click="resetAllFilters"
-        class="text-xs font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
+    <!-- DANH SÁCH TAGS ĐANG CHỌN -->
+    <div v-if="totalActiveFilters > 0" class="flex flex-wrap gap-1.5">
+      <span 
+        v-for="c in selectedFilters.categories" 
+        :key="'c-' + c"
+        class="bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5"
       >
-        <span>✕</span> Bỏ chọn tất cả
-      </button>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2 relative">
-      <!-- 1. Dropdown Thương Hiệu -->
-      <div class="relative">
-        <button 
-          @click="toggleDropdown('brands')"
-          class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer"
-          :class="selectedFilters.brands.length > 0 ? 'border-red-600 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'"
-        >
-          <span>Thương hiệu</span>
-          <span v-if="selectedFilters.brands.length > 0" class="bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-black">
-            {{ selectedFilters.brands.length }}
-          </span>
-          <span class="text-[10px]">▼</span>
-        </button>
-
-        <div v-if="activeDropdown === 'brands'" class="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-          <p class="text-[11px] font-bold text-slate-400 mb-2">Chọn thương hiệu:</p>
-          <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-            <label 
-              v-for="b in brandOptions" 
-              :key="b" 
-              class="flex items-center gap-2 text-xs font-semibold p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-slate-700 select-none"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedFilters.brands.includes(b)" 
-                @change="toggleFilterItem('brands', b)" 
-                class="accent-red-600 rounded" 
-              />
-              <span class="truncate">{{ b }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. Dropdown Khoảng Giá -->
-      <div class="relative">
-        <button 
-          @click="toggleDropdown('prices')"
-          class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer"
-          :class="selectedFilters.priceRanges.length > 0 ? 'border-red-600 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'"
-        >
-          <span>Mức giá</span>
-          <span v-if="selectedFilters.priceRanges.length > 0" class="bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-black">
-            {{ selectedFilters.priceRanges.length }}
-          </span>
-          <span class="text-[10px]">▼</span>
-        </button>
-
-        <div v-if="activeDropdown === 'prices'" class="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-          <p class="text-[11px] font-bold text-slate-400 mb-2">Chọn khoảng giá:</p>
-          <div class="space-y-1">
-            <label 
-              v-for="p in priceOptions" 
-              :key="p.id" 
-              class="flex items-center gap-2 text-xs font-semibold p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-slate-700 select-none"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedFilters.priceRanges.includes(p.id)" 
-                @change="toggleFilterItem('priceRanges', p.id)" 
-                class="accent-red-600 rounded" 
-              />
-              <span>{{ p.label }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Dropdown Nhu Cầu -->
-      <div class="relative">
-        <button 
-          @click="toggleDropdown('needs')"
-          class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer"
-          :class="selectedFilters.needs.length > 0 ? 'border-red-600 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'"
-        >
-          <span>Nhu cầu</span>
-          <span v-if="selectedFilters.needs.length > 0" class="bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-black">
-            {{ selectedFilters.needs.length }}
-          </span>
-          <span class="text-[10px]">▼</span>
-        </button>
-
-        <div v-if="activeDropdown === 'needs'" class="absolute top-full left-0 mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-          <p class="text-[11px] font-extrabold uppercase text-slate-400">Tính năng / Nhu cầu gia công:</p>
-          <div class="space-y-1.5">
-            <label 
-              v-for="item in needsOptions" 
-              :key="item.value"
-              class="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer hover:text-red-600 font-medium py-1"
-            >
-              <!-- [SỬA LỖI]: Bỏ v-model="selectedNeeds", dùng cấu trúc giống giá và hãng -->
-              <input 
-                type="checkbox" 
-                :checked="selectedFilters.needs.includes(item.value)"
-                @change="toggleFilterItem('needs', item.value)"
-                class="rounded border-slate-300 text-red-600 focus:ring-red-500 w-4 h-4" 
-              />
-              <span>{{ item.icon }} {{ item.label }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- 4. Dropdown Sắp Xếp -->
-      <div class="ml-auto flex items-center gap-1.5">
-        <span class="text-xs font-semibold text-slate-400 hidden sm:inline">Sắp xếp:</span>
-        <select 
-          v-model="selectedFilters.sortBy" 
-          class="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-1.5 px-2.5 rounded-xl focus:outline-none focus:border-red-600 cursor-pointer"
-        >
-          <option value="default">Nổi bật nhất</option>
-          <option value="price-asc">Giá: Thấp đến Cao</option>
-          <option value="price-desc">Giá: Cao đến Thấp</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Click outside để đóng Popup -->
-    <div v-if="activeDropdown" @click="activeDropdown = null" class="fixed inset-0 z-40 bg-transparent"></div>
-
-    <!-- DANH SÁCH TAGS (CHIPS) ĐANG CHỌN -->
-    <div v-if="totalActiveFilters > 0" class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
-      <span class="text-[11px] font-bold text-slate-400 mr-1">Đang chọn:</span>
-
+        {{ c }}
+        <button @click="removeSingleFilter('categories', c)" class="hover:text-red-900 cursor-pointer text-xs leading-none">&times;</button>
+      </span>
       <span 
         v-for="b in selectedFilters.brands" 
         :key="'b-' + b"
-        class="bg-red-50 text-red-600 border border-red-200 text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+        class="bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5"
       >
         {{ b }}
-        <button @click="removeSingleFilter('brands', b)" class="hover:text-red-800 text-xs cursor-pointer">✕</button>
+        <button @click="removeSingleFilter('brands', b)" class="hover:text-red-900 cursor-pointer text-xs leading-none">&times;</button>
       </span>
-
       <span 
         v-for="priceId in selectedFilters.priceRanges" 
         :key="'p-' + priceId"
-        class="bg-red-50 text-red-600 border border-red-200 text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+        class="bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5"
       >
         {{ priceOptions.find(o => o.id === priceId)?.label }}
-        <button @click="removeSingleFilter('priceRanges', priceId)" class="hover:text-red-800 text-xs cursor-pointer">✕</button>
+        <button @click="removeSingleFilter('priceRanges', priceId)" class="hover:text-red-900 cursor-pointer text-xs leading-none">&times;</button>
       </span>
-
-      <!-- [SỬA LỖI]: needsOptions thay vì needOptions, value thay vì id -->
       <span 
-        v-for="needId in selectedFilters.needs" 
-        :key="'n-' + needId"
-        class="bg-red-50 text-red-600 border border-red-200 text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+        v-for="need in selectedFilters.needs" 
+        :key="'n-' + need"
+        class="bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5"
       >
-        {{ needsOptions.find(o => o.value === needId)?.label }}
-        <button @click="removeSingleFilter('needs', needId)" class="hover:text-red-800 text-xs cursor-pointer">✕</button>
+        {{ need }}
+        <button @click="removeSingleFilter('needs', need)" class="hover:text-red-900 cursor-pointer text-xs leading-none">&times;</button>
       </span>
     </div>
 
-    <!-- SỐ KẾT QUẢ CÒN LẠI -->
-    <div class="mt-2.5 text-[11px] font-semibold text-slate-400">
-      Tìm thấy <span class="font-black text-red-600">{{ filteredProducts.length }}</span> sản phẩm
+    <!-- KHỐI 1: SẮP XẾP -->
+    <div class="flex flex-col gap-2">
+      <h3 class="text-[11px] font-bold uppercase text-slate-400">Sắp xếp theo</h3>
+      <select 
+        v-model="selectedFilters.sortBy" 
+        class="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all cursor-pointer"
+      >
+        <option value="default">Nổi bật nhất</option>
+        <option value="price-asc">Giá: Thấp đến Cao</option>
+        <option value="price-desc">Giá: Cao đến Thấp</option>
+      </select>
     </div>
-  </div>
+
+    <div class="w-full h-px bg-slate-100"></div>
+
+    <!-- KHỐI MỚI: DANH MỤC (Lấy từ Admin) -->
+    <div v-if="categoryOptions.length > 0" class="flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-[11px] font-bold uppercase text-slate-400">Loại hàng / Danh mục</h3>
+      </div>
+      <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <label 
+          v-for="c in categoryOptions" 
+          :key="c" 
+          class="flex items-center gap-3 group cursor-pointer"
+        >
+          <input 
+            type="checkbox" 
+            :checked="selectedFilters.categories.includes(c)" 
+            @change="toggleFilterItem('categories', c)" 
+            class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+          />
+          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ c }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div v-if="categoryOptions.length > 0" class="w-full h-px bg-slate-100 mt-1"></div>
+
+    <!-- KHỐI 2: MỨC GIÁ -->
+    <div class="flex flex-col gap-3">
+      <h3 class="text-[11px] font-bold uppercase text-slate-400">Khoảng giá</h3>
+      <div class="flex flex-col gap-2.5">
+        <label 
+          v-for="p in priceOptions" 
+          :key="p.id" 
+          class="flex items-center gap-3 group cursor-pointer"
+        >
+          <input 
+            type="checkbox" 
+            :checked="selectedFilters.priceRanges.includes(p.id)" 
+            @change="toggleFilterItem('priceRanges', p.id)" 
+            class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer" 
+          />
+          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors">{{ p.label }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="w-full h-px bg-slate-100"></div>
+
+    <!-- KHỐI 3: THƯƠNG HIỆU -->
+    <div v-if="brandOptions.length > 0" class="flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-[11px] font-bold uppercase text-slate-400">Thương hiệu</h3>
+        <span class="text-[10px] text-slate-400 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">{{ brandOptions.length }}</span>
+      </div>
+      <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <label 
+          v-for="b in brandOptions" 
+          :key="b" 
+          class="flex items-center gap-3 group cursor-pointer"
+        >
+          <input 
+            type="checkbox" 
+            :checked="selectedFilters.brands.includes(b)" 
+            @change="toggleFilterItem('brands', b)" 
+            class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+          />
+          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ b }}</span>
+        </label>
+      </div>
+      <div v-if="needsOptions.length > 0" class="w-full h-px bg-slate-100 mt-3"></div>
+    </div>
+
+    <!-- KHỐI 4: TÍNH NĂNG / NHU CẦU (Lấy từ Admin) -->
+    <div v-if="needsOptions.length > 0" class="flex flex-col gap-3">
+      <h3 class="text-[11px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</h3>
+      <div class="flex flex-col gap-2.5 max-h-56 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <label 
+          v-for="need in needsOptions" 
+          :key="need"
+          class="flex items-start gap-3 group cursor-pointer"
+        >
+          <input 
+            type="checkbox" 
+            :checked="selectedFilters.needs.includes(need)"
+            @change="toggleFilterItem('needs', need)"
+            class="w-4 h-4 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+          />
+          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors leading-relaxed">{{ need }}</span>
+        </label>
+      </div>
+    </div>
+
+  </aside>
 </template>
+
+<style scoped>
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #e2e8f0; 
+  border-radius: 10px;
+}
+</style>

@@ -96,6 +96,26 @@ const imageFile = ref(null);
 // NÂNG CẤP: Thêm biến reactive lưu trữ Link sản phẩm tùy biến cấu hình từ Admin
 const custom_url = ref('')
 
+// --- [THÊM MỚI] BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
+const selectedTags = ref([]) // Mảng lưu các ô tick của người dùng
+
+const availableTags = computed(() => {
+  if (!category_vi.value) return []
+  
+  // Chuyển tên category thành chữ thường để so khớp cho chuẩn xác
+  const catName = category_vi.value.trim().toLowerCase()
+  
+  // Mapping thông minh (mày có thể tự thêm/sửa cho chuẩn với data thật của mày)
+  const categoryNeedsMap = {
+    'dao phay': ['Phá thô', 'Phay tinh', 'Phay 3D', 'Chạy rãnh', 'Phay mặt phẳng', 'Phay nhôm', 'Phay thép cứng'],
+    'mũi khoan': ['Khoan lỗ sâu', 'Khoan vật liệu cứng', 'Khoan mồi', 'Khoan bước', 'Taro'],
+    'dao tiện': ['Tiện ngoài', 'Tiện trong', 'Tiện ren', 'Tiện rãnh', 'Tiện cắt đứt']
+  }
+  
+  return categoryNeedsMap[catName] || []
+})
+// -----------------------------------------------------------
+
 // --- HÀM LẤY DANH SÁCH DANH MỤC ---
 const fetchCategories = async () => {
   try {
@@ -120,6 +140,9 @@ const handleCategorySelectChange = () => {
     category_vi.value = ''
     category_en.value = ''
   }
+  
+  // [THÊM MỚI] Xóa trắng các lựa chọn tags khi đổi danh mục để tránh rác data
+  selectedTags.value = []
 }
 
 // --- HÀM LẤY DANH SÁCH NHÃN HÀNG ---
@@ -263,6 +286,7 @@ const handleSubmit = async () => {
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
       custom_url: custom_url.value.trim(), // ĐỒNG BỘ BACKEND: Lưu link cấu hình tay vào Firestore
+      tags: selectedTags.value, // --- [THÊM MỚI] LƯU MẢNG TAGS LÊN FIREBASE ---
       updatedAt: serverTimestamp()
     }
 
@@ -360,6 +384,9 @@ const startEdit = (p) => {
   // ĐỒNG BỘ BACKEND: Đổ dữ liệu link sản phẩm cũ ra ô input khi nhấn Edit
   custom_url.value = p.custom_url || '';
 
+  // --- [THÊM MỚI] Load lại các tags (nhu cầu) người dùng đã tick nếu có ---
+  selectedTags.value = p.tags ? [...p.tags] : [];
+
   subImages.value = p.sub_images ? [...p.sub_images] : []
   subImageFiles.value = p.sub_images ? new Array(p.sub_images.length).fill(null) : []
 
@@ -409,6 +436,10 @@ const resetForm = () => {
   imageFile.value = null;
   hasPromotion.value = false; promotionValue.value = '';
   custom_url.value = ''; // ĐỒNG BỘ BACKEND: Làm sạch input link sản phẩm khi reset form
+  
+  // --- [THÊM MỚI] Làm sạch mảng tags ---
+  selectedTags.value = [];
+  
   subImages.value = []
   subImageFiles.value = []
 }
@@ -542,6 +573,27 @@ const resetBrandForm = () => {
                       <input v-model="category_en" readonly placeholder="Category (EN) - Tự động điền" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic text-slate-400 cursor-not-allowed" />
                     </div>
                   </div>
+
+                  <!-- [THÊM MỚI] Dàn Checkbox Động Nhu Cầu -->
+                  <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Đặc tính / Phân loại nhu cầu</label>
+                    <div class="flex flex-wrap gap-2">
+                      <label 
+                        v-for="tag in availableTags" 
+                        :key="tag" 
+                        class="flex items-center space-x-2 cursor-pointer bg-white px-2.5 py-1.5 border border-slate-100 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all"
+                      >
+                        <input 
+                          type="checkbox" 
+                          :value="tag" 
+                          v-model="selectedTags"
+                          class="form-checkbox h-3.5 w-3.5 text-blue-500 rounded border-slate-200 focus:ring-blue-500"
+                        >
+                        <span class="text-[11px] font-bold text-slate-600">{{ tag }}</span>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- END [THÊM MỚI] -->
 
                   <div class="grid grid-cols-2 gap-2">
                     <div class="relative">

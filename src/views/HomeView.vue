@@ -32,7 +32,19 @@ const currentTime = ref(new Date())
 const filteredHomeProducts = ref([])
 
 const handleFilteredProducts = (newList) => {
-  filteredHomeProducts.value = newList
+  filteredHomeProducts.value = newList;
+};
+
+// Tự động bật/tắt trạng thái lọc dựa vào số lượng sản phẩm:
+// - Nếu số lượng sau khi lọc khác tổng số sản phẩm gốc -> Đang lọc (true)
+// - Nếu bằng nhau (hoặc bấm "Bỏ chọn tất cả") -> Không lọc (false)
+const isFiltering = computed(() => {
+  if (!products.value || !filteredHomeProducts.value) return false;
+  return filteredHomeProducts.value.length !== products.value.length;
+});
+
+const handleFilterState = (state) => {
+  isFiltering.value = state
 }
 
 const swiperModules = [Autoplay, Pagination, Navigation, EffectFade]
@@ -289,108 +301,104 @@ const getCategoryBanner = (catName) => {
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
         
         <!-- Sidebar Danh mục sản phẩm (Bên trái) -->
-        <!-- Sidebar Danh mục sản phẩm (Có Flyout Submenu kiểu CellphoneS) -->
-<aside 
-  class="hidden lg:block lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2.5 relative"
-  @mouseleave="activeHoverCategory = null"
->
-  <div class="text-xs font-black uppercase text-slate-400 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-    <span>Danh mục sản phẩm</span>
-    <span class="text-red-600">☰</span>
-  </div>
-
-  <!-- Danh sách các danh mục chính -->
-  <ul class="divide-y divide-slate-50 my-1">
-    <li 
-      v-for="cat in categories" 
-      :key="cat"
-      @mouseenter="activeHoverCategory = cat"
-      class="group"
-    >
-      <router-link 
-        :to="'/products?category=' + cat" 
-        class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-xs font-semibold"
-        :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600' : 'text-slate-700 hover:bg-red-50 hover:text-red-600'"
-      >
-        <span class="truncate">{{ cat }}</span>
-        <span class="text-slate-300 group-hover:text-red-600 transition-transform group-hover:translate-x-1">&rsaquo;</span>
-      </router-link>
-    </li>
-  </ul>
-
-  <!-- MEGA MENU FLYOUT (Xổ ra bên phải khi hover) -->
-  <Transition name="fade-fast">
-    <div 
-      v-if="activeHoverCategory" 
-      class="absolute top-0 left-[102%] w-145 min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-5 z-50 grid grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-150"
-    >
-      <!-- Cột 1 & 2: Thương hiệu & Sản phẩm Hot của Category này -->
-      <div class="col-span-2 space-y-4">
-        <div>
-          <h3 class="text-xs font-black uppercase text-red-600 tracking-wider mb-2 border-b border-red-100 pb-1 flex items-center gap-1.5">
-            <span></span> {{ activeHoverCategory }}
-          </h3>
-          
-          <p class="text-[11px] font-bold text-slate-400 mb-1.5">Thương hiệu hàng đầu:</p>
-          <div class="flex flex-wrap gap-1.5 mb-3">
-            <router-link 
-              v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
-              :key="brand"
-              :to="'/products?category=' + activeHoverCategory + '&brand=' + brand"
-              class="bg-slate-100 hover:bg-red-600 hover:text-white text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors"
-            >
-              {{ brand }}
-            </router-link>
-            <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic">
-              Đang cập nhật thương hiệu...
-            </span>
+        <aside 
+          class="hidden lg:block lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2.5 relative"
+          @mouseleave="activeHoverCategory = null"
+        >
+          <div class="text-xs font-black uppercase text-slate-400 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+            <span>Danh mục sản phẩm</span>
+            <span class="text-red-600">☰</span>
           </div>
-        </div>
 
-        <div>
-          <p class="text-[11px] font-bold text-slate-400 mb-2">Sản phẩm gợi ý:</p>
-          <div class="grid grid-cols-2 gap-2">
-            <router-link 
-              v-for="p in getProductsByCategory(activeHoverCategory).slice(0, 4)" 
-              :key="p.id"
-              :to="'/product/' + p.id"
-              class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-red-50/50 border border-slate-100 transition-all group"
+          <!-- Danh sách các danh mục chính -->
+          <ul class="divide-y divide-slate-50 my-1">
+            <li 
+              v-for="cat in categories" 
+              :key="cat"
+              @mouseenter="activeHoverCategory = cat"
+              class="group"
             >
-              <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain rounded bg-white shrink-0 p-0.5" />
-              <div class="overflow-hidden">
-                <p class="text-[11px] font-bold text-slate-800 truncate group-hover:text-red-600">{{ p[`name_${locale}`] || p.name }}</p>
-                <p class="text-[10px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
+              <router-link 
+                :to="'/products?category=' + cat" 
+                class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-xs font-semibold"
+                :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600' : 'text-slate-700 hover:bg-red-50 hover:text-red-600'"
+              >
+                <span class="truncate">{{ cat }}</span>
+                <span class="text-slate-300 group-hover:text-red-600 transition-transform group-hover:translate-x-1">&rsaquo;</span>
+              </router-link>
+            </li>
+          </ul>
+
+          <!-- MEGA MENU FLYOUT -->
+          <Transition name="fade-fast">
+            <div 
+              v-if="activeHoverCategory" 
+              class="absolute top-0 left-[102%] w-145 min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-5 z-50 grid grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-150"
+            >
+              <div class="col-span-2 space-y-4">
+                <div>
+                  <h3 class="text-xs font-black uppercase text-red-600 tracking-wider mb-2 border-b border-red-100 pb-1 flex items-center gap-1.5">
+                    <span></span> {{ activeHoverCategory }}
+                  </h3>
+                  <p class="text-[11px] font-bold text-slate-400 mb-1.5">Thương hiệu hàng đầu:</p>
+                  <div class="flex flex-wrap gap-1.5 mb-3">
+                    <router-link 
+                      v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
+                      :key="brand"
+                      :to="'/products?category=' + activeHoverCategory + '&brand=' + brand"
+                      class="bg-slate-100 hover:bg-red-600 hover:text-white text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      {{ brand }}
+                    </router-link>
+                    <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic">
+                      Đang cập nhật thương hiệu...
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p class="text-[11px] font-bold text-slate-400 mb-2">Sản phẩm gợi ý:</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <router-link 
+                      v-for="p in getProductsByCategory(activeHoverCategory).slice(0, 4)" 
+                      :key="p.id"
+                      :to="'/product/' + p.id"
+                      class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-red-50/50 border border-slate-100 transition-all group"
+                    >
+                      <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain rounded bg-white shrink-0 p-0.5" />
+                      <div class="overflow-hidden">
+                        <p class="text-[11px] font-bold text-slate-800 truncate group-hover:text-red-600">{{ p[`name_${locale}`] || p.name }}</p>
+                        <p class="text-[10px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
+                      </div>
+                    </router-link>
+                  </div>
+                </div>
               </div>
-            </router-link>
-          </div>
-        </div>
-      </div>
 
-      <!-- Cột 3: Banner Khuyến mãi nhỏ -->
-      <div class="col-span-1 border-l border-slate-100 pl-4 flex flex-col justify-between">
-        <div class="relative rounded-xl overflow-hidden h-full bg-slate-900 group/banner min-h-45">
-          <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-70 group-hover/banner:scale-105 transition-transform duration-300" />
-          <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
-          <div class="relative z-10 h-full p-3 flex flex-col justify-end text-white">
-            <span class="text-[9px] font-bold text-yellow-400 uppercase">Khuyến mãi</span>
-            <p class="text-xs font-black leading-snug mb-2 line-clamp-2">{{ activeHoverCategory }}</p>
-            <router-link 
-              :to="'/products?category=' + activeHoverCategory" 
-              class="bg-red-600 text-white text-[10px] font-bold py-1.5 px-2 rounded-lg text-center hover:bg-red-700 transition-colors shadow"
-            >
-              Xem tất cả
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </div>
-  </Transition>
+              <div class="col-span-1 border-l border-slate-100 pl-4 flex flex-col justify-between">
+                <div class="relative rounded-xl overflow-hidden h-full bg-slate-900 group/banner min-h-45">
+                  <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-70 group-hover/banner:scale-105 transition-transform duration-300" />
+                  <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
+                  <div class="relative z-10 h-full p-3 flex flex-col justify-end text-white">
+                    <span class="text-[9px] font-bold text-yellow-400 uppercase">Khuyến mãi</span>
+                    <p class="text-xs font-black leading-snug mb-2 line-clamp-2">{{ activeHoverCategory }}</p>
+                    <router-link 
+                      :to="'/products?category=' + activeHoverCategory" 
+                      class="bg-red-600 text-white text-[10px] font-bold py-1.5 px-2 rounded-lg text-center hover:bg-red-700 transition-colors shadow"
+                    >
+                      Xem tất cả
+                    </router-link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Transition>
 
-  <div class="bg-red-50/60 border border-red-100 rounded-xl p-2.5 text-center mt-2">
-    <p class="text-[11px] text-red-700 font-bold">Hotline Tư Vấn Kỹ Thuật</p>
-    <p class="text-sm font-black text-red-600 mt-0.5">0906 826 959</p>
-  </div>
-</aside>
+          <div class="bg-red-50/60 border border-red-100 rounded-xl p-2.5 text-center mt-2">
+            <p class="text-[11px] text-red-700 font-bold">Hotline Tư Vấn Kỹ Thuật</p>
+            <p class="text-sm font-black text-red-600 mt-0.5">0906 826 959</p>
+          </div>
+        </aside>
 
         <!-- Banner Swiper chính (Ở giữa) -->
         <div class="lg:col-span-6 h-70 sm:h-90 lg:h-auto rounded-2xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-900">
@@ -451,9 +459,6 @@ const getCategoryBanner = (catName) => {
       </div>
     </section>
 
-    <!-- 3. Thanh Tiện Ích Đặt Hàng -->
-    
-
     <!-- 4. MAIN CONTENT AREA -->
     <main class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-6">
       
@@ -507,154 +512,38 @@ const getCategoryBanner = (catName) => {
           </div>
         </div>
 
-        <!-- MÀN HÌNH CHÍNH -->
-        <div v-else class="space-y-6">
+        <!-- MÀN HÌNH CHÍNH (Đã chia 2 cột: Cột Filter Trái và Cột Content Phải) -->
+        <div v-else class="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
 
           <!-- ========================================== -->
-          <!-- 💡 BỔ SUNG: BỘ LỌC ĐA TIÊU CHÍ VÀ KẾT QUẢ -->
+          <!-- CỘT TRÁI: BỘ LỌC ĐA TIÊU CHÍ (STICKY) -->
           <!-- ========================================== -->
-          <HomeProductFilter 
-            :products="products" 
-            @update:filteredProducts="handleFilteredProducts" 
-          />
+          <div class="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-22.5 self-start h-fit z-20">
+  <HomeProductFilter 
+    :products="products" 
+    @update:filteredProducts="handleFilteredProducts"
+  />
+</div>
 
-          <!-- Lưới Kết Quả từ Bộ Lọc -->
-          <div v-if="filteredHomeProducts && filteredHomeProducts.length > 0" class="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
-              <div class="flex items-center gap-2">
-                <span class="w-1.5 h-6 bg-red-600 rounded-full inline-block"></span>
-                <h2 class="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
-                  Kết Quả Lọc Sản Phẩm
-                </h2>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              <div v-for="p in filteredHomeProducts" :key="p.id" 
-                   class="group bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all duration-300 relative">
-                
-                <div v-if="getDiscountPercent(p) > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
-                  Giảm {{ getDiscountPercent(p) }}%
-                </div>
-
-                <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
-                  <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                </div>
-
-                <div>
-                  <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
-                  <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
-                    {{ p[`name_${locale}`] || p.name }}
-                  </h3>
-                </div>
-
-                <div class="mt-3 pt-2 border-t border-slate-100">
-                  <div v-if="getSalePrice(p)">
-                    <div class="text-xs sm:text-sm font-black text-red-600">
-                      {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                    </div>
-                    <div class="text-[10px] text-slate-400 line-through font-medium">
-                      {{ p.price?.toLocaleString() }}đ
-                    </div>
-                  </div>
-                  <div v-else class="text-xs sm:text-sm font-black text-red-600">
-                    {{ p.price ? p.price.toLocaleString() + 'đ' : 'Liên hệ giá' }}
-                  </div>
-                </div>
-
-                <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
-              </div>
-            </div>
-          </div>
           <!-- ========================================== -->
-          
-          <!-- 5. Khối HOT SALE GIÁ SỐC -->
-          <div v-if="promoProducts.length > 0" class="bg-linear-to-r from-red-700 via-red-600 to-red-800 rounded-3xl p-4 sm:p-6 text-white shadow-xl">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-white/10">
-              <div class="flex items-center gap-3">
-                <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300">
-                  <span></span> HOT SALE GIÁ SỐC
-                </h2>
-              </div>
-              <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40">
-                <span class="text-xs font-semibold text-slate-200">Kết thúc sau:</span>
-                <span class="font-mono text-sm font-black text-yellow-300">{{ getCountdown(activeBannerPromo.end_date) }}</span>
-              </div>
-            </div>
+          <!-- CỘT PHẢI: KẾT QUẢ VÀ CÁC KHỐI DANH MỤC -->
+          <!-- ========================================== -->
+          <div class="flex-1 w-full min-w-0 space-y-6">
             
-            <!-- Lưới Sản Phẩm Khuyến Mãi -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              <div v-for="p in promoProducts.slice(0, 5)" :key="p.id" 
-                   class="group bg-white rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
-                <div class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
-                  Giảm {{ getDiscountPercent(p) }}%
-                </div>
-                
-                <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
-                  <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                </div>
-                
-                <div>
-                  <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
-                  <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
-                    {{ p[`name_${locale}`] || p.name }}
-                  </h3>
-                </div>
-
-                <div class="mt-3 pt-2 border-t border-slate-100">
-                  <div class="text-xs sm:text-sm font-black text-red-600">
-                    {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                  </div>
-                  <div class="text-[10px] text-slate-400 line-through font-medium">
-                    {{ p.price?.toLocaleString() }}đ
-                  </div>
-                  <div class="mt-1.5 bg-red-50 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded border border-red-100 line-clamp-1">
-                    🎁 Ưu đãi doanh nghiệp
-                  </div>
-                </div>
-
-                <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
-              </div>
-            </div>
-          </div>
-
-          <!-- 6. KHỐI TỔNG HỢP THEO TỪNG DANH MỤC -->
-          <div v-for="cat in categories" :key="cat" class="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
-            
-            <!-- Header Danh Mục -->
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div class="flex items-center gap-2">
-                <span class="w-1.5 h-6 bg-red-600 rounded-full inline-block"></span>
-                <h2 class="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
-                  {{ cat }}
-                </h2>
-              </div>
-              <router-link :to="'/products?category=' + cat" 
-                           class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 hover:underline">
-                <span>Xem tất cả {{ cat }}</span>
-                <span>&rsaquo;</span>
-              </router-link>
-            </div>
-
-            <!-- Bố cục Khối: Banner Đại Diện bên trái + Lưới Sản Phẩm bên phải -->
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-              
-              <!-- Banner nhỏ bên trái của danh mục -->
-              <div class="hidden lg:block lg:col-span-1 relative rounded-2xl overflow-hidden border border-slate-200/60 group bg-slate-900 min-h-80">
-                <img :src="getCategoryBanner(cat)" :alt="cat" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
-                <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
-                <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
-                  <h3 class="font-black text-base uppercase text-white mb-1">{{ cat }}</h3>
-                  <p class="text-[10px] text-slate-300 mb-3">Giải pháp công nghệ chính xác hàng đầu</p>
-                  <router-link :to="'/products?category=' + cat" class="inline-block text-center bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-[11px] py-2 px-3 rounded-xl border border-white/20 transition-all">
-                    Khám phá danh mục
-                  </router-link>
+            <!-- Lưới Kết Quả từ Bộ Lọc (Chỉ hiện khi isFiltering là true) -->
+            <div v-if="isFiltering" class="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-1.5 h-6 bg-red-600 rounded-full inline-block"></span>
+                  <h2 class="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
+                    Kết Quả Lọc Sản Phẩm
+                  </h2>
                 </div>
               </div>
 
-              <!-- Lưới 4-8 Sản phẩm thuộc Danh mục này -->
-              <div class="lg:col-span-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                <div v-for="p in getProductsByCategory(cat).slice(0, 8)" :key="p.id" 
+              <!-- Trạng thái: Có kết quả -->
+              <div v-if="filteredHomeProducts && filteredHomeProducts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                <div v-for="p in filteredHomeProducts" :key="p.id" 
                      class="group bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all duration-300 relative">
                   
                   <div v-if="getDiscountPercent(p) > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
@@ -688,16 +577,147 @@ const getCategoryBanner = (catName) => {
 
                   <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
                 </div>
+              </div>
 
-                <!-- Khối trống bổ sung nếu danh mục ít sản phẩm -->
-                <div v-if="getProductsByCategory(cat).length === 0" class="col-span-full text-center py-8 text-xs text-slate-400 font-semibold">
-                  Đang cập nhật sản phẩm cho danh mục này...
+              <!-- Trạng thái: Không có kết quả -->
+              <div v-else class="text-center py-10">
+                <p class="text-slate-400 font-semibold uppercase tracking-wider text-xs">Không tìm thấy sản phẩm nào phù hợp với bộ lọc</p>
+              </div>
+            </div>
+            
+            <!-- BỌC CÁC KHỐI CÒN LẠI ĐỂ ẨN ĐI KHI ĐANG LỌC -->
+            <div v-show="!isFiltering" class="space-y-6">
+              <!-- 5. Khối HOT SALE GIÁ SỐC -->
+              <div v-if="promoProducts.length > 0" class="bg-linear-to-r from-red-700 via-red-600 to-red-800 rounded-3xl p-4 sm:p-6 text-white shadow-xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-white/10">
+                  <div class="flex items-center gap-3">
+                    <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300">
+                      <span></span> HOT SALE GIÁ SỐC
+                    </h2>
+                  </div>
+                  <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40">
+                    <span class="text-xs font-semibold text-slate-200">Kết thúc sau:</span>
+                    <span class="font-mono text-sm font-black text-yellow-300">{{ getCountdown(activeBannerPromo.end_date) }}</span>
+                  </div>
+                </div>
+                
+                <!-- Lưới Sản Phẩm Khuyến Mãi -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                  <div v-for="p in promoProducts.slice(0, 5)" :key="p.id" 
+                       class="group bg-white rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
+                      Giảm {{ getDiscountPercent(p) }}%
+                    </div>
+                    
+                    <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
+                      <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                    </div>
+                    
+                    <div>
+                      <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                      <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
+                        {{ p[`name_${locale}`] || p.name }}
+                      </h3>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-slate-100">
+                      <div class="text-xs sm:text-sm font-black text-red-600">
+                        {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
+                      </div>
+                      <div class="text-[10px] text-slate-400 line-through font-medium">
+                        {{ p.price?.toLocaleString() }}đ
+                      </div>
+                      <div class="mt-1.5 bg-red-50 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded border border-red-100 line-clamp-1">
+                        🎁 Ưu đãi doanh nghiệp
+                      </div>
+                    </div>
+
+                    <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
+                  </div>
                 </div>
               </div>
 
+              <!-- 6. KHỐI TỔNG HỢP THEO TỪNG DANH MỤC -->
+              <div v-for="cat in categories" :key="cat" class="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+                
+                <!-- Header Danh Mục -->
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-6 bg-red-600 rounded-full inline-block"></span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
+                      {{ cat }}
+                    </h2>
+                  </div>
+                  <router-link :to="'/products?category=' + cat" 
+                               class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 hover:underline">
+                    <span>Xem tất cả {{ cat }}</span>
+                    <span>&rsaquo;</span>
+                  </router-link>
+                </div>
+
+                <!-- Bố cục Khối: Banner Đại Diện bên trái + Lưới Sản Phẩm bên phải -->
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                  
+                  <!-- Banner nhỏ bên trái của danh mục -->
+                  <div class="hidden lg:block lg:col-span-1 relative rounded-2xl overflow-hidden border border-slate-200/60 group bg-slate-900 min-h-80">
+                    <img :src="getCategoryBanner(cat)" :alt="cat" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                    <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
+                      <h3 class="font-black text-base uppercase text-white mb-1">{{ cat }}</h3>
+                      <p class="text-[10px] text-slate-300 mb-3">Giải pháp công nghệ chính xác hàng đầu</p>
+                      <router-link :to="'/products?category=' + cat" class="inline-block text-center bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-[11px] py-2 px-3 rounded-xl border border-white/20 transition-all">
+                        Khám phá danh mục
+                      </router-link>
+                    </div>
+                  </div>
+
+                  <!-- Lưới Sản phẩm thuộc Danh mục này -->
+                  <div class="lg:col-span-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    <div v-for="p in getProductsByCategory(cat).slice(0, 8)" :key="p.id" 
+                         class="group bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all duration-300 relative">
+                      
+                      <div v-if="getDiscountPercent(p) > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
+                        Giảm {{ getDiscountPercent(p) }}%
+                      </div>
+
+                      <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
+                        <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                      </div>
+
+                      <div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                        <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
+                          {{ p[`name_${locale}`] || p.name }}
+                        </h3>
+                      </div>
+
+                      <div class="mt-3 pt-2 border-t border-slate-100">
+                        <div v-if="getSalePrice(p)">
+                          <div class="text-xs sm:text-sm font-black text-red-600">
+                            {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
+                          </div>
+                          <div class="text-[10px] text-slate-400 line-through font-medium">
+                            {{ p.price?.toLocaleString() }}đ
+                          </div>
+                        </div>
+                        <div v-else class="text-xs sm:text-sm font-black text-red-600">
+                          {{ p.price ? p.price.toLocaleString() + 'đ' : 'Liên hệ giá' }}
+                        </div>
+                      </div>
+
+                      <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+                    </div>
+
+                    <!-- Khối trống bổ sung nếu danh mục ít sản phẩm -->
+                    <div v-if="getProductsByCategory(cat).length === 0" class="col-span-full text-center py-8 text-xs text-slate-400 font-semibold">
+                      Đang cập nhật sản phẩm cho danh mục này...
+                    </div>
+                  </div>
+
+                </div>
+              </div>
             </div>
           </div>
-
         </div>
       </div>
     </main>
