@@ -76,16 +76,11 @@ const changeLanguage = (event) => {
       
       <!-- LOGO -->
       <RouterLink to="/" class="flex items-center shrink-0 group">
-        <div class="bg-white/10 hover:bg-white/20 p-1.5 rounded-xl transition-colors flex items-center justify-center">
-          <img :src="logoImg" alt="SPIT Vietnam Logo" class="h-8 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" />
-        </div>
-      </RouterLink>
-
-      <!-- NÚT DANH MỤC (CELLPHONES STYLE) -->
-      <RouterLink to="/products" class="hidden md:flex items-center gap-2 bg-red-700/70 hover:bg-red-800 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border border-white/10">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-        <span class="hidden lg:inline">Danh mục</span>
-      </RouterLink>
+  <div class="bg-white/10 hover:bg-white/20 p-1.5 rounded-xl transition-colors flex items-center justify-center">
+    <!-- Cập nhật class để ép tỷ lệ 3:1, w-28 cho mobile, w-32 hoặc w-36 cho desktop -->
+    <img :src="logoImg" alt="SPIT Vietnam Logo" class="w-28 md:w-36 aspect-3/1 object-contain transition-transform group-hover:scale-105" />
+  </div>
+</RouterLink>
 
       <!-- THANH TÌM KIẾM TRUNG TÂM (CENTER SEARCH BAR) -->
       <div class="relative flex-1 max-w-2xl mx-1 md:mx-2">
@@ -228,7 +223,7 @@ const changeLanguage = (event) => {
 
         <!-- NAVIGATION LINKS -->
         <nav class="flex flex-col gap-2">
-          <RouterLink v-for="item in ['home', 'about', 'products', 'contact']" 
+          <RouterLink v-for="item in ['home', 'about', 'contact']" 
                       :key="item" :to="item === 'home' ? '/' : '/' + item"
                       @click="isMobileMenuOpen = false"
                       class="text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex justify-between items-center" 

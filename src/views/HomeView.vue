@@ -31,17 +31,14 @@ const currentTime = ref(new Date())
 // --- BỔ SUNG: Biến chứa danh sách sản phẩm sau khi qua Bộ lọc Multi-Select ---
 const filteredHomeProducts = ref([])
 
-const handleFilteredProducts = (newList) => {
-  filteredHomeProducts.value = newList;
+const handleFilteredProducts = (newProducts) => {
+  filteredHomeProducts.value = newProducts;
 };
 
 // Tự động bật/tắt trạng thái lọc dựa vào số lượng sản phẩm:
 // - Nếu số lượng sau khi lọc khác tổng số sản phẩm gốc -> Đang lọc (true)
 // - Nếu bằng nhau (hoặc bấm "Bỏ chọn tất cả") -> Không lọc (false)
-const isFiltering = computed(() => {
-  if (!products.value || !filteredHomeProducts.value) return false;
-  return filteredHomeProducts.value.length !== products.value.length;
-});
+const isFiltering = ref(false);
 
 const handleFilterState = (state) => {
   isFiltering.value = state
@@ -66,7 +63,7 @@ const categoryBanners = ref({
   'Phụ kiện máy': 'https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=800',
 })
 
-// --- BỔ SUNG: Data dự phòng cho Banner Chính (Giữ nguyên code cũ của mày) ---
+// --- BỔ SUNG: Data dự phòng cho Banner Chính ---
 const fallbackMainBanners = [
   {
     id: 1,
@@ -80,25 +77,6 @@ const fallbackMainBanners = [
     subtitle: 'CHƯƠNG TRÌNH ĐỒNG HÀNH CÙNG DOANH NGHIỆP',
     desc: 'Tặng cán dao tiện khi đặt hàng số lượng lớn các dòng mảnh cắt insert trong tháng này.',
     useI18n: false
-  }
-]
-
-// --- UPDATE: Chuyển thành ref() để nhận data động, list cũ lưu thành fallback ---
-const rightSubBanners = ref([])
-const fallbackRightSubBanners = [
-  {
-    id: 1,
-    title: 'GIẢI PHÁP GIA CÔNG',
-    sub: 'Ưu đãi mảnh cắt Insert',
-    image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=600',
-    link: '/products'
-  },
-  {
-    id: 2,
-    title: 'THIẾT BỊ ĐO CHÍNH XÁC',
-    sub: 'Chuẩn dung sai Micromet',
-    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600',
-    link: '/products'
   }
 ]
 
@@ -125,7 +103,7 @@ const fetchData = async () => {
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-    // --- UPDATE: Logic tách Banner Chính & Phụ ---
+    // --- UPDATE: Logic tách Banner Chính ---
     const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     
     if (fetchedBanners.length > 0) {
@@ -136,20 +114,8 @@ const fetchData = async () => {
       const main = fetchedBanners.filter(b => b.position === 'main' || !b.position)
       mainBanners.value = main.length > 0 ? main : fallbackMainBanners
 
-      // 2. Tách Banner Phụ (Map subtitle sang sub)
-      const sub = fetchedBanners
-        .filter(b => b.position === 'right_sub')
-        .map(b => ({
-          ...b,
-          sub: b.subtitle || b.sub
-        }))
-        .slice(0, 2)
-      
-      rightSubBanners.value = sub.length > 0 ? sub : fallbackRightSubBanners
-
     } else {
       mainBanners.value = fallbackMainBanners
-      rightSubBanners.value = fallbackRightSubBanners
     }
     // --- KẾT THÚC UPDATE BANNER ---
 
@@ -273,7 +239,7 @@ const getCategoryBanner = (catName) => {
 </script>
 
 <template>
-  <div class="bg-slate-100 font-sans antialiased text-slate-900 pb-12">
+  <div class="bg-slate-50 font-sans antialiased text-slate-900 pb-12">
     
     <!-- 1. Thanh Campaign Khuyến Mãi Đầu Trang -->
     <Transition name="slide-down">
@@ -282,11 +248,11 @@ const getCategoryBanner = (catName) => {
         <div class="flex items-center justify-center gap-8 whitespace-nowrap">
           <div class="flex animate-marquee space-x-12 items-center">
             <div v-for="i in 4" :key="i" class="flex items-center gap-3">
-              <span class="bg-yellow-400 text-red-950 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow">🔥 HOT SALE</span>
+              <span class="bg-yellow-400 text-red-950 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-sm">🔥 HOT SALE</span>
               <span class="text-xs font-bold uppercase tracking-wide">
                 {{ activeBannerPromo.title }}: ƯU ĐÃI ĐẾN {{ activeBannerPromo.discount_value }}{{ activeBannerPromo.discount_type === 'percentage' ? '%' : ' VNĐ' }}
               </span>
-              <span v-if="activeBannerPromo.end_date" class="text-[11px] font-mono text-yellow-200 bg-black/20 px-2 py-0.5 rounded-full border border-yellow-400/30">
+              <span v-if="activeBannerPromo.end_date" class="text-[11px] font-mono text-yellow-200 bg-black/20 px-2.5 py-1 rounded-full border border-yellow-400/30">
                 ⏱️ Kết thúc sau: {{ getCountdown(activeBannerPromo.end_date) }}
               </span>
               <span class="text-white/40 text-xs"></span>
@@ -297,21 +263,23 @@ const getCategoryBanner = (catName) => {
     </Transition>
 
     <!-- 2. Khối Hero Slider & Sidebar Danh Mục (CellphoneS Style) -->
-    <section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pt-4">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+    <section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pt-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         <!-- Sidebar Danh mục sản phẩm (Bên trái) -->
         <aside 
-          class="hidden lg:block lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2.5 relative"
+          class="hidden lg:flex flex-col lg:col-span-3 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-200/80 p-2.5 relative z-40"
           @mouseleave="activeHoverCategory = null"
         >
           <div class="text-xs font-black uppercase text-slate-400 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-            <span>Danh mục sản phẩm</span>
-            <span class="text-red-600">☰</span>
+            <span class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              Danh mục
+            </span>
           </div>
 
           <!-- Danh sách các danh mục chính -->
-          <ul class="divide-y divide-slate-50 my-1">
+          <ul class="divide-y divide-slate-50 my-1 grow">
             <li 
               v-for="cat in categories" 
               :key="cat"
@@ -320,11 +288,11 @@ const getCategoryBanner = (catName) => {
             >
               <router-link 
                 :to="'/products?category=' + cat" 
-                class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-xs font-semibold"
-                :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600' : 'text-slate-700 hover:bg-red-50 hover:text-red-600'"
+                class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-xs font-semibold"
+                :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600 shadow-inner' : 'text-slate-700 hover:bg-slate-50 hover:text-red-600'"
               >
                 <span class="truncate">{{ cat }}</span>
-                <span class="text-slate-300 group-hover:text-red-600 transition-transform group-hover:translate-x-1">&rsaquo;</span>
+                <span class="text-slate-300 group-hover:text-red-600 transition-transform duration-300 group-hover:translate-x-1">&rsaquo;</span>
               </router-link>
             </li>
           </ul>
@@ -333,58 +301,60 @@ const getCategoryBanner = (catName) => {
           <Transition name="fade-fast">
             <div 
               v-if="activeHoverCategory" 
-              class="absolute top-0 left-[102%] w-145 min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-5 z-50 grid grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-150"
+              class="absolute top-0 left-[102%] w-[600px] min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 z-50 grid grid-cols-3 gap-5 animate-in fade-in zoom-in-95 duration-200"
             >
-              <div class="col-span-2 space-y-4">
+              <div class="col-span-2 space-y-5">
                 <div>
-                  <h3 class="text-xs font-black uppercase text-red-600 tracking-wider mb-2 border-b border-red-100 pb-1 flex items-center gap-1.5">
-                    <span></span> {{ activeHoverCategory }}
+                  <h3 class="text-sm font-black uppercase text-red-600 tracking-wider mb-3 border-b border-red-100 pb-2 flex items-center gap-2">
+                    {{ activeHoverCategory }}
                   </h3>
-                  <p class="text-[11px] font-bold text-slate-400 mb-1.5">Thương hiệu hàng đầu:</p>
-                  <div class="flex flex-wrap gap-1.5 mb-3">
+                  <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">Thương hiệu hàng đầu</p>
+                  <div class="flex flex-wrap gap-2 mb-4">
                     <router-link 
                       v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
                       :key="brand"
                       :to="'/products?category=' + activeHoverCategory + '&brand=' + brand"
-                      class="bg-slate-100 hover:bg-red-600 hover:text-white text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors"
+                      class="bg-slate-50 hover:bg-red-600 hover:text-white border border-slate-100 text-slate-600 hover:border-red-600 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
                     >
                       {{ brand }}
                     </router-link>
-                    <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic">
+                    <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic py-1">
                       Đang cập nhật thương hiệu...
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <p class="text-[11px] font-bold text-slate-400 mb-2">Sản phẩm gợi ý:</p>
-                  <div class="grid grid-cols-2 gap-2">
+                  <p class="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide">Sản phẩm nổi bật</p>
+                  <div class="grid grid-cols-2 gap-3">
                     <router-link 
                       v-for="p in getProductsByCategory(activeHoverCategory).slice(0, 4)" 
                       :key="p.id"
                       :to="'/product/' + p.id"
-                      class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-red-50/50 border border-slate-100 transition-all group"
+                      class="flex items-center gap-3 p-2 rounded-xl hover:bg-red-50/80 border border-slate-100 transition-all duration-200 group shadow-sm hover:shadow"
                     >
-                      <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain rounded bg-white shrink-0 p-0.5" />
-                      <div class="overflow-hidden">
-                        <p class="text-[11px] font-bold text-slate-800 truncate group-hover:text-red-600">{{ p[`name_${locale}`] || p.name }}</p>
-                        <p class="text-[10px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
+                      <div class="w-12 h-12 bg-white rounded-lg border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-300" />
+                      </div>
+                      <div class="overflow-hidden flex-1">
+                        <p class="text-[11px] font-bold text-slate-700 truncate group-hover:text-red-600 mb-0.5">{{ p[`name_${locale}`] || p.name }}</p>
+                        <p class="text-[11px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
                       </div>
                     </router-link>
                   </div>
                 </div>
               </div>
 
-              <div class="col-span-1 border-l border-slate-100 pl-4 flex flex-col justify-between">
-                <div class="relative rounded-xl overflow-hidden h-full bg-slate-900 group/banner min-h-45">
-                  <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-70 group-hover/banner:scale-105 transition-transform duration-300" />
-                  <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
-                  <div class="relative z-10 h-full p-3 flex flex-col justify-end text-white">
-                    <span class="text-[9px] font-bold text-yellow-400 uppercase">Khuyến mãi</span>
-                    <p class="text-xs font-black leading-snug mb-2 line-clamp-2">{{ activeHoverCategory }}</p>
+              <div class="col-span-1 border-l border-slate-100 pl-5 flex flex-col h-full">
+                <div class="relative rounded-xl overflow-hidden h-full min-h-[220px] bg-slate-900 group/banner shadow-inner">
+                  <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/banner:scale-110 group-hover/banner:opacity-70 transition-all duration-500 ease-out" />
+                  <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+                  <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
+                    <span class="inline-block bg-yellow-400 text-slate-900 text-[9px] font-black uppercase px-2 py-0.5 rounded w-max mb-1.5">Nổi bật</span>
+                    <p class="text-sm font-black leading-snug mb-3 line-clamp-2 drop-shadow-md">{{ activeHoverCategory }}</p>
                     <router-link 
                       :to="'/products?category=' + activeHoverCategory" 
-                      class="bg-red-600 text-white text-[10px] font-bold py-1.5 px-2 rounded-lg text-center hover:bg-red-700 transition-colors shadow"
+                      class="bg-red-600 text-white text-[11px] font-bold py-2 px-3 rounded-lg text-center hover:bg-red-500 transition-colors shadow-lg hover:shadow-red-600/50"
                     >
                       Xem tất cả
                     </router-link>
@@ -394,65 +364,64 @@ const getCategoryBanner = (catName) => {
             </div>
           </Transition>
 
-          <div class="bg-red-50/60 border border-red-100 rounded-xl p-2.5 text-center mt-2">
-            <p class="text-[11px] text-red-700 font-bold">Hotline Tư Vấn Kỹ Thuật</p>
-            <p class="text-sm font-black text-red-600 mt-0.5">0906 826 959</p>
+          <div class="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
+            <p class="text-[10px] text-red-600/80 font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
+            <p class="text-sm font-black text-red-600 mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+              0906 826 959
+            </p>
           </div>
         </aside>
 
-        <!-- Banner Swiper chính (Ở giữa) -->
-        <div class="lg:col-span-6 h-70 sm:h-90 lg:h-auto rounded-2xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-900">
+        <!-- Banner Swiper chính (Đã được custom lại CSS để đẹp và mượt hơn) -->
+        <div class="lg:col-span-9 h-[280px] sm:h-[350px] lg:h-[420px] rounded-2xl overflow-hidden shadow-md group relative">
           <swiper
             v-if="mainBanners.length > 0"
             :modules="swiperModules"
             :slides-per-view="1"
             :loop="mainBanners.length > 1"
             :effect="'fade'"
-            :autoplay="mainBanners.length > 1 ? { delay: 4500, disableOnInteraction: false } : false"
-            :pagination="{ clickable: true }"
+            :autoplay="mainBanners.length > 1 ? { delay: 5000, disableOnInteraction: false } : false"
+            :pagination="{ clickable: true, dynamicBullets: true }"
             :navigation="true"
-            class="h-full w-full custom-swiper"
+            class="h-full w-full custom-swiper bg-slate-900"
           >
-            <swiper-slide v-for="banner in mainBanners" :key="banner.id">
-              <div class="relative h-full w-full flex items-end p-6 md:p-8">
-                <img :src="banner.image" class="absolute inset-0 w-full h-full object-cover z-0" />
-                <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/40 to-transparent z-1"></div>
+            <swiper-slide v-for="banner in mainBanners" :key="banner.id" class="overflow-hidden">
+              <div class="relative h-full w-full flex items-center md:items-end p-6 md:p-12 lg:p-16">
+                <!-- Ảnh nền -->
+                <img :src="banner.image" class="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-10000 ease-linear scale-100 hover:scale-110" />
                 
-                <div class="relative z-10 space-y-2 text-white">
+                <!-- Lớp phủ gradient (Làm mượt và sâu hơn để nổi bật chữ) -->
+                <div class="absolute inset-0 bg-linear-to-t md:bg-linear-to-r from-slate-950/90 via-slate-900/60 to-transparent z-1"></div>
+                
+                <!-- Content text -->
+                <div class="relative z-10 w-full max-w-2xl space-y-3 md:space-y-4 text-white transform translate-y-4 md:translate-y-0">
                   <template v-if="banner.useI18n">
-                    <h1 class="text-2xl sm:text-3xl font-black uppercase tracking-tight drop-shadow" v-html="$t('home.hero_title')"></h1>
-                    <p class="text-slate-300 text-xs sm:text-sm line-clamp-2 max-w-md font-medium">{{ $t('home.hero_subtitle') }}</p>
+                    <h1 class="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight drop-shadow-lg leading-tight" v-html="$t('home.hero_title')"></h1>
+                    <p class="text-slate-200 text-sm md:text-base line-clamp-3 md:max-w-xl font-medium drop-shadow">{{ $t('home.hero_subtitle') }}</p>
                   </template>
                   <template v-else>
-                    <span v-if="banner.subtitle" class="bg-red-600 text-white text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md inline-block">{{ banner.subtitle }}</span>
-                    <h1 v-if="banner.title" class="text-2xl sm:text-3xl font-black uppercase tracking-tight drop-shadow" v-html="banner.title"></h1>
-                    <p v-if="banner.desc" class="text-slate-300 text-xs sm:text-sm line-clamp-2 max-w-md font-medium opacity-90">{{ banner.desc }}</p>
+                    <span v-if="banner.subtitle" class="bg-red-600/90 backdrop-blur-sm text-white text-[10px] md:text-xs font-bold uppercase px-3 py-1 rounded-md inline-block shadow-md tracking-wider">
+                      {{ banner.subtitle }}
+                    </span>
+                    <h1 v-if="banner.title" class="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight drop-shadow-lg leading-tight" v-html="banner.title"></h1>
+                    <p v-if="banner.desc" class="text-slate-200 text-sm md:text-base line-clamp-3 md:max-w-xl font-medium opacity-95 drop-shadow">{{ banner.desc }}</p>
                   </template>
 
-                  <div class="pt-2">
-                    <router-link :to="banner.link || '/products'" class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-md hover:shadow-red-600/30">
+                  <div class="pt-4 md:pt-6">
+                    <router-link :to="banner.link || '/products'" class="group/btn inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 md:px-8 py-3 rounded-xl text-xs md:text-sm font-bold uppercase transition-all duration-300 shadow-lg hover:shadow-red-600/50">
                       <span>{{ locale === 'vi' ? 'Khám phá ngay' : 'Explore Now' }}</span>
-                      <span>&rarr;</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                     </router-link>
                   </div>
                 </div>
               </div>
             </swiper-slide>
           </swiper>
-        </div>
-
-        <!-- Right Sub-banners (Bên phải) -->
-        <div class="hidden lg:flex lg:col-span-3 flex-col gap-3">
-          <div v-for="sub in rightSubBanners" :key="sub.id" class="relative flex-1 rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm group bg-slate-900">
-            <img :src="sub.image" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" />
-            <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-transparent to-transparent"></div>
-            <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-yellow-400">{{ sub.sub }}</span>
-              <h3 class="font-bold text-sm leading-tight text-white mb-2">{{ sub.title }}</h3>
-              <router-link :to="sub.link" class="text-[11px] font-bold text-red-400 hover:text-red-300 flex items-center gap-1">
-                Xem chi tiết &rarr;
-              </router-link>
-            </div>
+          
+          <!-- Fallback khi đang load banner -->
+          <div v-else class="w-full h-full bg-slate-200 animate-pulse flex items-center justify-center">
+            <svg class="w-10 h-10 text-slate-300 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
           </div>
         </div>
 
@@ -519,10 +488,11 @@ const getCategoryBanner = (catName) => {
           <!-- CỘT TRÁI: BỘ LỌC ĐA TIÊU CHÍ (STICKY) -->
           <!-- ========================================== -->
           <div class="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-22.5 self-start h-fit z-20">
-  <HomeProductFilter 
-    :products="products" 
-    @update:filteredProducts="handleFilteredProducts"
-  />
+<HomeProductFilter 
+  :products="products" 
+  @update:filteredProducts="handleFilteredProducts"
+  @update:isFiltering="isFiltering = $event" 
+/>
 </div>
 
           <!-- ========================================== -->
@@ -732,6 +702,54 @@ const getCategoryBanner = (catName) => {
 </template>
 
 <style scoped>
+:deep(.custom-swiper) {
+  --swiper-theme-color: #ef4444; /* red-500 */
+  --swiper-navigation-size: 18px;
+}
+/* Nút Next / Prev */
+:deep(.custom-swiper .swiper-button-next),
+:deep(.custom-swiper .swiper-button-prev) {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  color: #1e293b;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+:deep(.custom-swiper:hover .swiper-button-next),
+:deep(.custom-swiper:hover .swiper-button-prev) {
+  opacity: 1;
+  transform: scale(1);
+}
+:deep(.custom-swiper .swiper-button-next:hover),
+:deep(.custom-swiper .swiper-button-prev:hover) {
+  background-color: #ef4444;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+:deep(.custom-swiper .swiper-button-prev) { left: 16px; }
+:deep(.custom-swiper .swiper-button-next) { right: 16px; }
+/* Dấu chấm Pagination dưới đáy */
+:deep(.custom-swiper .swiper-pagination-bullets) {
+  bottom: 16px !important;
+}
+:deep(.custom-swiper .swiper-pagination-bullet) {
+  background-color: rgba(255, 255, 255, 0.5);
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+:deep(.custom-swiper .swiper-pagination-bullet-active) {
+  background-color: #ef4444;
+  width: 24px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
 /* Swiper Custom Navigation & Pagination */
 :deep(.swiper-pagination-bullet) {
   background: white;

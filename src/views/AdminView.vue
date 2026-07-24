@@ -99,20 +99,57 @@ const custom_url = ref('')
 // --- [THÊM MỚI] BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
 const selectedTags = ref([]) // Mảng lưu các ô tick của người dùng
 
+// 1. Data Chuẩn của mày
+const categoryTagsMap = {
+  'DAO PHAY': [
+    'Phá thô / Chịu tải nặng',
+    'Phay tinh / Bóng bề mặt',
+    'Phay 3D / Phay mặt cong',
+    'Phay góc R / Bo góc',
+    'Phay rãnh / Hốc',
+    'Gia công nhôm / Đồng / Nhựa',
+    'Gia công thép cứng / Inox / Titan'
+  ],
+  'DAO TIỆN': [
+    'Tiện ngoài',
+    'Tiện lỗ trong',
+    'Tiện ren',
+    'Tiện rãnh / Cắt đứt',
+    'Mảnh dao tiện thay thế',
+    'Cán dao / Đài dao'
+  ],
+  'MŨI KHOAN & MŨI TARO': [
+    'Khoan mồi / Khoan tâm',
+    'Khoan lỗ sâu',
+    'Khoan vật liệu cứng',
+    'Khoan tưới nguội xuyên tâm',
+    'Taro cắt / Taro có phoi',
+    'Taro nén / Taro không phoi',
+    'Mũi doa lỗ'
+  ],
+  'ĐÁ MÀI': [
+    'Mài phẳng',
+    'Mài tròn ngoài',
+    'Mài lỗ trong',
+    'Mài bén dao cụ',
+    'Đá mài kim cương / CBN',
+    'Mũi mài hợp kim'
+  ]
+}
+
 const availableTags = computed(() => {
   if (!category_vi.value) return []
   
-  // Chuyển tên category thành chữ thường để so khớp cho chuẩn xác
-  const catName = category_vi.value.trim().toLowerCase()
+  // Chuyển tên category thành chữ HOA để quét chuỗi cho bao quát
+  const upperCat = String(category_vi.value).toUpperCase()
   
-  // Mapping thông minh (mày có thể tự thêm/sửa cho chuẩn với data thật của mày)
-  const categoryNeedsMap = {
-    'dao phay': ['Phá thô', 'Phay tinh', 'Phay 3D', 'Chạy rãnh', 'Phay mặt phẳng', 'Phay nhôm', 'Phay thép cứng'],
-    'mũi khoan': ['Khoan lỗ sâu', 'Khoan vật liệu cứng', 'Khoan mồi', 'Khoan bước', 'Taro'],
-    'dao tiện': ['Tiện ngoài', 'Tiện trong', 'Tiện ren', 'Tiện rãnh', 'Tiện cắt đứt']
-  }
+  // Mapping thông minh tự bung Checkbox
+  if (upperCat.includes('DAO PHAY')) return categoryTagsMap['DAO PHAY']
+  if (upperCat.includes('DAO TIỆN')) return categoryTagsMap['DAO TIỆN']
+  if (upperCat.includes('KHOAN') || upperCat.includes('TARO')) return categoryTagsMap['MŨI KHOAN & MŨI TARO']
+  if (upperCat.includes('ĐÁ MÀI') || upperCat.includes('ĐÁ DOANH')) return categoryTagsMap['ĐÁ MÀI']
   
-  return categoryNeedsMap[catName] || []
+  return []
 })
 // -----------------------------------------------------------
 
