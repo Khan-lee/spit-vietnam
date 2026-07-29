@@ -222,19 +222,6 @@ const handleCheckout = async () => {
                 <input v-model="customer.contractEmail" type="email" :disabled="isProcessing" placeholder="accounting@company.com" class="admin-input" />
               </div>
             </div>
-
-            <label class="flex items-start gap-2.5 mt-2 cursor-pointer group">
-              <div class="relative flex items-center justify-center mt-0.5">
-                <input type="checkbox" v-model="requestQuote" :disabled="isProcessing" class="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded bg-white checked:bg-red-600 checked:border-red-600 transition-all cursor-pointer">
-                <svg class="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-[11px] font-bold text-slate-700 group-hover:text-red-600 transition-colors">Yêu cầu gửi Báo giá / Đề nghị thanh toán (PDF)</span>
-                <span class="text-[10px] text-slate-500 font-medium mt-0.5">Hệ thống sẽ tự động gửi file báo giá có mộc đỏ công ty vào email phía trên.</span>
-              </div>
-            </label>
           </div>
 
           <div class="pt-5 border-t border-dashed border-slate-200/80 mt-4 space-y-3">

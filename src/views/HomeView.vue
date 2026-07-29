@@ -342,7 +342,6 @@ const getCategoryBanner = (catName) => {
                     <router-link 
                       v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
                       :key="brand"
-                      :to="'/products?category=' + activeHoverCategory + '&brand=' + brand"
                       class="bg-slate-50 hover:bg-red-600 hover:text-white border border-slate-100 text-slate-600 hover:border-red-600 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
                     >
                       {{ brand }}
@@ -381,12 +380,6 @@ const getCategoryBanner = (catName) => {
                   <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
                     <span class="inline-block bg-yellow-400 text-slate-900 text-[9px] font-black uppercase px-2 py-0.5 rounded w-max mb-1.5">Nổi bật</span>
                     <p class="text-sm font-black leading-snug mb-3 line-clamp-2 drop-shadow-md">{{ activeHoverCategory }}</p>
-                    <router-link 
-                      :to="'/products?category=' + activeHoverCategory" 
-                      class="bg-red-600 text-white text-[11px] font-bold py-2 px-3 rounded-lg text-center hover:bg-red-500 transition-colors shadow-lg hover:shadow-red-600/50"
-                    >
-                      Xem tất cả
-                    </router-link>
                   </div>
                 </div>
               </div>
@@ -394,8 +387,8 @@ const getCategoryBanner = (catName) => {
           </Transition>
 
           <div class="bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
-            <p class="text-[10px] text-red-600/80 font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
-            <p class="text-sm font-black text-red-600 mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
+            <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
+            <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
               0906 826 959
             </p>
@@ -438,10 +431,6 @@ const getCategoryBanner = (catName) => {
                   </template>
 
                   <div class="pt-4 md:pt-6">
-                    <router-link :to="banner.link || '/products'" class="group/btn inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 md:px-8 py-3 rounded-xl text-xs md:text-sm font-bold uppercase transition-all duration-300 shadow-lg hover:shadow-red-600/50">
-                      <span>{{ locale === 'vi' ? 'Khám phá ngay' : 'Explore Now' }}</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    </router-link>
                   </div>
                 </div>
               </div>
@@ -466,11 +455,8 @@ const getCategoryBanner = (catName) => {
         <div class="w-full md:w-1/5 shrink-0 rounded-xl overflow-hidden relative group cursor-pointer shadow-sm min-h-50">
           <img :src="dynamicHotSaleBanner" alt="Hot Sale Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
           <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
-            <h3 class="text-red-600 font-black text-lg uppercase leading-tight">Top<br>Bán Chạy</h3>
-            <p class="text-white/80 text-[10px] mt-1">Sản phẩm được mua nhiều nhất</p>
-            <button class="mt-3 bg-white text-red-600 text-[10px] font-bold py-1.5 px-3 rounded-full w-max hover:bg-red-50 transition-colors">
-              Xem Ngay &rarr;
-            </button>
+            <h3 class="text-primary font-black text-lg uppercase leading-tight">Top<br>Bán Chạy</h3>
+            <!--<p class="text-white/80 text-[10px] mt-1">Sản phẩm được mua nhiều nhất</p>-->
           </div>
         </div>
 
@@ -695,11 +681,7 @@ const getCategoryBanner = (catName) => {
                       {{ cat }}
                     </h2>
                   </div>
-                  <router-link :to="'/products?category=' + cat" 
-                               class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 hover:underline">
-                    <span>Xem tất cả {{ cat }}</span>
-                    <span>&rsaquo;</span>
-                  </router-link>
+
                 </div>
 
                 <!-- Bố cục Khối: Banner Đại Diện bên trái + Lưới Sản Phẩm bên phải -->
@@ -712,9 +694,6 @@ const getCategoryBanner = (catName) => {
                     <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
                       <h3 class="font-black text-base uppercase text-white mb-1">{{ cat }}</h3>
                       <p class="text-[10px] text-slate-300 mb-3">Giải pháp công nghệ chính xác hàng đầu</p>
-                      <router-link :to="'/products?category=' + cat" class="inline-block text-center bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-[11px] py-2 px-3 rounded-xl border border-white/20 transition-all">
-                        Khám phá danh mục
-                      </router-link>
                     </div>
                   </div>
 

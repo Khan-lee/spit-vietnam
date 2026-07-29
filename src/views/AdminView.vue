@@ -38,6 +38,7 @@ const brandName = ref('')
 const brandLogoUrl = ref('')
 const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn từ máy
 const brandDescription = ref('')
+const brandLink = ref('') // <-- [THÊM MỚI] Biến lưu đường link website của hãng
 const editingBrandId = ref(null)
 
 // --- [ĐỒNG BỘ] BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
@@ -379,6 +380,7 @@ const handleBrandSubmit = async () => {
       name: brandName.value.trim(),
       logoUrl: finalLogoUrl,
       description: brandDescription.value.trim(),
+      link: brandLink.value.trim(), // <-- [THÊM MỚI] Lưu thêm trường link vào Firestore
       updatedAt: serverTimestamp()
     }
 
@@ -444,6 +446,7 @@ const startEditBrand = (b) => {
   brandLogoUrl.value = b.logoUrl
   brandLogoFile.value = null 
   brandDescription.value = b.description
+  brandLink.value = b.link || '' // <-- [THÊM MỚI] Đổ dữ liệu link cũ ra để sửa nếu có
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -487,6 +490,7 @@ const resetBrandForm = () => {
   brandLogoUrl.value = ''
   brandLogoFile.value = null
   brandDescription.value = ''
+  brandLink.value = '' // <-- [THÊM MỚI] Reset lại link khi hủy hoặc thêm thành công
 }
 </script>
 
@@ -594,7 +598,6 @@ const resetBrandForm = () => {
                       </select>
                     </div>
                     
-                    <!-- [CẬP NHẬT MỚI] Giao diện ô chọn Danh mục thay vì gõ tay -->
                     <div class="space-y-1">
                       <select 
                         v-model="categoryId" 
@@ -606,12 +609,10 @@ const resetBrandForm = () => {
                           {{ c.name_vi?.toUpperCase() }}
                         </option>
                       </select>
-                      <!-- Input hiển thị tiếng Anh (Chỉ đọc) -->
                       <input v-model="category_en" readonly placeholder="Category (EN) - Tự động điền" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic text-slate-400 cursor-not-allowed" />
                     </div>
                   </div>
 
-                  <!-- [THÊM MỚI] Dàn Checkbox Động Nhu Cầu -->
                   <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Đặc tính / Phân loại nhu cầu</label>
                     <div class="flex flex-wrap gap-2">
@@ -630,7 +631,6 @@ const resetBrandForm = () => {
                       </label>
                     </div>
                   </div>
-                  <!-- END [THÊM MỚI] -->
 
                   <div class="grid grid-cols-2 gap-2">
                     <div class="relative">
@@ -745,6 +745,18 @@ const resetBrandForm = () => {
                     class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-bold border border-transparent focus:border-red-400"
                   />
                 </div>
+
+                <!-- [THÊM MỚI] Giao diện ô nhập Link Website -->
+                <div class="space-y-1.5">
+                  <label class="text-[10px] font-black uppercase text-slate-500">Đường link Website (Nếu có)</label>
+                  <input 
+                    v-model="brandLink" 
+                    type="url" 
+                    placeholder="Ví dụ: https://www.korloy.com..."
+                    class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-medium text-blue-600 border border-transparent focus:border-red-400"
+                  />
+                </div>
+                <!-- KẾT THÚC [THÊM MỚI] -->
 
                 <div class="space-y-1.5">
                   <label class="text-[10px] font-black uppercase text-slate-500">Logo nhãn hàng *</label>

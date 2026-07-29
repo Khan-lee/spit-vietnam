@@ -17,7 +17,6 @@ const router = createRouter({
       component: BrandAdminView,
     },
     { path: '/', name: 'home', component: HomeView },
-    { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
     { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },

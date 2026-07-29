@@ -289,7 +289,7 @@ onMounted(async () => {
                  </div>
                  
                  <div class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5"
-                      :class="hasPromo() ? 'text-red-600' : 'text-white'">
+                      :class="hasPromo() ? 'text-primary' : 'text-white'">
                    {{ getDiscountedPrice(product).toLocaleString('vi-VN') }} 
                    <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">VNĐ</span>
                  </div>
@@ -300,9 +300,9 @@ onMounted(async () => {
                   :disabled="isAdding || product.stock <= 0" 
                   class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]" 
                   :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
-            <span v-if="product.stock > 0" class="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+            <span v-if="product.stock > 0" class="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
             <span class="relative z-10 tracking-[0.2em] flex items-center justify-center gap-2">
-                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? 'Thêm vào giỏ hàng 🛒' : 'Add to cart 🛒') : 'Hết hàng tạm thời') }}
+                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? 'Thêm vào giỏ hàng' : 'Add to cart') : 'Hết hàng tạm thời') }}
             </span>
           </button>
 
