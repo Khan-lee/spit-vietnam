@@ -1,12 +1,11 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-// --- UPDATE: Bổ sung thêm doc, getDoc vào import ---
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
 import BrandMarquee from '../components/BrandMarquee.vue'
-import HomeProductFilter from '../components/HomeProductFilter.vue' // <-- Bổ sung import Component lọc
+import HomeProductFilter from '../components/HomeProductFilter.vue' 
 import { useSearchStore } from '../stores/search' 
 
 // Import Swiper Vue.js components & modules
@@ -20,7 +19,9 @@ import 'swiper/css/navigation'
 import 'swiper/css/effect-fade'
 
 const { locale, t } = useI18n()
-const searchStore = useSearchStore() 
+const searchStore = useSearchStore()
+// Biến lưu thương hiệu đang được chọn tạm thời trong Mega Menu
+const activeFlyoutBrand = ref(null)
 
 const products = ref([])
 const promotions = ref([]) 
@@ -29,10 +30,8 @@ const mainBanners = ref([])
 const isLoading = ref(true)
 const currentTime = ref(new Date()) 
 
-// --- BỔ SUNG: Biến chứa link ảnh Hot Sale (Có sẵn link mặc định) ---
 const dynamicHotSaleBanner = ref('https://via.placeholder.com/300x500/dc2626/ffffff?text=HOT+SALE')
 
-// --- BỔ SUNG: Hàm lấy dữ liệu setting từ Firestore ---
 const fetchSettings = async () => {
   try {
     const docSnap = await getDoc(doc(db, 'settings', 'home_config'))
@@ -44,16 +43,12 @@ const fetchSettings = async () => {
   }
 }
 
-// --- BỔ SUNG: Biến chứa danh sách sản phẩm sau khi qua Bộ lọc Multi-Select ---
 const filteredHomeProducts = ref([])
 
 const handleFilteredProducts = (newProducts) => {
   filteredHomeProducts.value = newProducts;
 };
 
-// Tự động bật/tắt trạng thái lọc dựa vào số lượng sản phẩm:
-// - Nếu số lượng sau khi lọc khác tổng số sản phẩm gốc -> Đang lọc (true)
-// - Nếu bằng nhau (hoặc bấm "Bỏ chọn tất cả") -> Không lọc (false)
 const isFiltering = ref(false);
 
 const handleFilterState = (state) => {
@@ -62,24 +57,65 @@ const handleFilterState = (state) => {
 
 const swiperModules = [Autoplay, Pagination, Navigation, EffectFade]
 
-// Quản lý trạng thái category đang hover
 const activeHoverCategory = ref(null)
 
-// Lấy danh sách thương hiệu thuộc category đang hover
+// ==========================================
+// --- LOGIC MEGA MENU FILTER & SMOOTH SCROLL ---
+// ==========================================
+const selectedCategory = ref('') // Danh mục được chọn từ Mega Menu
+const selectedBrand = ref('')    // Thương hiệu được chọn từ Mega Menu
+const featuredSectionRef = ref(null) // Ref gắn vào thẻ <section> Sản phẩm nổi bật
+
+// Hàm kích hoạt khi người dùng click vào một Hãng trong Mega Menu Popover
+const handleSelectBrand = (catName, brandName) => {
+  selectedCategory.value = catName
+  selectedBrand.value = brandName
+
+  // Cuộn mượt màn hình xuống Bảng Sản Phẩm Nổi Bật
+  if (featuredSectionRef.value) {
+    featuredSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+// Xóa bộ lọc thương hiệu quay về xem tất cả
+const clearBrandFilter = () => {
+  selectedBrand.value = ''
+}
+
+// Danh sách sản phẩm nổi bật tự động lọc theo Category & Brand
+const featuredProductsFiltered = computed(() => {
+  let result = products.value
+
+  // Lọc theo Category nếu có chọn
+  if (selectedCategory.value) {
+    const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+    result = result.filter(p => {
+      const pCat = p[catField] || p.category || p.category_name
+      return pCat === selectedCategory.value
+    })
+  }
+
+  // Lọc theo Thương hiệu nếu có chọn
+  if (selectedBrand.value) {
+    result = result.filter(p => p.brand === selectedBrand.value)
+  }
+
+  return result
+})
+// ==========================================
+
 const getSubCategoriesOrBrands = (catName) => {
   const prods = getProductsByCategory(catName)
   const brands = [...new Set(prods.map(p => p.brand).filter(Boolean))]
   return brands
 }
 
-// Ảnh banner dự phòng cho từng danh mục (Dùng khi trên Firestore chưa cài đặt banner)
 const categoryBanners = ref({
   'Dụng cụ cắt gọt': 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=800',
   'Thiết bị đo lường': 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=800',
   'Phụ kiện máy': 'https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=800',
 })
 
-// --- BỔ SUNG: Data dự phòng cho Banner Chính ---
 const fallbackMainBanners = [
   {
     id: 1,
@@ -102,7 +138,7 @@ onMounted(() => {
     currentTime.value = new Date()
   }, 1000)
   fetchData()
-  fetchSettings() // <--- UPDATE: Gọi thêm hàm fetchSettings ở đây
+  fetchSettings()
 })
 
 onUnmounted(() => clearInterval(timer))
@@ -120,22 +156,15 @@ const fetchData = async () => {
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-    // --- UPDATE: Logic tách Banner Chính ---
     const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     
     if (fetchedBanners.length > 0) {
-      // Sắp xếp banner mới nhất lên trước
       fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-
-      // 1. Tách Banner Chính
       const main = fetchedBanners.filter(b => b.position === 'main' || !b.position)
       mainBanners.value = main.length > 0 ? main : fallbackMainBanners
-
     } else {
       mainBanners.value = fallbackMainBanners
     }
-    // --- KẾT THÚC UPDATE BANNER ---
-
   } catch (e) { 
     console.error("Lỗi đồng bộ Firestore:", e) 
   } finally { 
@@ -143,7 +172,6 @@ const fetchData = async () => {
   }
 }
 
-// Logic khuyến mãi & tính giá sale
 const getActivePromo = (product) => {
   return promotions.value.find(p => {
     const start = p.start_date ? new Date(p.start_date) : null
@@ -155,21 +183,23 @@ const getActivePromo = (product) => {
 
 const getSalePrice = (product) => {
   const activePromo = getActivePromo(product)
-  if (!activePromo) return null
-  if (activePromo.discount_type === 'percentage') {
-    return product.price * (1 - activePromo.discount_value / 100)
+  if (!activePromo || !activePromo.tiers || activePromo.tiers.length === 0) return null
+  const firstTier = activePromo.tiers[0]
+  if (firstTier.discount_type === 'percentage') {
+    return product.price * (1 - firstTier.discount_value / 100)
   }
-  return product.price - activePromo.discount_value
+  return product.price - firstTier.discount_value
 }
 
 const getDiscountPercent = (product) => {
   const activePromo = getActivePromo(product)
-  if (!activePromo) return 0
-  if (activePromo.discount_type === 'percentage') {
-    return Math.round(activePromo.discount_value)
+  if (!activePromo || !activePromo.tiers || activePromo.tiers.length === 0) return 0
+  const firstTier = activePromo.tiers[0]
+  if (firstTier.discount_type === 'percentage') {
+    return Math.round(firstTier.discount_value)
   }
   if (product.price) {
-    return Math.round((activePromo.discount_value / product.price) * 100)
+    return Math.round((firstTier.discount_value / product.price) * 100)
   }
   return 0
 }
@@ -189,11 +219,10 @@ const getCountdown = (endDate) => {
   if (diff <= 0) return null
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+  const seconds = Math.floor((diff % (1000 * 60 * 60)) / 1000)
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Danh mục hoạt động
 const categories = computed(() => {
   const activeCats = categoryDocs.value
     .filter(c => c.isActive === true)
@@ -205,7 +234,6 @@ const categories = computed(() => {
   return [...new Set(activeCats)]
 })
 
-// Tìm kiếm toàn cục
 const filteredProducts = computed(() => {
   let result = products.value
   if (searchStore.searchQuery && searchStore.searchQuery.trim() !== '') {
@@ -219,24 +247,105 @@ const filteredProducts = computed(() => {
   return result
 })
 
-// Danh sách sản phẩm Hot Sale
-const promoProducts = computed(() => {
+
+// ==========================================
+// --- LOGIC BỘ LỌC 2 TẦNG (HOT SALE CELLPHONES) ---
+// ==========================================
+const activePromoCategory = ref('all') 
+const activePromoBrand = ref('all')    
+const promoScrollContainer = ref(null) 
+
+const allPromoProducts = computed(() => {
   return products.value.filter(p => getSalePrice(p) !== null)
 })
 
-// --- BỔ SUNG MỚI TẠI ĐÂY: Data 4 sản phẩm hiển thị ở dải Banner Ngang ---
+const promoCategories = computed(() => {
+  const cats = [...new Set(allPromoProducts.value.map(p => {
+    const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+    return p[catField] || p.category || p.category_name || 'Khác'
+  }).filter(Boolean))]
+
+  return [
+    { id: 'all', name: locale.value === 'vi' ? 'Tất cả' : 'All' },
+    ...cats.map(c => ({ id: c, name: c }))
+  ]
+})
+
+// Tự động load danh sách hãng dựa trên danh mục đang chọn
+const promoBrands = computed(() => {
+  let prods = allPromoProducts.value
+
+  if (activePromoCategory.value !== 'all') {
+    prods = prods.filter(p => {
+      const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+      const pCat = p[catField] || p.category || p.category_name || 'Khác'
+      return pCat === activePromoCategory.value
+    })
+  }
+
+  const brands = [...new Set(prods.map(p => p.brand).filter(Boolean))]
+  return [
+    { id: 'all', name: locale.value === 'vi' ? 'Tất cả' : 'All' },
+    ...brands.map(b => ({ id: b, name: b }))
+  ]
+})
+
+// Khi chọn Danh mục, tự động reset filter Thương hiệu về 'Tất cả'
+const selectPromoCategory = (catId) => {
+  activePromoCategory.value = catId
+  activePromoBrand.value = 'all'
+}
+
+// Lọc mảng sản phẩm cuối cùng dựa trên cả 2 điều kiện
+const promoProducts = computed(() => {
+  let hots = allPromoProducts.value
+
+  // Lọc theo Danh mục
+  if (activePromoCategory.value !== 'all') {
+    hots = hots.filter(p => {
+      const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+      const pCat = p[catField] || p.category || p.category_name || 'Khác'
+      return pCat === activePromoCategory.value
+    })
+  }
+
+  // Lọc theo Thương hiệu
+  if (activePromoBrand.value !== 'all') {
+    hots = hots.filter(p => p.brand === activePromoBrand.value)
+  }
+
+  return hots
+})
+
+const scrollPromoLeft = () => {
+  if (promoScrollContainer.value) {
+    promoScrollContainer.value.scrollBy({ left: -300, behavior: 'smooth' })
+  }
+}
+
+const scrollPromoRight = () => {
+  if (promoScrollContainer.value) {
+    promoScrollContainer.value.scrollBy({ left: 300, behavior: 'smooth' })
+  }
+}
+// ==========================================
+
+
+const topFlashSaleProducts = computed(() => {
+  let hots = [...allPromoProducts.value] 
+  hots.sort((a, b) => getDiscountPercent(b) - getDiscountPercent(a))
+  return hots.slice(0, 5)
+})
+
 const hotProducts = computed(() => {
-  // Ưu tiên lấy các sản phẩm đang có sale
-  let hots = promoProducts.value
-  // Nếu không đủ 4 sản phẩm, bốc thêm từ danh sách sản phẩm chung cho đủ
+  let hots = [...allPromoProducts.value]
   if (hots.length < 4) {
-    const additional = products.value.filter(p => !hots.includes(p))
+    const additional = products.value.filter(p => !hots.some(hp => hp.id === p.id)) 
     hots = [...hots, ...additional]
   }
   return hots.slice(0, 4)
 })
 
-// Lấy sản phẩm theo tên danh mục hoặc ID danh mục tương ứng trên Firestore
 const getProductsByCategory = (catName) => {
   const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
   const catDoc = categoryDocs.value.find(c => {
@@ -252,7 +361,6 @@ const getProductsByCategory = (catName) => {
   })
 }
 
-// Lấy banner động từ dữ liệu Firestore (c.banner / c.image / c.bannerUrl), nếu không có mới dùng ảnh fallback
 const getCategoryBanner = (catName) => {
   const catDoc = categoryDocs.value.find(c => {
     const nameField = locale.value === 'vi' ? 'name_vi' : 'name_en'
@@ -279,10 +387,12 @@ const getCategoryBanner = (catName) => {
             <div v-for="i in 4" :key="i" class="flex items-center gap-3">
               <span class="bg-yellow-400 text-red-950 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-sm">🔥 HOT SALE</span>
               <span class="text-xs font-bold uppercase tracking-wide">
-                {{ activeBannerPromo.title }}: ƯU ĐÃI ĐẾN {{ activeBannerPromo.discount_value }}{{ activeBannerPromo.discount_type === 'percentage' ? '%' : ' VNĐ' }}
-              </span>
+  {{ activeBannerPromo.title }}: ƯU ĐÃI ĐẾN 
+  {{ activeBannerPromo.tiers?.[0]?.discount_value?.toLocaleString('vi-VN') }}
+  {{ activeBannerPromo.tiers?.[0]?.discount_type === 'percentage' ? '%' : ' VNĐ' }}
+</span>
               <span v-if="activeBannerPromo.end_date" class="text-[11px] font-mono text-yellow-200 bg-black/20 px-2.5 py-1 rounded-full border border-yellow-400/30">
-                ⏱️ Kết thúc sau: {{ getCountdown(activeBannerPromo.end_date) }}
+                Kết thúc sau: {{ getCountdown(activeBannerPromo.end_date) }}
               </span>
               <span class="text-white/40 text-xs"></span>
             </div>
@@ -296,104 +406,134 @@ const getCategoryBanner = (catName) => {
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         <!-- Sidebar Danh mục sản phẩm (Bên trái) -->
-        <aside 
-          class="hidden lg:flex flex-col lg:col-span-3 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-200/80 p-2.5 relative z-40"
-          @mouseleave="activeHoverCategory = null"
-        >
-          <div class="text-xs font-black uppercase text-slate-400 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-            <span class="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-              Danh mục
+<!-- Sidebar Danh mục sản phẩm (Bên trái) -->
+<aside 
+  class="hidden lg:flex flex-col lg:col-span-3 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-200/80 p-2.5 relative z-40"
+  @mouseleave="activeHoverCategory = null; activeFlyoutBrand = null"
+>
+  <div class="text-xs font-black uppercase text-slate-400 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+    <span class="flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      Danh mục
+    </span>
+  </div>
+
+  <!-- Danh sách các danh mục chính -->
+  <ul class="divide-y divide-slate-50 my-1 grow">
+    <li 
+      v-for="cat in categories" 
+      :key="cat"
+      @mouseenter="activeHoverCategory = cat; activeFlyoutBrand = null"
+      class="group"
+    >
+      <router-link 
+        :to="'/products?category=' + cat" 
+        class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-xs font-semibold"
+        :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600 shadow-inner' : 'text-slate-700 hover:bg-slate-50 hover:text-red-600'"
+      >
+        <span class="truncate">{{ cat }}</span>
+        <span class="text-slate-300 group-hover:text-red-600 transition-transform duration-300 group-hover:translate-x-1">&rsaquo;</span>
+      </router-link>
+    </li>
+  </ul>
+
+  <!-- MEGA MENU FLYOUT -->
+  <Transition name="fade-fast">
+    <div 
+      v-if="activeHoverCategory" 
+      class="absolute top-0 left-[102%] w-150 min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 z-50 grid grid-cols-3 gap-5 animate-in fade-in zoom-in-95 duration-200"
+    >
+      <div class="col-span-2 space-y-5">
+        <div>
+          <h3 class="text-sm font-black uppercase text-red-600 tracking-wider mb-3 border-b border-red-100 pb-2 flex items-center gap-2">
+            {{ activeHoverCategory }}
+          </h3>
+          
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Thương hiệu hàng đầu</p>
+            <!-- Nút hủy chọn thương hiệu khi đang lọc -->
+          </div>
+
+          <!-- NÚT LỌC THƯƠNG HIỆU -->
+          <div class="flex flex-wrap gap-2 mb-4">
+            <button 
+              v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
+              :key="brand"
+              @click="activeFlyoutBrand = (activeFlyoutBrand === brand ? null : brand)"
+              class="text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer border"
+              :class="activeFlyoutBrand === brand 
+                ? 'bg-red-600 text-white border-red-600 shadow-md font-bold' 
+                : 'bg-slate-50 hover:bg-red-600 hover:text-white border-slate-100 hover:border-red-600 text-slate-600'"
+            >
+              {{ brand }}
+            </button>
+
+            <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic py-1">
+              Đang cập nhật thương hiệu...
             </span>
           </div>
+        </div>
 
-          <!-- Danh sách các danh mục chính -->
-          <ul class="divide-y divide-slate-50 my-1 grow">
-            <li 
-              v-for="cat in categories" 
-              :key="cat"
-              @mouseenter="activeHoverCategory = cat"
-              class="group"
+        <!-- KHUNG SẢN PHẨM NỔI BẬT NẰM TRONG KHUNG LỌC -->
+        <div>
+          <p class="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide flex items-center justify-between">
+            <span>Sản phẩm nổi bật</span>
+            <span v-if="activeFlyoutBrand" class="text-red-600 font-extrabold lowercase">
+              ({{ activeFlyoutBrand }})
+            </span>
+          </p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <router-link 
+              v-for="p in getProductsByCategory(activeHoverCategory)
+                .filter(p => !activeFlyoutBrand || (p.brand && p.brand.toLowerCase() === activeFlyoutBrand.toLowerCase()))
+                .slice(0, 4)" 
+              :key="p.id"
+              :to="'/product/' + p.id"
+              class="flex items-center gap-3 p-2 rounded-xl hover:bg-red-50/80 border border-slate-100 transition-all duration-200 group shadow-sm hover:shadow"
             >
-              <router-link 
-                :to="'/products?category=' + cat" 
-                class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-xs font-semibold"
-                :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600 shadow-inner' : 'text-slate-700 hover:bg-slate-50 hover:text-red-600'"
-              >
-                <span class="truncate">{{ cat }}</span>
-                <span class="text-slate-300 group-hover:text-red-600 transition-transform duration-300 group-hover:translate-x-1">&rsaquo;</span>
-              </router-link>
-            </li>
-          </ul>
+              <div class="w-12 h-12 bg-white rounded-lg border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <div class="overflow-hidden flex-1">
+                <p class="text-[11px] font-bold text-slate-700 truncate group-hover:text-red-600 mb-0.5">{{ p[`name_${locale}`] || p.name }}</p>
+                <p class="text-[11px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
+              </div>
+            </router-link>
 
-          <!-- MEGA MENU FLYOUT -->
-          <Transition name="fade-fast">
+            <!-- Trường hợp thương hiệu được chọn không có sản phẩm nào -->
             <div 
-              v-if="activeHoverCategory" 
-              class="absolute top-0 left-[102%] w-150 min-h-full bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 z-50 grid grid-cols-3 gap-5 animate-in fade-in zoom-in-95 duration-200"
+              v-if="getProductsByCategory(activeHoverCategory).filter(p => !activeFlyoutBrand || (p.brand && p.brand.toLowerCase() === activeFlyoutBrand.toLowerCase())).length === 0" 
+              class="col-span-2 text-center py-6 text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200"
             >
-              <div class="col-span-2 space-y-5">
-                <div>
-                  <h3 class="text-sm font-black uppercase text-red-600 tracking-wider mb-3 border-b border-red-100 pb-2 flex items-center gap-2">
-                    {{ activeHoverCategory }}
-                  </h3>
-                  <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">Thương hiệu hàng đầu</p>
-                  <div class="flex flex-wrap gap-2 mb-4">
-                    <router-link 
-                      v-for="brand in getSubCategoriesOrBrands(activeHoverCategory)" 
-                      :key="brand"
-                      class="bg-slate-50 hover:bg-red-600 hover:text-white border border-slate-100 text-slate-600 hover:border-red-600 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                    >
-                      {{ brand }}
-                    </router-link>
-                    <span v-if="getSubCategoriesOrBrands(activeHoverCategory).length === 0" class="text-xs text-slate-400 italic py-1">
-                      Đang cập nhật thương hiệu...
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <p class="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide">Sản phẩm nổi bật</p>
-                  <div class="grid grid-cols-2 gap-3">
-                    <router-link 
-                      v-for="p in getProductsByCategory(activeHoverCategory).slice(0, 4)" 
-                      :key="p.id"
-                      :to="'/product/' + p.id"
-                      class="flex items-center gap-3 p-2 rounded-xl hover:bg-red-50/80 border border-slate-100 transition-all duration-200 group shadow-sm hover:shadow"
-                    >
-                      <div class="w-12 h-12 bg-white rounded-lg border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
-                        <img :src="p.image" :alt="p.name" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-300" />
-                      </div>
-                      <div class="overflow-hidden flex-1">
-                        <p class="text-[11px] font-bold text-slate-700 truncate group-hover:text-red-600 mb-0.5">{{ p[`name_${locale}`] || p.name }}</p>
-                        <p class="text-[11px] font-black text-red-600">{{ (getSalePrice(p) || p.price)?.toLocaleString() }}đ</p>
-                      </div>
-                    </router-link>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col-span-1 border-l border-slate-100 pl-5 flex flex-col h-full">
-                <div class="relative rounded-xl overflow-hidden h-full min-h-55 bg-slate-900 group/banner shadow-inner">
-                  <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/banner:scale-110 group-hover/banner:opacity-70 transition-all duration-500 ease-out" />
-                  <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
-                  <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
-                    <span class="inline-block bg-yellow-400 text-slate-900 text-[9px] font-black uppercase px-2 py-0.5 rounded w-max mb-1.5">Nổi bật</span>
-                    <p class="text-sm font-black leading-snug mb-3 line-clamp-2 drop-shadow-md">{{ activeHoverCategory }}</p>
-                  </div>
-                </div>
-              </div>
+              Chưa có sản phẩm nổi bật cho thương hiệu <strong>{{ activeFlyoutBrand }}</strong>.
             </div>
-          </Transition>
-
-          <div class="bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
-            <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
-            <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
-              0906 826 959
-            </p>
           </div>
-        </aside>
+        </div>
+      </div>
+
+      <!-- Banner phải trong Mega Menu -->
+      <div class="col-span-1 border-l border-slate-100 pl-5 flex flex-col h-full">
+        <div class="relative rounded-xl overflow-hidden h-full min-h-55 bg-slate-900 group/banner shadow-inner">
+          <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/banner:scale-110 group-hover/banner:opacity-70 transition-all duration-500 ease-out" />
+          <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+          <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
+            <span class="inline-block bg-yellow-400 text-slate-900 text-[9px] font-black uppercase px-2 py-0.5 rounded w-max mb-1.5">Nổi bật</span>
+            <p class="text-sm font-black leading-snug mb-3 line-clamp-2 drop-shadow-md">{{ activeHoverCategory }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <div class="bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
+    <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
+    <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+      0347527093
+    </p>
+  </div>
+</aside>
 
         <!-- Banner Swiper chính -->
         <div class="lg:col-span-9 h-70 sm:h-87.5 lg:h-105 rounded-2xl overflow-hidden shadow-md group relative">
@@ -552,13 +692,12 @@ const getCategoryBanner = (catName) => {
         <div v-else class="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
 
           <!-- CỘT TRÁI: BỘ LỌC ĐA TIÊU CHÍ (STICKY) -->
-          <div class="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-22.5 self-start h-fit z-20">
-            <HomeProductFilter 
-              :products="products" 
-              @update:filteredProducts="handleFilteredProducts"
-              @update:isFiltering="isFiltering = $event" 
-            />
-          </div>
+          <HomeProductFilter 
+            :products="products" 
+            :categories="categories" 
+            @update:filteredProducts="handleFilteredProducts"
+            @update:isFiltering="isFiltering = $event" 
+          />
 
           <!-- CỘT PHẢI: KẾT QUẢ VÀ CÁC KHỐI DANH MỤC -->
           <div class="flex-1 w-full min-w-0 space-y-6">
@@ -620,53 +759,119 @@ const getCategoryBanner = (catName) => {
             
             <!-- BỌC CÁC KHỐI CÒN LẠI ĐỂ ẨN ĐI KHI ĐANG LỌC -->
             <div v-show="!isFiltering" class="space-y-6">
-              <!-- 5. Khối HOT SALE GIÁ SỐC -->
-              <div v-if="promoProducts.length > 0" class="bg-linear-to-r from-red-700 via-red-600 to-red-800 rounded-3xl p-4 sm:p-6 text-white shadow-xl">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-white/10">
+              
+              <!-- 5. Khối HOT SALE GIÁ SỐC (ĐÃ UPDATE BỘ LỌC 2 TẦNG STYLE CELLPHONES) -->
+              <div v-if="promoProducts.length > 0" class="bg-white border-2 border-red-500 rounded-3xl overflow-hidden shadow-sm flex flex-col relative">
+                
+                <!-- Header Nền Đỏ -->
+                <div class="bg-linear-to-r from-red-700 via-red-600 to-red-700 px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
                   <div class="flex items-center gap-3">
-                    <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300">
-                      <span></span> HOT SALE GIÁ SỐC
+                    <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300 drop-shadow-md">
+                      HOT SALE GIÁ SỐC
                     </h2>
                   </div>
-                  <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40">
+                  <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40 shadow-inner">
                     <span class="text-xs font-semibold text-slate-200">Kết thúc sau:</span>
                     <span class="font-mono text-sm font-black text-yellow-300">{{ getCountdown(activeBannerPromo.end_date) }}</span>
                   </div>
                 </div>
-                
-                <!-- Lưới Sản Phẩm Khuyến Mãi -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                  <div v-for="p in promoProducts.slice(0, 5)" :key="p.id" 
-                       class="group bg-white rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
-                    <div class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
-                      Giảm {{ getDiscountPercent(p) }}%
-                    </div>
-                    
-                    <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
-                      <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                    </div>
-                    
-                    <div>
-                      <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
-                      <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
-                        {{ p[`name_${locale}`] || p.name }}
-                      </h3>
+
+                <!-- Khu vực Nội dung (Nền sáng chứa Slider & Filter) -->
+                <div class="p-4 sm:p-6 bg-red-50/20 relative group/promo">
+                  
+                  <!-- Bộ lọc 2 Tầng riêng cho Deal Sốc -->
+                  <div class="space-y-2.5 mb-5">
+                    <!-- Tầng 1: Lọc Danh Mục -->
+                    <div class="flex overflow-x-auto gap-2 sm:gap-3 pb-1 scrollbar-hide">
+                      <button
+                        v-for="cat in promoCategories" 
+                        :key="cat.id"
+                        @click="selectPromoCategory(cat.id)"
+                        :class="[
+                          'px-4 py-1.5 rounded-full border whitespace-nowrap text-xs sm:text-sm font-bold transition-all',
+                          activePromoCategory === cat.id 
+                            ? 'border-red-500 bg-red-500 text-white shadow-md' 
+                            : 'border-red-200 bg-white text-slate-700 hover:border-red-400 hover:bg-red-50'
+                        ]"
+                      >
+                        {{ cat.name }}
+                      </button>
                     </div>
 
-                    <div class="mt-3 pt-2 border-t border-slate-100">
-                      <div class="text-xs sm:text-sm font-black text-red-600">
-                        {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                      </div>
-                      <div class="text-[10px] text-slate-400 line-through font-medium">
-                        {{ p.price?.toLocaleString() }}đ
-                      </div>
-                      <div class="mt-1.5 bg-red-50 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded border border-red-100 line-clamp-1">
-                        🎁 Ưu đãi doanh nghiệp
-                      </div>
+                    <!-- Tầng 2: Lọc Thương Hiệu (Chỉ hiện khi có >1 thương hiệu) -->
+                    <div v-if="promoBrands.length > 1" class="flex overflow-x-auto gap-2 pb-1 scrollbar-hide">
+                      <button
+                        v-for="brand in promoBrands" 
+                        :key="brand.id"
+                        @click="activePromoBrand = brand.id"
+                        :class="[
+                          'px-3 py-1 rounded-full border whitespace-nowrap text-[11px] sm:text-xs font-bold transition-all',
+                          activePromoBrand === brand.id 
+                            ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm' 
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                        ]"
+                      >
+                        {{ brand.name }}
+                      </button>
                     </div>
-
-                    <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
                   </div>
+
+                  <!-- Nút cuộn Trái -->
+                  <button 
+                    @click="scrollPromoLeft"
+                    class="absolute left-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                  </button>
+
+                  <!-- Slider Cuộn Ngang (Giữ nguyên cấu trúc thẻ UI của mày) -->
+                  <div 
+                    ref="promoScrollContainer"
+                    class="flex overflow-x-auto gap-3 sm:gap-4 snap-x snap-mandatory scroll-smooth scrollbar-hide pb-4 pt-1"
+                  >
+                    <!-- Card Sản Phẩm -->
+                    <div v-for="p in promoProducts" :key="p.id" 
+                         class="snap-start min-w-40 sm:min-w-50 shrink-0 group bg-white border border-slate-200/60 rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-xl hover:border-red-400 transition-all duration-300 relative overflow-hidden">
+                      
+                      <div class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
+                        Giảm {{ getDiscountPercent(p) }}%
+                      </div>
+                      
+                      <div class="h-32 sm:h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
+                        <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                      </div>
+                      
+                      <div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                        <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
+                          {{ p[`name_${locale}`] || p.name }}
+                        </h3>
+                      </div>
+
+                      <div class="mt-3 pt-2 border-t border-slate-100">
+                        <div class="text-xs sm:text-sm font-black text-red-600">
+                          {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
+                        </div>
+                        <div class="text-[10px] text-slate-400 line-through font-medium">
+                          {{ p.price?.toLocaleString() }}đ
+                        </div>
+                        <div class="mt-1.5 bg-red-50 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded border border-red-100 line-clamp-1">
+                          🎁 Ưu đãi đặc biệt
+                        </div>
+                      </div>
+
+                      <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
+                    </div>
+                  </div>
+
+                  <!-- Nút cuộn Phải -->
+                  <button 
+                    @click="scrollPromoRight"
+                    class="absolute right-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+                  </button>
+
                 </div>
               </div>
 
@@ -681,7 +886,6 @@ const getCategoryBanner = (catName) => {
                       {{ cat }}
                     </h2>
                   </div>
-
                 </div>
 
                 <!-- Bố cục Khối: Banner Đại Diện bên trái + Lưới Sản Phẩm bên phải -->

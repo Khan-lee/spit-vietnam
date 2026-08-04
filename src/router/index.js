@@ -75,6 +75,11 @@ const router = createRouter({
       component: () => import('../views/admin/BrandManager.vue'),
       meta: { requiresAuth: true } 
     },
+{
+  path: '/spit-system-manager/logos',
+  name: 'AdminLogos',
+  component: () => import('../views/admin/LogoManager.vue') // Kiểm tra kĩ lại tên folder (views, components, v.v.)
+},
     { 
       path: '/spit-system-manager/settings', 
       name: 'AdminSettings', 

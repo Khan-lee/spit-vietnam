@@ -91,32 +91,6 @@ const getDiscountedPrice = (item) => {
   return basePrice;
 }
 
-// Tự động phân tách nội dung mô tả thành mảng các thông số kỹ thuật (Dành cho Spec Table)
-const parsedSpecifications = computed(() => {
-  if (!product.value) return [];
-  const desc = product.value[`description_${locale.value}`] || product.value.description || '';
-  
-  // Tìm các dòng chứa dấu hai chấm ":" để chuyển đổi thành cặp Key - Value
-  return desc.split('\n')
-    .filter(line => line.includes(':'))
-    .map(line => {
-      const parts = line.split(':');
-      return {
-        key: parts[0].trim(),
-        value: parts.slice(1).join(':').trim()
-      };
-    });
-});
-
-// Nội dung văn bản mô tả thuần túy còn lại (bỏ các dòng thông số dạng key:value)
-const pureDescription = computed(() => {
-  if (!product.value) return '';
-  const desc = product.value[`description_${locale.value}`] || product.value.description || '';
-  return desc.split('\n')
-    .filter(line => !line.includes(':'))
-    .join('\n').trim();
-});
-
 const addToCart = (item) => {
   if (item.stock <= 0) return;
   isAdding.value = true
@@ -261,6 +235,19 @@ onMounted(async () => {
               <span class="inline-block bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider">
                 MÃ SP: {{ product.sku || product.id?.substring(0,7).toUpperCase() }}
               </span>
+              <!-- ========================================== -->
+              <!-- THÊM MỚI: CỤC HIỂN THỊ SỐ LƯỢNG TỒN KHO      -->
+              <!-- ========================================== -->
+              <span v-if="product.stock > 0" class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                {{ locale === 'vi' ? `CÒN HÀNG: ${product.stock}` : `IN STOCK: ${product.stock}` }}
+              </span>
+              
+              <span v-else class="inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                {{ locale === 'vi' ? 'TẠM HẾT HÀNG' : 'OUT OF STOCK' }}
+              </span>
+              <!-- ========================================== -->
             </div>
 
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2">
@@ -324,40 +311,20 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
-        
-        <div :class="parsedSpecifications.length > 0 ? 'md:col-span-7' : 'md:col-span-12'" class="space-y-4">
-          <h3 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-900 border-l-4 border-red-600 pl-3 mb-6">
-            {{ locale === 'vi' ? 'Thông Số Kỹ Thuật Chi Tiết' : 'Technical Specifications' }}
-          </h3>
-          
-          <div v-if="parsedSpecifications.length > 0" class="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-            <table class="w-full text-left border-collapse text-xs sm:text-sm">
-              <tbody>
-                <tr v-for="(spec, idx) in parsedSpecifications" :key="idx" 
-                    :class="idx % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'" 
-                    class="border-b border-slate-100 hover:bg-slate-100/40 transition-colors">
-                  <td class="px-4 py-3.5 font-bold text-slate-500 w-1/3 bg-slate-50/30 border-r border-slate-100 uppercase text-[10px] tracking-wider">{{ spec.key }}</td>
-                  <td class="px-4 py-3.5 font-extrabold text-slate-800 font-mono">{{ spec.value }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <div v-else class="text-slate-400 text-xs py-4 italic">
-            Không có bảng thông số kỹ thuật riêng lẻ cho thiết bị này.
-          </div>
-        </div>
-
-        <div :class="parsedSpecifications.length > 0 ? 'md:col-span-5 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8' : 'md:col-span-12'" class="space-y-4">
+      <!-- ========================================== -->
+      <!-- ĐÃ SỬA: GỘP CHUNG VÀ DÙNG V-HTML Ở ĐÂY        -->
+      <!-- ========================================== -->
+      <div class="bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50">
+        <div class="w-full space-y-4">
           <h3 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-900 border-l-4 border-slate-900 pl-3 mb-6">
             {{ locale === 'vi' ? 'Đặc Tính & Mô Tả Dụng Cụ' : 'Product Features' }}
           </h3>
-          <p class="text-slate-600 text-xs sm:text-sm leading-relaxed font-medium whitespace-pre-line">
-            {{ pureDescription || product[`description_${locale}`] || product.description }}
-          </p>
+          <!-- Đổi thẻ <p> thành <div> để tránh lỗi parse khi bên trong chứa block HTML, dùng v-html render -->
+          <div 
+            class="text-slate-600 text-xs sm:text-sm leading-relaxed font-medium raw-html-content"
+            v-html="product[`description_${locale}`] || product.description">
+          </div>
         </div>
-
       </div>
 
       <div v-if="relatedProducts.length > 0" class="mt-12 md:mt-16">
@@ -390,7 +357,8 @@ onMounted(async () => {
           </a>
         </div>
       </div>
-      </div>
+      
+    </div>
   </div>
 </template>
 
@@ -398,4 +366,22 @@ onMounted(async () => {
 .slide-fade-enter-active { transition: all 0.3s ease-out; }
 .slide-fade-leave-active { transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1); }
 .slide-fade-enter-from, .slide-fade-leave-to { transform: translateX(20px); opacity: 0; }
+.raw-html-content :deep(p) {
+  margin-bottom: 1rem;
+}
+.raw-html-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+/* Tuỳ chỉnh thêm cho thẻ bảng nếu admin có chèn bảng */
+.raw-html-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+.raw-html-content :deep(td), .raw-html-content :deep(th) {
+  border: 1px solid #f1f5f9;
+  padding: 8px;
+}
 </style>

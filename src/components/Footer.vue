@@ -5,22 +5,37 @@
       <div class="space-y-6">
         <div class="flex items-center gap-3">
           <div class="h-8 flex items-center">
-            <img src="../assets/noBG_logo.png" alt="SPIT" class="h-full w-auto brightness-0 invert object-contain" />
+            <!-- LOGO ĐỘNG: Lấy trực tiếp từ settings/logo (LogoManager), fallback sang config hoặc logo local -->
+            <img 
+              v-if="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
+              :src="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
+              alt="SPIT Logo" 
+              class="h-full w-auto object-contain" 
+            />
+            <img 
+              v-else 
+              src="../assets/noBG_logo.png" 
+              alt="SPIT Logo" 
+              class="h-full w-auto brightness-0 invert object-contain" 
+            />
           </div>
-          <span class="font-bold text-lg uppercase tracking-tight">Vietnam</span>
+          <!-- TÊN THƯƠNG HIỆU ĐỘNG: Lấy từ config Firestore -->
+          <span class="font-bold text-lg uppercase tracking-tight">
+            {{ config.siteName || config.brandName || config.site_name || 'Vietnam' }}
+          </span>
         </div>
         <p class="text-black text-sm leading-relaxed max-w-xs">
           {{ $t('footer.about_text') }}
         </p>
 
-        <!-- SỬA MÀU ICON MẠNG XÃ HỘI CHO BẮT MẮT -->
+        <!-- ICON MẠNG XÃ HỘI (ĐỘNG) -->
         <div class="flex items-center gap-4 pt-2">
           <!-- Facebook Icon -->
           <a :href="config.facebook || 'https://www.facebook.com/vnspit'" target="_blank" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:scale-110 transition-all group">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2" stroke="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
           </a>
           <!-- YouTube Icon -->
-          <a href="https://www.youtube.com/channel/UCevP--LZsdjHn3EQwgesoFA" target="_blank" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:scale-110 transition-all group">
+          <a :href="config.youtube || 'https://www.youtube.com/channel/UCevP--LZsdjHn3EQwgesoFA'" target="_blank" class="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:scale-110 transition-all group">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#FF0000" stroke="none"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2C1 8.11 1 12 1 12s0 3.89.42 5.58a2.78 2.78 0 0 0 1.94 2c1.71.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2C23 15.89 23 12 23 12s0-3.89-.42-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#FFFFFF"/></svg>
           </a>
         </div>
@@ -65,15 +80,18 @@
     </div>
 
     <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-black">
-      <p class="italic">© 2026 SPIT VIETNAM. All rights reserved.</p>
+      <p class="italic">© 2026 VTCNVC VIETNAM. All rights reserved.</p>
       <p>Designed by Khang Le</p>
     </div>
   </footer>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { db } from '../firebase'
+import { doc, onSnapshot } from 'firebase/firestore'
 
 const { locale } = useI18n()
 
@@ -82,5 +100,21 @@ const props = defineProps({
     type: Object,
     default: () => ({})
   }
+})
+
+const dynamicLogoUrl = ref('')
+let unsubLogo = null
+
+onMounted(() => {
+  // Lắng nghe real-time trực tiếp từ settings/logo (nơi LogoManager.vue lưu dữ liệu)
+  unsubLogo = onSnapshot(doc(db, 'settings', 'logo'), (docSnap) => {
+    if (docSnap.exists() && docSnap.data().url) {
+      dynamicLogoUrl.value = docSnap.data().url
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (unsubLogo) unsubLogo()
 })
 </script>

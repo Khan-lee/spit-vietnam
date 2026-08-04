@@ -5,6 +5,11 @@ const props = defineProps({
   products: {
     type: Array,
     default: () => []
+  },
+  // THÊM DÒNG NÀY ĐỂ HỨNG DATA
+  categories: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -58,7 +63,14 @@ const categoryTagsMap = {
 }
 
 // 1. TỰ ĐỘNG LẤY DANH MỤC TỪ SẢN PHẨM (Không hardcode)
+// SỬA LẠI ĐOẠN NÀY LÀ XONG
 const categoryOptions = computed(() => {
+  // Đồng bộ: Trả về chính xác mảng danh mục đã lọc trạng thái ĐANG HIỆN từ Admin
+  if (props.categories && props.categories.length > 0) {
+    return props.categories; 
+  }
+
+  // Back-up: lỡ có lỗi thì xài lại quét tự động như cũ của mày
   if (!props.products) return []
   return [...new Set(props.products.map(p => p.category_vi).filter(Boolean))]
 })
@@ -107,9 +119,19 @@ watch(() => selectedFilters.categories, () => {
   selectedFilters.needs = []
 }, { deep: true })
 
-// 3. TỰ ĐỘNG LẤY THƯƠNG HIỆU TỪ SẢN PHẨM
+// 3. TỰ ĐỘNG LẤY THƯƠNG HIỆU TỪ SẢN PHẨM (Đã fix đồng bộ)
 const brandOptions = computed(() => {
-  return [...new Set(props.products.map(p => p.brand).filter(Boolean))]
+  // B1: Lọc ra các sản phẩm thuộc danh mục đang HỢP LỆ (đang hiện) trước
+  const validProducts = props.products.filter(p => {
+    // Nếu có danh sách categories truyền vào từ Admin, thì kiểm tra xem sản phẩm có nằm trong đó không
+    if (props.categories && props.categories.length > 0) {
+      return props.categories.includes(p.category_vi)
+    }
+    return true
+  })
+  
+  // B2: Chỉ trích xuất thương hiệu từ các sản phẩm hợp lệ này
+  return [...new Set(validProducts.map(p => p.brand).filter(Boolean))]
 })
 
 // Các mức giá cố định

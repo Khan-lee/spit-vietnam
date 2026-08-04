@@ -57,7 +57,7 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
     console.log(`[SPIT_DEBUG] Nhận câu hỏi từ khách: "${userMessage}" | SessionId: ${sessionId || "N/A"}`);
 
     if (!userMessage) {
-      return res.status(200).json({ text: "Xin chào! Tôi là Trợ lý kỹ thuật của SPIT. Bạn cần tìm dòng dao cụ, đá mài đáp ứng thông số kỹ thuật nào?" });
+      return res.status(200).json({ text: "Xin chào! Tôi là Trợ lý kỹ thuật của VTCNVC. Bạn cần tìm dòng dao cụ, đá mài đáp ứng thông số kỹ thuật nào?" });
     }
 
     // 2.1. Nạp lịch sử hội thoại (Ưu tiên đọc từ DB bằng sessionId, fallback về history dạng mảng của client nếu có)
@@ -98,7 +98,7 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
 
         if (matchedDocs.length > 0) {
           matchedContext = matchedDocs.map((prod, index) => {
-            const name = prod.name_vi || prod.name || 'Sản phẩm SPIT';
+            const name = prod.name_vi || prod.name || 'Sản phẩm VTCNVC';
             const brand = prod.brand || 'Chưa rõ';
             const category = prod.category_vi || 'N/A';
             const desc = prod.description_vi || prod.description || 'Không có mô tả';
@@ -123,7 +123,7 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
     // 2.3. Cấu hình Prompt hệ thống cho Gemini
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
-    const systemPrompt = `Bạn là Chuyên gia tư vấn kỹ thuật cơ khí, dao cụ và đá mài của công ty SPIT. 
+    const systemPrompt = `Bạn là Chuyên gia tư vấn kỹ thuật cơ khí, dao cụ và đá mài của công ty VTCNVC. 
 
 DỮ LIỆU SẢN PHẨM TÌM ĐƯỢC TỪ KHO (CỰC KỲ QUAN TRỌNG):
 ${matchedContext || "Hiện không tìm thấy sản phẩm cụ thể khớp với từ khóa trong kho."}
@@ -195,8 +195,8 @@ exports.syncProductEmbeddings = onDocumentWritten({
     const newData = event.data.after.data();
     const oldData = event.data.before ? event.data.before.data() : null;
 
-    const title = newData.name_vi || newData.name || 'Sản phẩm SPIT';
-    const brand = newData.brand || 'SPIT';
+    const title = newData.name_vi || newData.name || 'Sản phẩm VTCNVC';
+    const brand = newData.brand || 'VTCNVC';
     const category = newData.category_vi || 'Danh mục chung';
     const description = newData.description_vi || newData.description || '';
     const customUrl = newData.custom_url || '';

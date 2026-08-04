@@ -2,11 +2,12 @@
 import { ref, onMounted, computed } from 'vue' 
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router' 
-import { auth, googleProvider } from '../firebase' 
+import { auth, googleProvider, db } from '../firebase' 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth' 
+import { doc, getDoc } from 'firebase/firestore'
 import { useSearchStore } from '../stores/search' 
 
-// Logo từ assets
+// Logo mặc định từ assets (Fallback)
 import logoImg from '../assets/noBG_logo.png'
 
 const props = defineProps(['cartCount', 'searchQuery', 'products']) 
@@ -19,10 +20,29 @@ const isMobileMenuOpen = ref(false)
 const isSearchFocused = ref(false)
 const user = ref(null) 
 
+// Biến lưu trữ Logo (Mặc định dùng logoImg trong assets)
+const dynamicLogo = ref(logoImg)
+
+// Hàm tải Logo từ Firestore
+const fetchLogo = async () => {
+  try {
+    const docRef = doc(db, 'settings', 'logo')
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists() && docSnap.data().url) {
+      dynamicLogo.value = docSnap.data().url
+    }
+  } catch (error) {
+    console.error("Lỗi khi tải logo động:", error)
+  }
+}
+
 onMounted(() => {
   onAuthStateChanged(auth, (currentUser) => {
     user.value = currentUser
   })
+  
+  // Gọi hàm lấy logo từ hệ thống
+  fetchLogo()
 })
 
 // [FIX LỖI] Hàm đóng kết quả tìm kiếm
@@ -74,13 +94,14 @@ const changeLanguage = (event) => {
     <!-- MAIN HEADER BAR -->
     <div class="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2 lg:gap-4">
       
-      <!-- LOGO -->
+<!-- LOGO -->
       <RouterLink to="/" class="flex items-center shrink-0 group">
-  <div class="bg-white/10 hover:bg-white/20 p-1.5 rounded-xl transition-colors flex items-center justify-center">
-    <!-- Cập nhật class để ép tỷ lệ 3:1, w-28 cho mobile, w-32 hoặc w-36 cho desktop -->
-    <img :src="logoImg" alt="SPIT Vietnam Logo" class="w-28 md:w-36 aspect-3/1 object-contain transition-transform group-hover:scale-105" />
-  </div>
-</RouterLink>
+        <!-- Đã bỏ bg-white/10 và padding để logo không bị khung lồng khung -->
+        <div class="transition-colors flex items-center justify-center rounded-xl overflow-hidden">
+          <!-- Đổi từ fix width sang fix height (h-10 md:h-12), auto width và bỏ aspect-3/1 -->
+          <img :src="dynamicLogo" alt="Logo" class="h-10 md:h-12 w-auto max-w-45 object-contain transition-transform group-hover:scale-105" />
+        </div>
+      </RouterLink>
 
       <!-- THANH TÌM KIẾM TRUNG TÂM (CENTER SEARCH BAR) -->
       <div class="relative flex-1 max-w-2xl mx-1 md:mx-2">
@@ -126,7 +147,7 @@ const changeLanguage = (event) => {
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <div class="leading-tight">
             <p class="text-[9px] text-red-200 font-medium">Tư vấn mua hàng</p>
-            <p class="text-[11px] font-black">0906 826 959</p>
+            <p class="text-[11px] font-black">0347527093</p>
           </div>
         </a>
 

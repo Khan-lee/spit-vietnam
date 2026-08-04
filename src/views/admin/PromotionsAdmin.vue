@@ -282,7 +282,7 @@ onMounted(() => {
               <div v-for="(tier, index) in newPromo.tiers" :key="index" class="flex items-center gap-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-200">
                 <div class="flex-1 space-y-1">
                   <label class="text-[9px] font-bold text-slate-500">Từ (Sản phẩm)</label>
-                  <input v-model="tier.quantity" type="number" min="1" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
+                  <input v-model.number="tier.quantity" type="number" min="1" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
                 </div>
                 <div class="flex-1 space-y-1">
                   <label class="text-[9px] font-bold text-slate-500">Loại giảm</label>
@@ -293,7 +293,7 @@ onMounted(() => {
                 </div>
                 <div class="flex-1 space-y-1">
                   <label class="text-[9px] font-bold text-slate-500">Giá trị</label>
-                  <input v-model="tier.discount_value" type="number" min="0" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
+                  <input v-model.number="tier.discount_value" type="number" min="0" class="admin-input mt-0 py-1.5 px-2 text-xs h-8">
                 </div>
                 <button v-if="newPromo.tiers.length > 1" type="button" @click="removeTier(index)" class="mt-4 text-slate-300 hover:text-red-600 px-1 font-black transition-colors">✕</button>
               </div>

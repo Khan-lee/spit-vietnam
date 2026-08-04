@@ -115,7 +115,7 @@ onMounted(fetchPost)
           <div class="flex flex-wrap items-center gap-6 text-slate-300 text-xs font-semibold pt-2 border-t border-white/10">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px]">⚙️</span>
-              <span>SPIT Technical Team</span>
+              <span>VCIS Technical Team</span>
             </div>
             <div class="flex items-center gap-1.5">
               <span>📅</span>
@@ -157,10 +157,10 @@ onMounted(fetchPost)
           <div class="bg-linear-to-br from-slate-900 to-slate-800 text-white p-6 rounded-4xl shadow-md relative overflow-hidden">
             <div class="absolute -right-10 -bottom-10 text-9xl opacity-5 pointer-events-none">🛠️</div>
             <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-              <span>🎯</span> Giải Pháp Gia Công Chính Xác
+              <span></span> Giải Pháp Gia Công Chính Xác
             </h3>
             <p class="text-xs text-slate-300 leading-relaxed mb-6">
-              Sài Gòn Precision Industrial Tool (SPIT) chuyên cung cấp dụng cụ cơ khí phụ trợ CNC, chip insert, cán dao tiện cao cấp hàng đầu Việt Nam.
+              Vo Cuc Industrial Supplies (VCIS) chuyên cung cấp dụng cụ cơ khí phụ trợ CNC, chip insert, cán dao tiện cao cấp hàng đầu Việt Nam.
             </p>
             <a 
               href="mailto:info@spit.com.vn" 

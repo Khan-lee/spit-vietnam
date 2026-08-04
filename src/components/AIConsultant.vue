@@ -3,7 +3,7 @@
     <div class="bg-linear-to-r border-b border-gray-100 p-4 flex items-center gap-3 bg-slate-900 text-white">
       <div class="w-3.5 h-3.5 bg-green-400 rounded-full animate-pulse"></div>
       <div>
-        <h2 class="font-bold text-base">Trợ Lý Kỹ Thuật SPIT AI</h2>
+        <h2 class="font-bold text-base">Trợ Lý Kỹ Thuật VCIS AI</h2>
         <p class="text-xs text-gray-400">Tư vấn dao cụ cắt gọt, đá mài chính xác theo thông số</p>
       </div>
     </div>
@@ -13,7 +13,7 @@
         <div class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shrink-0">AI</div>
         <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100">
           <p class="text-sm text-gray-700">
-            Xin chào! Tôi là Trợ lý kỹ thuật của SPIT. Bạn cần tìm dòng dao cụ, đá mài đáp ứng vật liệu phôi hay độ cứng (HRC) nào? 
+            Xin chào! Tôi là Trợ lý kỹ thuật của VCIS. Bạn cần tìm dòng dao cụ, đá mài đáp ứng vật liệu phôi hay độ cứng (HRC) nào? 
             <br><span class="text-xs text-gray-400 italic">(Ví dụ: "Tìm dao phay ngón gia công thép cứng 50 HRC")</span>
           </p>
         </div>
@@ -150,7 +150,7 @@ const handleSendMessage = async () => {
     console.error('Lỗi tư vấn hệ thống:', error)
     chatHistory.value.push({
       role: 'model',
-      content: 'Hệ thống tư vấn SPIT đang bận xử lý thông số kỹ thuật. Bạn vui lòng thử lại sau giây lát!'
+      content: 'Hệ thống tư vấn đang bận xử lý thông số kỹ thuật. Bạn vui lòng thử lại sau giây lát!'
     })
   } finally {
     loading.value = false

@@ -67,7 +67,7 @@
                   <p class="text-xs font-black text-slate-800 uppercase leading-tight italic">{{ item.name || item.productName || 'Sản phẩm gia công' }}</p>
                   
                   <div class="flex items-center gap-2 mt-1">
-                    <span class="px-2 py-0.5 bg-blue-50 text-[8px] font-black text-blue-500 rounded-md uppercase tracking-tighter">Gia công SPIT</span>
+                    <span class="px-2 py-0.5 bg-blue-50 text-[8px] font-black text-blue-500 rounded-md uppercase tracking-tighter">Gia công</span>
                     
                     <p class="text-[10px] font-bold text-slate-400">
                       SL: <span class="text-blue-600 font-black">{{ item.quantity || 1 }}</span> 
@@ -91,7 +91,7 @@
                   <p class="text-xs font-black text-slate-800 uppercase leading-tight italic">{{ order.productName || 'Đồ gá / Linh kiện' }}</p>
                   
                   <div class="flex items-center gap-2 mt-1">
-                    <span class="px-2 py-0.5 bg-blue-50 text-[8px] font-black text-blue-500 rounded-md uppercase tracking-tighter">Gia công SPIT</span>
+                    <span class="px-2 py-0.5 bg-blue-50 text-[8px] font-black text-blue-500 rounded-md uppercase tracking-tighter">Gia công</span>
                     
                     <p class="text-[10px] font-bold text-slate-400">
                       SL: <span class="text-blue-600 font-black">{{ order.quantity || 1 }}</span> 
@@ -118,7 +118,7 @@
       <div class="p-8 border-t border-slate-100 flex justify-between items-end bg-white">
         <div>
           <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tổng thanh toán</p>
-          <p class="text-[9px] font-bold text-emerald-500 uppercase mt-1">Hệ thống SPIT VIETNAM</p>
+          <p class="text-[9px] font-bold text-emerald-500 uppercase mt-1">Hệ thống VCIS VIETNAM</p>
         </div>
         <div class="text-right">
            <span class="text-3xl font-black text-[#e11d48] tracking-tighter italic drop-shadow-sm">

@@ -123,7 +123,7 @@ exports.syncOrderToLark = onDocumentCreated({
                     <div class="company-info">
                         <h2>CÔNG TY TNHH DỤNG CỤ CÔNG NGHIỆP CHÍNH XÁC SÀI GÒN (SPIT)</h2>
                         <p>Địa chỉ: 361 Lê Trọng Tấn, Phường Tân Sơn Nhì, TP Hồ Chí Minh</p>
-                        <p>Hotline: 0906 826 959 | Email: info@spit.com.vn | Website: spit.com.vn</p>
+                        <p>Hotline: 0347527093 | Email: info@spit.com.vn | Website: spit.com.vn</p>
                     </div>
                 </div>
 

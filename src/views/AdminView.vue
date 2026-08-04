@@ -6,6 +6,8 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' 
 import { db, auth, storage } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
+import { QuillEditor } from '@vueup/vue-quill'
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 const router = useRouter()
 const isAuthenticated = ref(false)
@@ -661,9 +663,34 @@ const resetBrandForm = () => {
 
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
 
-                  <div class="space-y-2">
-                    <textarea v-model="description_vi" rows="3" placeholder="Mô tả chi tiết (VI)..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm leading-relaxed"></textarea>
-                    <textarea v-model="description_en" rows="3" placeholder="Technical Description (EN)..." class="w-full p-3 bg-slate-100/50 rounded-xl outline-none text-sm italic leading-relaxed"></textarea>
+                  <div class="space-y-4">
+                    <!-- Ô soạn thảo Tiếng Việt -->
+                    <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
+                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
+                        Mô tả chi tiết (VI)
+                      </div>
+                      <QuillEditor 
+                        v-model:content="description_vi" 
+                        contentType="html" 
+                        theme="snow" 
+                        placeholder="Viết bài, chèn hình ảnh minh họa tiếng Việt tại đây..." 
+                        class="min-h-62.5 bg-white text-sm"
+                      />
+                    </div>
+
+                    <!-- Ô soạn thảo Tiếng Anh -->
+                    <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
+                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
+                        Technical Description (EN)
+                      </div>
+                      <QuillEditor 
+                        v-model:content="description_en" 
+                        contentType="html" 
+                        theme="snow" 
+                        placeholder="Write detailed technical description and insert images here..." 
+                        class="min-h-62.5 bg-white/80 text-sm italic"
+                      />
+                    </div>
                   </div>
 
                   <button @click="handleSubmit" :disabled="isSubmitting" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all uppercase text-[10px] tracking-[0.2em] cursor-pointer">

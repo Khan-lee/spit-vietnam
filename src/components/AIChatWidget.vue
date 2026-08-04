@@ -9,7 +9,7 @@
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg shadow-inner animate-pulse">🤖</div>
             <div>
-              <h3 class="text-xs sm:text-sm font-bold tracking-wide">Trợ lý Kỹ thuật SPIT AI</h3>
+              <h3 class="text-xs sm:text-sm font-bold tracking-wide">Trợ lý Kỹ thuật VTCNVC AI</h3>
               <p class="text-[10px] text-orange-200 flex items-center mt-0.5">
                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full inline-block mr-1.5 animate-pulse"></span>
                 Trực tuyến • Phản hồi tức thì
@@ -87,7 +87,7 @@
       >
         <div class="flex items-center relative group">
           <div class="absolute right-15.5 bg-linear-to-r from-orange-600 to-red-600 text-white text-[11px] font-medium px-3 py-1.5 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
-            Hỏi đáp kỹ thuật SPIT AI 🤖
+            Hỏi đáp kỹ thuật VTCNVC AI 🤖
           </div>
           <button 
             @click="toggleWidget"
@@ -139,7 +139,7 @@ marked.setOptions({
 const messages = ref([
   {
     role: 'model',
-    content: 'Xin chào! Tôi là Trợ lý kỹ thuật của SPIT. Bạn cần tìm dòng dao cụ, đá mài đáp ứng vật liệu phôi hay độ cứng (HRC) nào?'
+    content: 'Xin chào! Tôi là Trợ lý kỹ thuật của VTCNVC. Bạn cần tìm dòng dao cụ, đá mài đáp ứng vật liệu phôi hay độ cứng (HRC) nào?'
   }
 ])
 
@@ -238,7 +238,7 @@ const handleSend = async () => {
     console.error('❌ Lỗi kết nối Frontend:', error)
     messages.value.push({
       role: 'model',
-      content: '⚠️ Có lỗi kết nối hệ thống xảy ra. Vui lòng kiểm tra lại đường truyền hoặc liên hệ kỹ thuật viên SPIT.'
+      content: '⚠️ Có lỗi kết nối hệ thống xảy ra. Vui lòng kiểm tra lại đường truyền hoặc liên hệ kỹ thuật viên VTCNVC.'
     })
   } finally {
     isLoading.value = false

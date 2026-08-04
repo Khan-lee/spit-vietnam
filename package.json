@@ -12,7 +12,7 @@
     "@tailwindcss/postcss": "^4.2.2",
     "@tinymce/tinymce-vue": "^6.3.0",
     "@unhead/vue": "^2.1.12",
-    "@vueup/vue-quill": "^1.2.0",
+    "@vueup/vue-quill": "^1.5.5",
     "chart.js": "^4.5.1",
     "dompurify": "^3.4.8",
     "dotenv": "^17.4.2",

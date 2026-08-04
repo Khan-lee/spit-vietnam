@@ -24,7 +24,7 @@ onMounted(fetchBrands)
   <div v-if="brands.length > 0" class="bg-white py-12 md:py-20 border-t border-slate-100">
     <div class="container mx-auto px-6 mb-10 text-center">
       <h3 class="text-slate-400 font-black uppercase text-[10px] tracking-[0.4em] italic">
-        Đối tác & Nhãn hàng liên kết
+        Đối tác & Nhãn hàng hợp tác
       </h3>
     </div>
 

@@ -18,7 +18,7 @@
           Liên hệ <span class="text-red-600">Hợp tác & Báo giá</span>
         </h1>
         <p class="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em] mt-3">
-          Spit Precision Industrial Tools Vietnam
+          Vo Cuc Industrial Supplies Vietnam
         </p>
       </div>
 
@@ -115,7 +115,7 @@
             <button :disabled="isSubmitting" type="submit" class="w-full group relative overflow-hidden bg-slate-950 text-white py-4.5 rounded-xl font-black uppercase text-[10px] tracking-[0.25em] transition-all shadow-lg active:scale-[0.99] disabled:opacity-50">
               <span class="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
               <span class="relative z-10 flex items-center justify-center gap-2">
-                {{ isSubmitting ? 'ĐANG GỬI DỮ LIỆU ĐẾN SPIT...' : 'GỬI YÊU CẦU BÁO GIÁ CƠ KHÍ' }}
+                {{ isSubmitting ? 'ĐANG GỬI DỮ LIỆU ĐẾN VTCNVC...' : 'GỬI YÊU CẦU' }}
               </span>
             </button>
           </form>
@@ -220,7 +220,7 @@ const submitContact = async () => {
       createdAt: serverTimestamp()
     })
 
-    triggerToast("Yêu cầu báo giá của bạn đã được gửi thành công! Kỹ sư SPIT sẽ liên hệ lại ngay.", "success")
+    triggerToast("Yêu cầu báo giá của bạn đã được gửi thành công! Kỹ sư sẽ liên hệ lại ngay.", "success")
     
     // Đưa Form về trạng thái rỗng
     formData.value = { 
