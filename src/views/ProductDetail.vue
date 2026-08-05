@@ -20,7 +20,10 @@ const activePromotions = ref([])
 // --- BIẾN QUẢN LÝ ẢNH ĐANG ĐƯỢC CHỌN HIỂN THỊ LỚN ---
 const activeImage = ref('')
 
-// --- THÊM MỚI: BIẾN QUẢN LÝ SẢN PHẨM LIÊN QUAN ---
+// --- THÊM MỚI: BIẾN QUẢN LÝ TRẠNG THÁI PHÓNG TO ẢNH ---
+const isZoomed = ref(false)
+
+// --- BIẾN QUẢN LÝ SẢN PHẨM LIÊN QUAN ---
 const relatedProducts = ref([])
 
 // --- HÀM XỬ LÝ SỐ CỰC MẠNH (Trị dấu phẩy) ---
@@ -196,11 +199,31 @@ onMounted(async () => {
       </div>
     </transition>
 
+    <!-- ========================================== -->
+    <!-- MODAL PHÓNG TO ẢNH                         -->
+    <!-- ========================================== -->
+    <transition name="fade">
+      <div v-if="isZoomed" 
+           class="fixed inset-0 z-999 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-8" 
+           @click.self="isZoomed = false">
+        
+        <button @click="isZoomed = false" 
+                class="absolute top-6 right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl transition-colors backdrop-blur-lg">
+          ✕
+        </button>
+        
+        <img :src="activeImage" 
+             class="max-w-full max-h-full object-contain rounded-xl shadow-2xl pointer-events-none select-none" />
+      </div>
+    </transition>
+    <!-- ========================================== -->
+
     <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
         
         <div class="lg:sticky lg:top-24 space-y-5 w-full">
+          <!-- Đã thêm class cursor-zoom-in và @click="isZoomed = true" vào thẻ img -->
           <div class="relative bg-[#f8fafc] p-8 md:p-12 rounded-4xl border border-slate-100 flex items-center justify-center aspect-square shadow-inner overflow-hidden group">
             
             <div v-if="hasPromo()" 
@@ -209,7 +232,10 @@ onMounted(async () => {
               🔥 {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
             </div>
             
-            <img :src="activeImage" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out" />
+            <img :src="activeImage" 
+                 @click="isZoomed = true"
+                 class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" 
+                 title="Bấm để phóng to ảnh" />
           </div>
 
           <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
@@ -235,9 +261,6 @@ onMounted(async () => {
               <span class="inline-block bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider">
                 MÃ SP: {{ product.sku || product.id?.substring(0,7).toUpperCase() }}
               </span>
-              <!-- ========================================== -->
-              <!-- THÊM MỚI: CỤC HIỂN THỊ SỐ LƯỢNG TỒN KHO      -->
-              <!-- ========================================== -->
               <span v-if="product.stock > 0" class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
                 <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                 {{ locale === 'vi' ? `CÒN HÀNG: ${product.stock}` : `IN STOCK: ${product.stock}` }}
@@ -247,7 +270,6 @@ onMounted(async () => {
                 <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                 {{ locale === 'vi' ? 'TẠM HẾT HÀNG' : 'OUT OF STOCK' }}
               </span>
-              <!-- ========================================== -->
             </div>
 
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2">
@@ -311,15 +333,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- ĐÃ SỬA: GỘP CHUNG VÀ DÙNG V-HTML Ở ĐÂY        -->
-      <!-- ========================================== -->
       <div class="bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50">
         <div class="w-full space-y-4">
           <h3 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-900 border-l-4 border-slate-900 pl-3 mb-6">
             {{ locale === 'vi' ? 'Đặc Tính & Mô Tả Dụng Cụ' : 'Product Features' }}
           </h3>
-          <!-- Đổi thẻ <p> thành <div> để tránh lỗi parse khi bên trong chứa block HTML, dùng v-html render -->
           <div 
             class="text-slate-600 text-xs sm:text-sm leading-relaxed font-medium raw-html-content"
             v-html="product[`description_${locale}`] || product.description">
@@ -366,6 +384,11 @@ onMounted(async () => {
 .slide-fade-enter-active { transition: all 0.3s ease-out; }
 .slide-fade-leave-active { transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1); }
 .slide-fade-enter-from, .slide-fade-leave-to { transform: translateX(20px); opacity: 0; }
+
+/* CSS cho hiệu ứng mờ dần của Modal phóng to ảnh */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
 .raw-html-content :deep(p) {
   margin-bottom: 1rem;
 }
@@ -375,7 +398,6 @@ onMounted(async () => {
   border-radius: 0.5rem;
   margin: 1rem 0;
 }
-/* Tuỳ chỉnh thêm cho thẻ bảng nếu admin có chèn bảng */
 .raw-html-content :deep(table) {
   width: 100%;
   border-collapse: collapse;
