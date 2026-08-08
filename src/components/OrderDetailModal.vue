@@ -3,6 +3,7 @@
     <div @click="$emit('close')" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
     
     <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
+      <!-- HEADER -->
       <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
         <div>
           <h2 class="text-xl font-black uppercase italic tracking-tighter text-slate-800 text-shadow-sm">Thông tin đơn hàng</h2>
@@ -11,54 +12,79 @@
         <button @click="$emit('close')" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm hover:rotate-90 hover:bg-red-50 hover:text-red-500 transition-all duration-300 text-xl border border-slate-100">✕</button>
       </div>
 
+      <!-- BODY -->
       <div class="p-8 overflow-y-auto custom-scrollbar space-y-8">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- NGƯỜI NHẬN -->
           <div class="space-y-5">
             <h3 class="text-[10px] font-black text-blue-600 uppercase border-b border-blue-100 pb-2 tracking-widest flex items-center gap-2">
               <span class="w-2 h-2 bg-blue-600 rounded-full"></span> 👤 Người nhận
             </h3>
             <div>
               <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Họ và tên</p>
-              <p class="text-sm font-black text-slate-800 uppercase italic">{{ order.customerName }}</p>
+              <p class="text-sm font-black text-slate-800 uppercase italic">
+                {{ order.customer?.name || order.customerName || 'Khách vãng lai' }}
+              </p>
             </div>
             <div>
               <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Số điện thoại</p>
-              <p class="text-sm font-black text-blue-600 tracking-tighter">{{ order.phone }}</p>
+              <p class="text-sm font-black text-blue-600 tracking-tighter">
+                {{ order.customer?.phone || order.phone || 'Chưa có SĐT' }}
+              </p>
+            </div>
+            
+            <!-- ĐỊA CHỈ GIAO HÀNG (Sẽ tự ẩn nếu không có dữ liệu) -->
+            <div v-if="order.customer?.address || order.address || order.shippingAddress">
+              <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Địa chỉ giao hàng</p>
+              <p class="text-[11px] font-bold text-slate-700 leading-snug">
+                {{ order.customer?.address || order.shippingAddress?.address || order.shippingAddress || order.address }}
+              </p>
             </div>
           </div>
           
+          <!-- DOANH NGHIỆP -->
           <div class="bg-slate-50/80 p-6 rounded-4xl border border-slate-100 space-y-4">
             <h3 class="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
               <span class="w-2 h-2 bg-emerald-600 rounded-full"></span> 🏢 Doanh nghiệp
             </h3>
             
-            <div v-if="order.companyName">
-              <p class="text-[10px] font-black text-slate-800 uppercase leading-tight italic">{{ order.companyName }}</p>
-              <p v-if="order.taxCode" class="text-[10px] font-bold text-slate-500 mt-1 italic">MST: {{ order.taxCode }}</p>
+            <div v-if="order.customer?.companyName || order.companyName || order.vatInfo?.companyName">
+              <p class="text-[10px] font-black text-slate-800 uppercase leading-tight italic">
+                {{ order.customer?.companyName || order.companyName || order.vatInfo?.companyName }}
+              </p>
+              <p v-if="order.customer?.taxCode || order.taxCode || order.vatInfo?.taxCode" class="text-[10px] font-bold text-slate-500 mt-1.5 italic">
+                MST: {{ order.customer?.taxCode || order.taxCode || order.vatInfo?.taxCode }}
+              </p>
+              
+              <!-- ĐỊA CHỈ CÔNG TY (Xuất hóa đơn) -->
+              <p v-if="order.customer?.companyAddress || order.companyAddress || order.vatInfo?.companyAddress" class="text-[10px] font-medium text-slate-600 mt-1.5 italic leading-snug">
+                📍 {{ order.customer?.companyAddress || order.companyAddress || order.vatInfo?.companyAddress }}
+              </p>
             </div>
             <div v-else>
               <p class="text-[10px] font-bold text-slate-400 italic text-shadow-sm">Khách hàng cá nhân</p>
             </div>
 
             <div class="pt-2 border-t border-slate-200/60">
-              <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Email nhận hợp đồng</p>
+              <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Email liên hệ / Hợp đồng</p>
               <p class="text-[11px] font-black text-slate-700 break-all select-all decoration-blue-500 underline underline-offset-2 italic">
-                {{ order.email || order.contractEmail || 'Chưa cung cấp email' }}
+                {{ order.customer?.email || order.email || order.contractEmail || 'Chưa cung cấp email' }}
               </p>
             </div>
           </div>
         </div>
 
+        <!-- SẢN PHẨM ĐÃ ĐẶT -->
         <div>
           <h3 class="text-[10px] font-black text-slate-800 uppercase border-b border-slate-100 pb-2 tracking-widest mb-4 flex items-center gap-2">
-            <span class="w-2 h-2 bg-slate-800 rounded-full"></span> 📦 Sản phẩm đã đặt
+            <span class="w-2 h-2 bg-slate-800 rounded-full"></span>Sản phẩm đã đặt
           </h3>
           
           <div class="space-y-3">
             <template v-if="order.items && order.items.length > 0">
               <div v-for="(item, index) in order.items" :key="index" 
                    class="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 bg-white shadow-sm">
-                <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300">
+                <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300 overflow-hidden shrink-0">
                   <img v-if="item.image || item.productImage" :src="item.image || item.productImage" class="w-full h-full object-cover rounded-2xl" />
                   <span v-else>SP</span>
                 </div>
@@ -85,7 +111,7 @@
 
             <template v-else>
               <div class="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 bg-white shadow-sm">
-                <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300">SP</div>
+                <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-xl shadow-inner italic font-black text-slate-300 shrink-0">SP</div>
                 
                 <div class="grow">
                   <p class="text-xs font-black text-slate-800 uppercase leading-tight italic">{{ order.productName || 'Đồ gá / Linh kiện' }}</p>
@@ -109,12 +135,14 @@
           </div>
         </div>
 
+        <!-- GHI CHÚ -->
         <div v-if="order.note" class="bg-yellow-50/50 p-5 rounded-3xl border border-yellow-100/50">
-          <p class="text-[9px] text-yellow-600 font-black uppercase mb-2 flex items-center gap-1">📝 Ghi chú từ Khang:</p>
+          <p class="text-[9px] text-yellow-600 font-black uppercase mb-2 flex items-center gap-1">📝 Ghi chú từ khách hàng:</p>
           <p class="text-[11px] font-medium text-slate-600 leading-relaxed italic">"{{ order.note }}"</p>
         </div>
       </div>
 
+      <!-- FOOTER -->
       <div class="p-8 border-t border-slate-100 flex justify-between items-end bg-white">
         <div>
           <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tổng thanh toán</p>

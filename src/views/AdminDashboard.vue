@@ -98,19 +98,24 @@ const downloadBlueprint = async (url, customerName) => {
   }
 }
 
-// --- BỘ LỌC & THỐNG KÊ (GIỮ LOGIC CŨ + THÊM ĐIỀU KIỆN THANH TOÁN) ---
+// --- BỘ LỌC & THỐNG KÊ (GIỮ LOGIC CŨ + UPDATE TÌM KIẾM CHO CẤU TRÚC CUSTOMER MỚI) ---
 const filteredOrders = computed(() => {
   return orders.value.filter(order => {
-    const matchSearch = order.customerName?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                       order.phone?.includes(searchQuery.value) ||
-                       order.orderCode?.toLowerCase().includes(searchQuery.value.toLowerCase());
+    // UPDATE: Lấy tên và sdt từ cả cấu trúc cũ lẫn cấu trúc mới (order.customer.name)
+    const cName = order.customerName || order.customer?.name || '';
+    const cPhone = order.phone || order.customer?.phone || '';
+
+    const matchSearch = cName.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                        cPhone.includes(searchQuery.value) ||
+                        order.orderCode?.toLowerCase().includes(searchQuery.value.toLowerCase());
+                        
     const matchStatus = statusFilter.value === 'all' || order.status === statusFilter.value;
     
     // THÊM MỚI: Điều kiện lọc thanh toán (không ảnh hưởng matchStatus cũ)
     const isPaid = order.status !== 'pending';
     const matchPayment = paymentFilter.value === 'all' || 
-                        (paymentFilter.value === 'unpaid' && !isPaid) || 
-                        (paymentFilter.value === 'paid' && isPaid);
+                         (paymentFilter.value === 'unpaid' && !isPaid) || 
+                         (paymentFilter.value === 'paid' && isPaid);
 
     return matchSearch && matchStatus && matchPayment;
   })
@@ -118,7 +123,7 @@ const filteredOrders = computed(() => {
 const filteredContacts = computed(() => {
   return contacts.value.filter(contact => {
     const matchSearch = contact.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                       contact.phone?.includes(searchQuery.value);
+                        contact.phone?.includes(searchQuery.value);
     const matchStatus = statusFilter.value === 'all' || contact.status === statusFilter.value;
     return matchSearch && matchStatus;
   })
@@ -192,20 +197,22 @@ const exportToExcel = (data, fileName) => {
         .join('\n'); // Xuống dòng nếu ô có nhiều sản phẩm
     }
 
-    // 2. XỬ LÝ CỘT ĐỊA CHỈ (Quét hết các key có thể có của cả Đơn hàng lẫn Tư vấn)
-    const diaChiText = item.companyAddress || item.address || item.shippingAddress || item.diaChi || 'Chưa cập nhật';
+    // UPDATE: XỬ LÝ CỘT LẤY DỮ LIỆU TỪ OBJECT CUSTOMER VÀ VAT MỚI
+    const cName = item.customerName || item.customer?.name || item.name || '';
+    const cPhone = item.phone || item.customer?.phone || '';
+    const cEmail = item.email || item.customer?.email || item.contractEmail || '';
+    const cAddress = item.companyAddress || item.address || item.customer?.address || item.shippingAddress?.address || item.diaChi || 'Chưa cập nhật';
+    const cCompany = item.companyName || item.vatInfo?.companyName || item.company || '';
 
     return {
       'ID': item.id,
       'Mã Đơn': item.id ? item.id.slice(-6).toUpperCase() : '',
       'Ngày': item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '',
-      'Khách hàng': item.customerName || item.name || '',
-      'SĐT': item.phone || '',
-      'Email': item.email || item.contractEmail || '',
-      'Công ty': item.companyName || item.company || '',
-      
-      // Đã được cấu hình tự động nhận diện linh hoạt
-      'Địa chỉ': diaChiText,
+      'Khách hàng': cName,
+      'SĐT': cPhone,
+      'Email': cEmail,
+      'Công ty': cCompany,
+      'Địa chỉ': cAddress,
       'Sản phẩm': sanPhamText
     }
   })
@@ -219,13 +226,16 @@ const exportToExcel = (data, fileName) => {
 }
 
 const sendQuickEmail = (item) => {
-  const email = item.email || item.contractEmail
+  // Bổ sung hỗ trợ email từ object customer
+  const email = item.email || item.customer?.email || item.contractEmail
+  const name = item.name || item.customer?.name
   if (email) {
     const subject = encodeURIComponent(`[SPIT Vietnam] Phản hồi yêu cầu tư vấn`)
-    const body = encodeURIComponent(`Chào ${item.name},\n\nChúng tôi đã nhận được yêu cầu về sản phẩm ${item.productName || ''} của bạn...\n\nTrân trọng!`)
+    const body = encodeURIComponent(`Chào ${name},\n\nChúng tôi đã nhận được yêu cầu của bạn...\n\nTrân trọng!`)
     window.location.href = `mailto:${email}?subject=${subject}?body=${body}`
   } else {
-    if (confirm("Gọi điện cho " + item.name + "?")) window.location.href = `tel:${item.phone}`
+    const phone = item.phone || item.customer?.phone
+    if (confirm("Gọi điện cho " + name + "?")) window.location.href = `tel:${phone}`
   }
 }
 
@@ -527,18 +537,26 @@ onMounted(fetchData)
                   </div>
                   <div>
                     <div class="flex items-center gap-2">
-                      <h4 class="text-xs font-black text-slate-800 uppercase italic">{{ order.customerName }}</h4>
-                      <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || 1 }}</span>
-                      <span v-if="order.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
+                      <!-- HỖ TRỢ ĐỌC TÊN KHÁCH TỪ OBJECT CUSTOMER NẾU CÓ -->
+                      <h4 class="text-xs font-black text-slate-800 uppercase italic">
+                        {{ order.customer?.name || order.customerName || 'Khách vãng lai' }}
+                      </h4>
+                      <span class="px-2 py-0.5 bg-blue-100 text-[8px] font-black text-blue-600 rounded italic">SL: {{ order.quantity || (order.items ? order.items.length : 1) }}</span>
+                      
+                      <!-- CHECK THÔNG TIN CÔNG TY DOANH NGHIỆP TỪ CẢ CẤU TRÚC MỚI VÀ CŨ -->
+                      <span v-if="order.companyName || order.customer?.companyName || order.vatInfo?.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
                       
                       <span v-if="order.paymentMethod" 
                             :class="['text-[8px] px-2 py-0.5 rounded font-black italic', 
-                                     order.paymentMethod === 'qr' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600']">
+                                     order.paymentMethod === 'transfer' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600']">
                         {{ order.paymentMethod === 'transfer' ? 'QR' : 'COD' }}
                       </span>
                       <span v-if="order.status === 'pending'" class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA TRẢ TIỀN</span>
                     </div>
-                    <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">{{ order.phone }} • {{ order.createdAt?.toDate().toLocaleString('vi-VN') }}</p>
+                    <!-- HỖ TRỢ ĐỌC SỐ ĐIỆN THOẠI TỪ CẢ CẤU TRÚC MỚI VÀ CŨ -->
+                    <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">
+                      {{ order.customer?.phone || order.phone || 'Chưa có SĐT' }} • {{ order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString('vi-VN') : '' }}
+                    </p>
                   </div>
                 </div>
                 <div class="text-right flex items-center gap-6">
@@ -553,7 +571,7 @@ onMounted(fetchData)
 
                     <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-600 hover:text-white transition-colors">Giao</button>
                     <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Xong</button>
-                    <button @click.stop="deleteOrder(order.id, order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
+                    <button @click.stop="deleteOrder(order.id, order.customer?.name || order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
                   </div>
                 </div>
               </div>
@@ -578,12 +596,12 @@ onMounted(fetchData)
                       <div class="text-[10px] font-bold text-blue-600 mt-1">{{ item.phone }}</div>
                     </td>
                     <td class="p-6 max-w-xs">
-                       <p class="text-[10px] font-black text-slate-800 truncate">{{ item.productName || 'Yêu cầu gia công' }}</p>
-                       <p class="text-[9px] font-medium text-slate-400 italic mt-1 truncate">{{ item.message }}</p>
+                        <p class="text-[10px] font-black text-slate-800 truncate">{{ item.productName || 'Yêu cầu gia công' }}</p>
+                        <p class="text-[9px] font-medium text-slate-400 italic mt-1 truncate">{{ item.message }}</p>
                     </td>
                     <td class="p-6 text-right flex items-center justify-end gap-3">
-                       <span class="text-[8px] text-slate-300 font-bold uppercase">{{ item.createdAt?.toDate().toLocaleString('vi-VN') }}</span>
-                       <button @click.stop="deleteContact(item.id, item.name)" class="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
+                        <span class="text-[8px] text-slate-300 font-bold uppercase">{{ item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '' }}</span>
+                        <button @click.stop="deleteContact(item.id, item.name)" class="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
                     </td>
                   </tr>
                 </tbody>

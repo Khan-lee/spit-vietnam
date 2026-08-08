@@ -105,7 +105,7 @@
             Chat Kỹ thuật qua Zalo 💬
           </div>
           <a 
-            href="https://zalo.me/1985045628865812060" 
+            href="https://zalo.me/0333324361" 
             target="_blank"
             class="w-13 h-13 bg-[#0068ff] rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group/zalo cursor-pointer"
           >

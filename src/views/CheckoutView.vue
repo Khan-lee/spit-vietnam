@@ -7,19 +7,19 @@ import PaymentQR from '../components/PaymentQR.vue'
 
 const router = useRouter()
 
-// Lấy giỏ hàng thô từ localStorage
 const rawCartItems = ref([])
-const promotions = ref([]) // Lưu danh sách CTKM
+const promotions = ref([]) 
 
 const shippingFee = ref(0) 
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
-// Quản lý phương thức thanh toán & Yêu cầu báo giá
-const paymentMethod = ref('transfer')
-const requestQuote = ref(false)
+// Quản lý trạng thái
+const paymentMethod = ref('cod')
+const shippingMethod = ref('standard')
+const shipToOtherAddress = ref(false)
+const requestVAT = ref(false)
 
-// Quản lý trạng thái hiển thị Modal & Toast
 const showPaymentQR = ref(false)
 const showSuccessModal = ref(false)
 const newOrderId = ref('')
@@ -32,11 +32,58 @@ const triggerToast = (message, type = 'error') => {
   setTimeout(() => { toast.value.show = false }, 3500)
 }
 
+// Data form chính
 const customer = ref({ 
-  name: '', phone: '', address: '', note: '', companyName: '', taxCode: '', contractEmail: ''
+  name: '', phone: '', email: '', address: '', province: '', district: '', note: ''
 })
 
-// [MỚI] Kéo các CTKM đang chạy về trang Checkout
+// Data form phụ
+const otherAddress = ref({
+  name: '', phone: '', address: '', province: '', district: ''
+})
+
+const vatInfo = ref({
+  companyName: '', companyAddress: '', taxCode: ''
+})
+
+// Thêm state để lưu danh sách tỉnh/quận
+const provinces = ref([])
+const customerDistricts = ref([])
+const otherDistricts = ref([])
+
+// Hàm lấy dữ liệu Tỉnh/Thành phố từ Open API
+const fetchProvinces = async () => {
+  try {
+    const res = await fetch('https://provinces.open-api.vn/api/?depth=2')
+    const data = await res.json()
+    provinces.value = data
+  } catch (error) {
+    console.error("Lỗi lấy dữ liệu tỉnh/thành:", error)
+  }
+}
+
+// Xử lý khi chọn Tỉnh/Thành phố của Khách hàng
+const onCustomerProvinceChange = () => {
+  const selectedProvince = provinces.value.find(p => p.name === customer.value.province)
+  if (selectedProvince) {
+    customerDistricts.value = selectedProvince.districts
+  } else {
+    customerDistricts.value = []
+  }
+  customer.value.district = '' // Reset lại quận/huyện
+}
+
+// Xử lý khi chọn Tỉnh/Thành phố của Địa chỉ khác
+const onOtherProvinceChange = () => {
+  const selectedProvince = provinces.value.find(p => p.name === otherAddress.value.province)
+  if (selectedProvince) {
+    otherDistricts.value = selectedProvince.districts
+  } else {
+    otherDistricts.value = []
+  }
+  otherAddress.value.district = '' // Reset lại quận/huyện
+}
+
 const fetchActivePromotions = async () => {
   try {
     const now = new Date().getTime()
@@ -51,11 +98,10 @@ const fetchActivePromotions = async () => {
         return now >= start && now <= end
       })
   } catch (e) {
-    console.error("Lỗi lấy khuyến mãi ở Checkout:", e)
+    console.error("Lỗi lấy khuyến mãi:", e)
   }
 }
 
-// [MỚI] Tự động tính toán lại giá trị giỏ hàng với các mốc Tiers
 const cartItems = computed(() => {
   return rawCartItems.value.map(item => {
     let finalPrice = item.price
@@ -90,15 +136,14 @@ const cartItems = computed(() => {
   })
 })
 
-// Tổng tiền tự động tính từ giỏ hàng đã giảm giá
 const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
+// Tổng tiền (có thể cộng phí ship hoặc update logic phí ship theo shippingMethod sau)
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
 onMounted(async () => {
   rawCartItems.value = JSON.parse(localStorage.getItem('spit_cart')) || []
-  
-  // Phải fetch khuyến mãi để computed cartItems nó tính ra giá mới
   await fetchActivePromotions()
+  await fetchProvinces() // Gọi API load tỉnh thành
 
   try {
     const settingsRef = doc(db, "settings", "website")
@@ -116,7 +161,16 @@ onMounted(async () => {
 const handleCheckout = async () => {
   if (!customer.value.name || !customer.value.phone) return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
   if (!customer.value.address) return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
-  if (requestQuote.value && !customer.value.contractEmail) return triggerToast("Vui lòng nhập Email để chúng tôi gửi báo giá!")
+  if (!customer.value.province || !customer.value.district) return triggerToast("Vui lòng chọn đầy đủ Tỉnh/Thành phố và Quận/Huyện!")
+  
+  if (shipToOtherAddress.value && (!otherAddress.value.name || !otherAddress.value.address || !otherAddress.value.province || !otherAddress.value.district)) {
+    return triggerToast("Vui lòng điền đủ thông tin và địa chỉ người nhận khác!")
+  }
+  
+  if (requestVAT.value && (!vatInfo.value.companyName || !vatInfo.value.taxCode)) {
+    return triggerToast("Vui lòng nhập đầy đủ Tên công ty và Mã số thuế!")
+  }
+
   if (cartItems.value.length === 0) return triggerToast("Giỏ hàng của bạn đang trống, không thể thanh toán!")
 
   try {
@@ -124,19 +178,15 @@ const handleCheckout = async () => {
 
     const orderData = {
       userId: auth.currentUser ? auth.currentUser.uid : null,
-      customerName: customer.value.name,
-      phone: customer.value.phone,
-      address: customer.value.address,
-      note: customer.value.note,
-      companyName: customer.value.companyName,
-      taxCode: customer.value.taxCode,
-      contractEmail: customer.value.contractEmail,
-      items: cartItems.value, // Đã có finalPrice và itemTotal
+      customer: customer.value,
+      shippingAddress: shipToOtherAddress.value ? otherAddress.value : null,
+      vatInfo: requestVAT.value ? vatInfo.value : null,
+      shippingMethod: shippingMethod.value,
+      paymentMethod: paymentMethod.value,
+      items: cartItems.value,
       subtotal: cartSubtotal.value,
       shippingFee: shippingFee.value, 
       totalPrice: finalTotal.value,  
-      paymentMethod: paymentMethod.value,
-      requestQuote: requestQuote.value,  
       status: 'pending',
       createdAt: serverTimestamp()
     }
@@ -168,204 +218,264 @@ const handleCheckout = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 sm:px-6 antialiased font-sans">
+  <div class="min-h-screen bg-[#f5f6f8] py-8 px-4 sm:px-6 font-sans text-gray-800">
     
+    <!-- Toast Message -->
     <transition name="slide-fade">
-      <div v-if="toast.show" class="fixed top-6 right-6 z-99999 max-w-sm bg-slate-900 border border-slate-800 text-white p-4 rounded-xl shadow-xl flex items-center gap-3">
-        <span class="w-5 h-5 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center font-black text-xs">✕</span>
-        <p class="text-xs font-bold tracking-wide">{{ toast.message }}</p>
+      <div v-if="toast.show" class="fixed top-6 right-6 z-50 max-w-sm bg-white border-l-4 border-red-500 p-4 rounded shadow-lg flex items-center gap-3">
+        <span class="w-5 h-5 rounded-full bg-red-100 text-red-500 flex items-center justify-center font-bold text-xs">✕</span>
+        <p class="text-sm font-medium">{{ toast.message }}</p>
       </div>
     </transition>
 
-    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
-      <div class="md:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/60 shadow-xs">
-        <h2 class="text-lg font-black uppercase italic tracking-tight mb-6 text-slate-900 flex items-center gap-2">
-          <span class="w-2 h-2 bg-red-600 rounded-full"></span> Thông tin nhận hàng & Báo giá
-        </h2>
+      <!-- CỘT TRÁI: FORM THÔNG TIN -->
+      <div class="lg:col-span-8 space-y-6">
         
-        <div class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Họ và tên khách hàng *</label>
-              <input v-model="customer.name" :disabled="isProcessing" placeholder="Nhập tên người nhận..." class="admin-input" />
-            </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Số điện thoại liên hệ *</label>
-              <input v-model="customer.phone" :disabled="isProcessing" placeholder="Số điện thoại gọi giao hàng..." class="admin-input" />
-            </div>
+        <!-- THÔNG TIN KHÁCH HÀNG -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-base uppercase text-gray-800">Thông tin khách hàng</h2>
           </div>
-
-          <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Địa chỉ giao hàng thực tế *</label>
-            <textarea v-model="customer.address" :disabled="isProcessing" placeholder="Số nhà, tên đường, khu công nghiệp, tỉnh thành..." rows="2" class="admin-input resize-none"></textarea>
-          </div>
-          
-          <div class="pt-5 border-t border-dashed border-slate-200/80 mt-4 space-y-4">
-            <div class="flex items-center justify-between">
-              <p class="text-[10px] font-black uppercase text-slate-900 tracking-wider">Thông tin xuất hóa đơn VAT / Báo giá</p>
-              <span class="text-[9px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-md">B2B KHỐI NHÀ MÁY</span>
-            </div>
-            
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tên pháp nhân công ty / Nhà xưởng</label>
-              <input v-model="customer.companyName" :disabled="isProcessing" placeholder="Ví dụ: Công ty TNHH Kỹ Thuật Chế Tạo..." class="admin-input" />
-            </div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="space-y-1">
-                <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Mã số thuế doanh nghiệp</label>
-                <input v-model="customer.taxCode" :disabled="isProcessing" placeholder="Nhập MST để đối chiếu..." class="admin-input" />
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="md:col-span-2">
+                <input v-model="customer.name" placeholder="Họ và tên *" class="v-input" />
               </div>
-              <div class="space-y-1">
-                <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Email nhận hồ sơ / Hợp đồng</label>
-                <input v-model="customer.contractEmail" type="email" :disabled="isProcessing" placeholder="accounting@company.com" class="admin-input" />
+              <div>
+                <input v-model="customer.phone" placeholder="Điện thoại *" class="v-input" />
               </div>
-            </div>
-          </div>
-
-          <div class="pt-5 border-t border-dashed border-slate-200/80 mt-4 space-y-3">
-            <p class="text-[10px] font-black uppercase text-slate-900 tracking-wider">Phương thức thanh toán</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <input v-model="customer.email" placeholder="Email *" class="v-input" />
+              </div>
+              <div class="md:col-span-2">
+                <input v-model="customer.address" placeholder="Địa chỉ *" class="v-input" />
+              </div>
               
-              <label class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm focus:outline-none transition-all"
-                     :class="paymentMethod === 'transfer' ? 'border-red-600 bg-red-50/30' : 'border-slate-200 bg-white hover:border-slate-300'">
-                <input type="radio" v-model="paymentMethod" value="transfer" :disabled="isProcessing" class="sr-only" />
-                <span class="flex flex-1">
-                  <span class="flex flex-col">
-                    <span class="block text-xs font-black uppercase" :class="paymentMethod === 'transfer' ? 'text-red-700' : 'text-slate-700'">Chuyển khoản (Mã QR)</span>
-                    <span class="mt-1 flex items-center text-[10px] text-slate-500 font-medium">Thanh toán tự động, xét duyệt ngay</span>
-                  </span>
-                </span>
-                <svg v-if="paymentMethod === 'transfer'" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-                </svg>
-              </label>
+              <!-- Select Tỉnh / Thành phố -->
+              <div>
+                <select 
+                  v-model="customer.province" 
+                  @change="onCustomerProvinceChange" 
+                  class="v-input cursor-pointer"
+                >
+                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+                  <option v-for="p in provinces" :key="p.code" :value="p.name">
+                    {{ p.name }}
+                  </option>
+                </select>
+              </div>
+              
+              <!-- Select Quận / Huyện -->
+              <div>
+                <select 
+                  v-model="customer.district" 
+                  class="v-input cursor-pointer"
+                  :disabled="!customer.province"
+                >
+                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+                  <option v-for="d in customerDistricts" :key="d.code" :value="d.name">
+                    {{ d.name }}
+                  </option>
+                </select>
+              </div>
 
-              <label class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm focus:outline-none transition-all"
-                     :class="paymentMethod === 'cod' ? 'border-red-600 bg-red-50/30' : 'border-slate-200 bg-white hover:border-slate-300'">
-                <input type="radio" v-model="paymentMethod" value="cod" :disabled="isProcessing" class="sr-only" />
-                <span class="flex flex-1">
-                  <span class="flex flex-col">
-                    <span class="block text-xs font-black uppercase" :class="paymentMethod === 'cod' ? 'text-red-700' : 'text-slate-700'">Thanh toán khi nhận</span>
-                    <span class="mt-1 flex items-center text-[10px] text-slate-500 font-medium">Nhận hàng, kiểm tra và thanh toán (COD)</span>
-                  </span>
-                </span>
-                <svg v-if="paymentMethod === 'cod'" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-                </svg>
-              </label>
+              <div class="md:col-span-2">
+                <textarea v-model="customer.note" placeholder="Ghi chú cho hóa đơn" rows="2" class="v-input resize-none"></textarea>
+              </div>
+            </div>
 
+            <!-- Toggle Địa chỉ khác -->
+            <div class="bg-gray-50 border border-gray-200 rounded px-4 py-3 flex items-center gap-3 cursor-pointer" @click="shipToOtherAddress = !shipToOtherAddress">
+              <input type="checkbox" v-model="shipToOtherAddress" class="w-4 h-4 text-blue-600 rounded border-gray-300 pointer-events-none">
+              <span class="text-sm font-medium flex-1">Giao hàng tại địa chỉ khác</span>
+              <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+
+            <!-- Form Địa chỉ khác -->
+            <div v-if="shipToOtherAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.name" placeholder="Họ và tên *" class="v-input" />
+              </div>
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.phone" placeholder="Điện thoại *" class="v-input" />
+              </div>
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.address" placeholder="Địa chỉ *" class="v-input" />
+              </div>
+              
+              <!-- Select Tỉnh / Thành phố Khác -->
+              <div>
+                <select 
+                  v-model="otherAddress.province" 
+                  @change="onOtherProvinceChange" 
+                  class="v-input cursor-pointer"
+                >
+                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+                  <option v-for="p in provinces" :key="p.code" :value="p.name">
+                    {{ p.name }}
+                  </option>
+                </select>
+              </div>
+              
+              <!-- Select Quận / Huyện Khác -->
+              <div>
+                <select 
+                  v-model="otherAddress.district" 
+                  class="v-input cursor-pointer"
+                  :disabled="!otherAddress.province"
+                >
+                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+                  <option v-for="d in otherDistricts" :key="d.code" :value="d.name">
+                    {{ d.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Toggle Xuất VAT -->
+            <div class="bg-gray-50 border border-gray-200 rounded px-4 py-3 flex items-center gap-3 cursor-pointer" @click="requestVAT = !requestVAT">
+              <input type="checkbox" v-model="requestVAT" class="w-4 h-4 text-blue-600 rounded border-gray-300 pointer-events-none">
+              <span class="text-sm font-medium flex-1">Yêu cầu xuất hóa đơn VAT cho công ty hoặc tổ chức</span>
+              <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+
+            <!-- Form Xuất VAT -->
+            <div v-if="requestVAT" class="grid grid-cols-1 gap-4 pt-2">
+              <input v-model="vatInfo.companyName" placeholder="Tên công ty" class="v-input" />
+              <input v-model="vatInfo.companyAddress" placeholder="Địa chỉ công ty" class="v-input" />
+              <input v-model="vatInfo.taxCode" placeholder="Mã số thuế" class="v-input" />
             </div>
           </div>
+        </div>
 
-          <div class="space-y-1 pt-2">
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Ghi chú vận chuyển hoặc thông số kỹ thuật đi kèm</label>
-            <textarea v-model="customer.note" :disabled="isProcessing" placeholder="Ví dụ: Giao trong giờ hành chính, cần CO/CQ sản phẩm..." rows="2" class="admin-input resize-none"></textarea>
+        <!-- PHƯƠNG THỨC GIAO HÀNG -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-base uppercase text-gray-800">Phương thức giao hàng</h2>
+          </div>
+          <div class="p-5 space-y-3">
+            <label class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
+                   :class="{'border-yellow-400 bg-yellow-50/30': shippingMethod === 'standard'}">
+              <input type="radio" v-model="shippingMethod" value="standard" class="mt-1 text-yellow-500 focus:ring-yellow-400">
+              <div>
+                <span class="block text-sm font-bold">Giao hàng tiêu chuẩn</span>
+                <span class="block text-xs text-gray-500 mt-1">Theo chính sách giao hàng của công ty.<br/>Xem chính sách vận chuyển</span>
+              </div>
+            </label>
+            <label class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
+                   :class="{'border-yellow-400 bg-yellow-50/30': shippingMethod === 'express'}">
+              <input type="radio" v-model="shippingMethod" value="express" class="mt-1 text-yellow-500 focus:ring-yellow-400">
+              <div>
+                <span class="block text-sm font-bold">Giao hàng nhanh</span>
+                <span class="block text-xs text-gray-500 mt-1">Giao hàng nhanh trong 1-2 ngày khi đơn hàng của Quý khách được xác nhận<br/>Xem chính sách vận chuyển</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- PHƯƠNG THỨC THANH TOÁN -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-base uppercase text-gray-800">Phương thức thanh toán</h2>
+          </div>
+          <div class="p-5 space-y-3">
+            <label class="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
+                   :class="{'border-yellow-400 bg-yellow-50/30': paymentMethod === 'cod'}">
+              <input type="radio" v-model="paymentMethod" value="cod" class="text-yellow-500 focus:ring-yellow-400">
+              <span class="text-sm font-bold">Trả trực tiếp khi nhận hàng</span>
+            </label>
+            <label class="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
+                   :class="{'border-yellow-400 bg-yellow-50/30': paymentMethod === 'transfer'}">
+              <input type="radio" v-model="paymentMethod" value="transfer" class="text-yellow-500 focus:ring-yellow-400">
+              <span class="text-sm font-bold">Thanh toán chuyển khoản</span>
+            </label>
           </div>
         </div>
       </div>
 
-      <div class="md:col-span-5 bg-slate-950 text-white p-6 sm:p-8 rounded-2xl border border-slate-900 shadow-xl flex flex-col relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-24 h-24 bg-red-600/10 rounded-full blur-2xl pointer-events-none"></div>
-        
-        <h2 class="text-lg font-black uppercase italic tracking-tight mb-5 text-red-500">Tóm tắt đơn hàng</h2>
-        
-        <div class="grow overflow-y-auto max-h-72 mb-6 space-y-3.5 pr-1 custom-scrollbar">
-          <div v-for="item in cartItems" :key="item.id" class="flex gap-3 items-center border-b border-slate-900 pb-3.5 last:border-none">
-            <img :src="item.image" class="w-11 h-11 object-cover rounded-lg border border-slate-800 bg-slate-900 shrink-0" />
-            <div class="min-w-0 grow">
-              <h4 class="text-[11px] font-black uppercase tracking-tight text-slate-200 line-clamp-1">{{ item.name }}</h4>
+      <!-- CỘT PHẢI: TÓM TẮT ĐƠN HÀNG -->
+      <div class="lg:col-span-4 sticky top-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100">
+            <h2 class="font-bold text-base uppercase text-gray-800">Thông tin giỏ hàng</h2>
+          </div>
+          
+          <div class="p-5">
+            <div class="space-y-4 mb-4 max-h-72 overflow-y-auto custom-scrollbar pr-2">
+              <div v-for="item in cartItems" :key="item.id" class="flex gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                <img :src="item.image" class="w-16 h-16 object-contain border border-gray-200 rounded bg-white p-1" />
+                <div class="flex-1">
+                  <h4 class="text-xs text-blue-600 font-medium leading-tight mb-1">{{ item.name }}</h4>
+                  <p v-if="item.appliedPromoTitle" class="text-[10px] text-gray-500 italic mb-1">Item #{{ item.id.slice(0,8) }}</p>
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="font-bold text-gray-800">{{ item.quantity }}</span>
+                    <span class="text-gray-400">x</span>
+                    <span class="font-bold text-red-600">{{ item.finalPrice.toLocaleString() }} đ</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3 pt-4 border-t border-gray-100 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Thành tiền</span>
+                <span class="font-medium">{{ cartSubtotal.toLocaleString() }} đ</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Giảm giá coupon</span>
+                <span class="font-medium">0 đ</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Giá vận chuyển:</span>
+                <span class="font-medium">{{ shippingFee === 0 ? '0 đ' : `${shippingFee.toLocaleString()} đ` }}</span>
+              </div>
               
-              <p class="text-[10px] text-slate-500 font-bold mt-0.5">
-                Mức giá: 
-                <span v-if="item.finalPrice < item.price" class="line-through text-slate-600 mr-1">
-                  {{ item.price.toLocaleString() }}đ
-                </span>
-                <span :class="item.finalPrice < item.price ? 'text-red-400' : 'text-slate-500'">
-                  {{ item.finalPrice.toLocaleString() }}đ
-                </span>
-                <span class="text-red-500 font-black ml-1">x{{ item.quantity }}</span>
-              </p>
+              <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                <span class="font-bold uppercase">Tổng cộng</span>
+                <span class="text-lg font-bold text-red-600">{{ finalTotal.toLocaleString() }} đ</span>
+              </div>
             </div>
-            
-            <div class="text-[12px] font-black text-slate-100 shrink-0 pl-2">
-              {{ item.itemTotal.toLocaleString() }}₫
-            </div>
+
+            <button 
+              @click="handleCheckout" 
+              :disabled="isProcessing"
+              class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+            >
+              <span v-if="isProcessing" class="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></span>
+              {{ isProcessing ? 'ĐANG XỬ LÝ...' : 'THANH TOÁN' }}
+            </button>
           </div>
-        </div>
-        
-        <div class="border-t border-slate-900 pt-4 space-y-2.5 text-[11px] font-bold text-slate-400">
-          <div class="flex justify-between">
-            <span>Tiền hàng tạm tính:</span>
-            <span class="text-slate-200">{{ cartSubtotal.toLocaleString() }}₫</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span>Phí giao hàng toàn quốc:</span>
-            <span v-if="isLoadingSettings" class="text-[9px] text-slate-600 animate-pulse">ĐANG TÍNH...</span>
-            <span v-else class="text-slate-200">{{ shippingFee === 0 ? 'MIỄN PHÍ' : `${shippingFee.toLocaleString()}₫` }}</span>
-          </div>
-          
-          <div class="border-t border-slate-900 pt-4 mt-2 flex justify-between items-end">
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng chi phí thanh toán</span>
-            <span class="text-2xl font-black text-red-500 tracking-tight italic">
-              {{ finalTotal.toLocaleString() }}₫
-            </span>
-          </div>
-          
-          <button 
-            @click="handleCheckout" 
-            :disabled="isProcessing" 
-            class="w-full mt-5 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md shadow-red-950/40 disabled:bg-slate-800 disabled:text-slate-600 cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span v-if="isProcessing" class="w-3 h-3 border-2 border-slate-600 border-t-white rounded-full animate-spin"></span>
-            {{ isProcessing ? 'ĐANG KHÓA & TẠO ĐƠN...' : (requestQuote ? 'ĐẶT HÀNG & NHẬN BÁO GIÁ' : 'XÁC NHẬN ĐẶT HÀNG NGAY') }}
-          </button>
         </div>
       </div>
+
     </div>
 
-    <div v-if="showPaymentQR" class="fixed inset-0 z-999999 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
-      
-      <div class="relative w-full max-w-md max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200 no-scrollbar">
-        <PaymentQR 
-          :amount="finalTotal" 
-          :orderId="newOrderId" 
-        />
-        <p v-if="requestQuote" class="mt-4 text-[11px] text-slate-500 font-medium">
-          Hệ thống đang khởi tạo file Báo Giá và sẽ gửi vào email của bạn trong ít phút tới.
-        </p>
-        <button 
-          @click="router.push('/')" 
-          class="w-full mt-5 py-3.5 bg-slate-950 hover:bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-slate-950/20"
-        >
-          Tôi đã hoàn tất chuyển khoản - Về trang chủ
+    <!-- Modals -->
+    <div v-if="showPaymentQR" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="relative w-full max-w-md bg-white rounded-xl shadow-2xl p-6 text-center">
+        <PaymentQR :amount="finalTotal" :orderId="newOrderId" />
+        <button @click="router.push('/')" class="w-full mt-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded font-bold uppercase text-sm">
+          Tôi đã hoàn tất chuyển khoản
         </button>
       </div>
     </div>
 
-    <div v-if="showSuccessModal" class="fixed inset-0 z-999999 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
-      
-      <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center animate-in fade-in zoom-in-95 duration-200">
+    <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="relative w-full max-w-sm bg-white rounded-xl shadow-2xl p-8 text-center">
         <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <svg class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h3 class="text-lg font-black uppercase text-slate-900 tracking-tight">ĐẶT HÀNG THÀNH CÔNG!</h3>
-        <p class="text-xs text-slate-500 font-medium mt-2 leading-relaxed">
-          Mã đơn hàng của bạn là: <span class="font-black text-slate-800">{{ newOrderId.slice(0,8).toUpperCase() }}</span><br/>
-          Chúng tôi sẽ sớm liên hệ để xác nhận giao hàng.
-        </p>
-        <p v-if="requestQuote" class="mt-3 p-3 bg-blue-50 rounded-lg text-[10.5px] text-blue-700 font-bold">
-          📄 Báo giá đang được tạo và sẽ gửi vào email của bạn.
-        </p>
-        <button 
-          @click="router.push('/')" 
-          class="w-full mt-6 py-3.5 bg-slate-950 hover:bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-slate-950/20"
-        >
+        <h3 class="text-lg font-bold uppercase text-gray-900">Đặt hàng thành công!</h3>
+        <p class="text-sm text-gray-600 mt-2">Mã đơn hàng: <span class="font-bold text-gray-900">{{ newOrderId.slice(0,8).toUpperCase() }}</span></p>
+        <button @click="router.push('/')" class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm">
           Tiếp tục mua sắm
         </button>
       </div>
@@ -377,25 +487,19 @@ const handleCheckout = async () => {
 <style scoped>
 @reference "../style.css";
 
-.admin-input {
-  @apply w-full mt-1 p-3.5 border border-slate-200 bg-slate-50/60 rounded-xl text-xs font-bold text-slate-800 outline-none transition-all placeholder:font-medium placeholder:text-slate-400/80;
+.v-input {
+  @apply w-full px-4 py-2.5 border border-gray-300 rounded text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 bg-white;
 }
-.admin-input:focus {
-  @apply border-slate-950 bg-white ring-4;
-  --tw-ring-color: rgba(2, 6, 23, 0.05);
-}
-.admin-input:disabled {
-  @apply bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed;
+.v-input:focus {
+  @apply border-yellow-400 ring-1 ring-yellow-400;
 }
 
-.custom-scrollbar::-webkit-scrollbar { width: 3px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 .slide-fade-enter-active { transition: all 0.3s ease-out; }
-.slide-fade-leave-active { transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1); }
+.slide-fade-leave-active { transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1); }
 .slide-fade-enter-from, .slide-fade-leave-to { transform: translateX(20px); opacity: 0; }
 </style>

@@ -32,6 +32,17 @@ exports.syncOrderToLark = onDocumentCreated({
     const orderData = snapshot.data();
     const orderId = event.params.orderId;
     
+    // Gom dữ liệu cho chuẩn với frontend đã nâng cấp
+    const customerName = orderData.customer?.name || orderData.customerName || "Khách vãng lai";
+    const phone = orderData.customer?.phone || orderData.phone || "";
+    const email = orderData.customer?.email || orderData.email || orderData.contractEmail || "";
+    const companyName = orderData.customer?.companyName || orderData.companyName || orderData.vatInfo?.companyName || "";
+    const taxCode = orderData.customer?.taxCode || orderData.taxCode || orderData.vatInfo?.taxCode || "";
+    
+    // 2 Trường địa chỉ mới thêm
+    const shippingAddress = orderData.customer?.address || orderData.shippingAddress?.address || orderData.shippingAddress || orderData.address || "";
+    const companyAddress = orderData.customer?.companyAddress || orderData.companyAddress || orderData.vatInfo?.companyAddress || "";
+
     // Config Lark
     const APP_ID = 'cli_aaadcb1242b8de15';
     const APP_SECRET = '8Q8x69CNvdvPusNRfHiB5fhGpkjfDIpl'; 
@@ -48,7 +59,9 @@ exports.syncOrderToLark = onDocumentCreated({
 
         let orderItemsStr = "";
         if (orderData.items && Array.isArray(orderData.items)) {
-            orderItemsStr = orderData.items.map(item => `- ${item.quantity || 1} x ${item.name || 'Sản phẩm'}`).join('\n');
+            orderItemsStr = orderData.items.map(item => `- ${item.quantity || 1} x ${item.name || item.productName || 'Sản phẩm'}`).join('\n');
+        } else if (orderData.productName) {
+            orderItemsStr = `- ${orderData.quantity || 1} x ${orderData.productName}`;
         }
 
         let rawPrice = orderData.totalPrice;
@@ -59,11 +72,13 @@ exports.syncOrderToLark = onDocumentCreated({
         }
 
         const payloadFields = {};
-        payloadFields["Khách hàng"] = orderData.customerName || "Ẩn danh";
-        if (orderData.phone) payloadFields["Số điện thoại"] = String(orderData.phone);
-        if (orderData.contractEmail) payloadFields["Email"] = String(orderData.contractEmail);
-        if (orderData.companyName) payloadFields["Tên công ty"] = String(orderData.companyName);
-        if (orderData.taxCode) payloadFields["Mã số thuế"] = String(orderData.taxCode);
+        payloadFields["Khách hàng"] = customerName;
+        if (phone) payloadFields["Số điện thoại"] = String(phone);
+        if (email) payloadFields["Email"] = String(email);
+        if (companyName) payloadFields["Tên công ty"] = String(companyName);
+        if (taxCode) payloadFields["Mã số thuế"] = String(taxCode);
+        if (shippingAddress) payloadFields["Địa chỉ giao hàng"] = String(shippingAddress);
+        if (companyAddress) payloadFields["Địa chỉ công ty"] = String(companyAddress);
         if (orderItemsStr) payloadFields["Chi tiết sản phẩm"] = orderItemsStr;
         if (!isNaN(finalPrice)) payloadFields["Tổng tiền"] = finalPrice;
 
@@ -74,21 +89,21 @@ exports.syncOrderToLark = onDocumentCreated({
             console.log(`✅ Luồng 1: Đã đồng bộ đơn ${orderId} lên Lark.`);
         }
     } catch (larkError) {
-        console.error("🚨 Lỗi đồng bộ Lark:", larkError.message);
+        console.error("🚨 Lỗi đồng bộ Lark:", larkError.response?.data || larkError.message);
     }
 
     // --- LUỒNG 2: TỰ ĐỘNG XUẤT BÁO GIÁ PDF & GỬI EMAIL ---
     if (orderData.requestQuote === true) {
         console.log(`🚀 Luồng 2: Phát hiện yêu cầu báo giá cho đơn ${orderId}. Tiến hành xử lý...`);
         
-        const targetEmail = orderData.contractEmail;
+        const targetEmail = email; // Sử dụng biến email đã gom ở trên
         if (!targetEmail) {
-            console.error("❌ Không tìm thấy email khách hàng (`contractEmail`) để gửi báo giá.");
+            console.error("❌ Không tìm thấy email khách hàng để gửi báo giá.");
             return;
         }
 
         try {
-            // 1. Tạo giao diện HTML cho Template Báo Giá
+            // 1. Tạo giao diện HTML cho Template Báo Giá (Bổ sung thêm Địa chỉ)
             const htmlContent = `
             <!DOCTYPE html>
             <html>
@@ -141,10 +156,15 @@ exports.syncOrderToLark = onDocumentCreated({
                     </div>
                     <div class="info-box">
                         <h3>KHÁCH HÀNG NHẬN TIN</h3>
-                        <p><strong>Khách hàng:</strong> ${orderData.customerName || "Quý khách hàng"}</p>
-                        <p><strong>Công ty:</strong> ${orderData.companyName || "N/A"}</p>
-                        <p><strong>Mã số thuế:</strong> ${orderData.taxCode || "N/A"}</p>
-                        <p><strong>Số điện thoại:</strong> ${orderData.phone || "N/A"}</p>
+                        <p><strong>Khách hàng:</strong> ${customerName}</p>
+                        <p><strong>Số điện thoại:</strong> ${phone || "N/A"}</p>
+                        ${shippingAddress ? `<p><strong>Địa chỉ giao:</strong> ${shippingAddress}</p>` : ''}
+                        
+                        ${companyName ? `<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 5px;">
+                            <p><strong>Công ty:</strong> ${companyName}</p>
+                            <p><strong>Mã số thuế:</strong> ${taxCode || "N/A"}</p>
+                            ${companyAddress ? `<p><strong>Địa chỉ Cty:</strong> ${companyAddress}</p>` : ''}
+                        </div>` : ''}
                     </div>
                 </div>
 
@@ -159,16 +179,18 @@ exports.syncOrderToLark = onDocumentCreated({
                         </tr>
                     </thead>
                     <tbody>
-                        ${(orderData.items || []).map((item, index) => {
-                            const price = parseInt(item.price, 10) || 0;
+                        ${(orderData.items || (orderData.productName ? [orderData] : [])).map((item, index) => {
+                            const price = parseInt(item.price || item.totalPrice, 10) || 0;
                             const qty = parseInt(item.quantity, 10) || 1;
+                            const unitPrice = item.price ? price : (price / qty); // Tính đơn giá nếu dạng đơn lẻ
+                            
                             return `
                             <tr>
                                 <td>${index + 1}</td>
-                                <td><strong>${item.name || 'Sản phẩm công nghiệp'}</strong></td>
+                                <td><strong>${item.name || item.productName || 'Sản phẩm công nghiệp'}</strong></td>
                                 <td style="text-align: center;">${qty}</td>
-                                <td class="text-right">${price.toLocaleString('vi-VN')}</td>
-                                <td class="text-right">${(price * qty).toLocaleString('vi-VN')}</td>
+                                <td class="text-right">${unitPrice.toLocaleString('vi-VN')}</td>
+                                <td class="text-right">${(unitPrice * qty).toLocaleString('vi-VN')}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
@@ -177,7 +199,7 @@ exports.syncOrderToLark = onDocumentCreated({
                 <div class="total-section">
                     <div class="total-row">
                         <span>Giá trị hàng hóa:</span>
-                        <span>${(parseInt(orderData.subtotal, 10) || 0).toLocaleString('vi-VN')} đ</span>
+                        <span>${(parseInt(orderData.subtotal, 10) || parseInt(orderData.totalPrice, 10) || 0).toLocaleString('vi-VN')} đ</span>
                     </div>
                     <div class="total-row">
                         <span>Phí vận chuyển:</span>
@@ -217,7 +239,6 @@ exports.syncOrderToLark = onDocumentCreated({
                 ignoreHTTPSErrors: true,
             });
             
-            // CHỖ SỬA QUAN TRỌNG: Đổi từ browser.page() thành browser.newPage() đúng chuẩn thư viện
             const page = await browser.newPage(); 
             await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
             
@@ -235,7 +256,7 @@ exports.syncOrderToLark = onDocumentCreated({
                 to: targetEmail,
                 subject: `[SPIT VIET-NAM] Báo giá đơn hàng thương mại #${orderId.substring(0, 8).toUpperCase()}`,
                 html: `
-                    <p>Kính gửi quý khách hàng <strong>${orderData.customerName || ""}</strong>,</p>
+                    <p>Kính gửi quý khách hàng <strong>${customerName}</strong>,</p>
                     <p>Lời đầu tiên, Sài Gòn Precision Industrial Tool Co. (SPIT) xin chân thành cảm ơn quý công ty đã quan tâm đến hệ thống sản phẩm thiết bị công nghiệp phụ trợ chính xác của chúng tôi.</p>
                     <p>Hệ thống tự động đã ghi nhận yêu cầu lập báo giá từ tài khoản của quý khách cho đơn hàng mã <strong>#${orderId}</strong>.</p>
                     <p>Chi tiết bảng báo giá thương mại chính thức (có đóng dấu mộc công ty) đã được đính kèm dưới dạng file <strong>PDF</strong> trong email này. Quý khách vui lòng tải về để kiểm tra quy cách kỹ thuật và làm thủ tục duyệt mua hàng.</p>

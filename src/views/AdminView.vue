@@ -40,69 +40,45 @@ const brandName = ref('')
 const brandLogoUrl = ref('')
 const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn từ máy
 const brandDescription = ref('')
-const brandLink = ref('') // <-- [THÊM MỚI] Biến lưu đường link website của hãng
+const brandLink = ref('')       // <-- [THÊM MỚI] Biến lưu đường link website của hãng
 const editingBrandId = ref(null)
 
 // --- [ĐỒNG BỘ] BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
 const categories = ref([])
 const categoryId = ref('') // Lưu ID document của Category để đồng bộ
 
-onMounted(() => {
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      isAuthenticated.value = true
-      fetchProducts()
-      fetchBrands()
-      fetchCategories() // Tải danh sách danh mục khi vào Admin
-      fetchActivePromotions() 
-    } else {
-      isAuthenticated.value = false
-    }
-    isInitialLoading.value = false
-  })
-})
-
-const handleLogin = async () => {
-  if (!passwordInput.value) return
-  try {
-    loginError.value = false; isSubmitting.value = true
-    await setPersistence(auth, browserSessionPersistence)
-    await signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
-    router.push('/admin/dashboard')
-    passwordInput.value = ''
-  } catch (error) {
-    loginError.value = true
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-const handleLogout = async () => {
-  await signOut(auth)
-  router.push('/')
-}
-
+// --- QUẢN LÝ SẢN PHẨM ---
 const products = ref([])
 const editingId = ref(null)
 
-const name_vi = ref(''); const name_en = ref('');
-const category_vi = ref(''); const category_en = ref('');
-const description_vi = ref(''); const description_en = ref('');
-const gift_vi = ref(''); const gift_en = ref('');
+const name_vi = ref('')
+const name_en = ref('')
+const category_vi = ref('')
+const category_en = ref('')
+const description_vi = ref('')
+const description_en = ref('')
+const specifications_vi = ref('') // [THÊM MỚI] Khai báo biến thông số kỹ thuật
+const specifications_en = ref('') // [THÊM MỚI] Khai báo biến thông số kỹ thuật
+const gift_vi = ref('')
+const gift_en = ref('')
 
-const brand = ref(''); 
-const brandId = ref(''); // Lưu ID document của Brand để đồng bộ truy vấn
-const price = ref(0); const stock = ref(0);
-const image = ref('');
-const imageFile = ref(null);
+const brand = ref('')
+const brandId = ref('') // Lưu ID document của Brand để đồng bộ truy vấn
+const price = ref(0)
+const stock = ref(0)
+const image = ref('')
+const imageFile = ref(null)
 
 // NÂNG CẤP: Thêm biến reactive lưu trữ Link sản phẩm tùy biến cấu hình từ Admin
 const custom_url = ref('')
 
+// [UPDATE TẠI ĐÂY]: Thêm biến reactive lưu trữ Link Catalog mượt mà
+const catalog_link = ref('')
+
 // --- [THÊM MỚI] BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
 const selectedTags = ref([]) // Mảng lưu các ô tick của người dùng
 
-// 1. Data Chuẩn của mày
+// 1. Data Chuẩn của bạn
 const categoryTagsMap = {
   'DAO PHAY': [
     'Phá thô / Chịu tải nặng',
@@ -156,6 +132,42 @@ const availableTags = computed(() => {
 })
 // -----------------------------------------------------------
 
+onMounted(() => {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      isAuthenticated.value = true
+      fetchProducts()
+      fetchBrands()
+      fetchCategories() // Tải danh sách danh mục khi vào Admin
+      fetchActivePromotions() 
+    } else {
+      isAuthenticated.value = false
+    }
+    isInitialLoading.value = false
+  })
+})
+
+const handleLogin = async () => {
+  if (!passwordInput.value) return
+  try {
+    loginError.value = false
+    isSubmitting.value = true
+    await setPersistence(auth, browserSessionPersistence)
+    await signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
+    router.push('/admin/dashboard')
+    passwordInput.value = ''
+  } catch (error) {
+    loginError.value = true
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const handleLogout = async () => {
+  await signOut(auth)
+  router.push('/')
+}
+
 // --- HÀM LẤY DANH SÁCH DANH MỤC ---
 const fetchCategories = async () => {
   try {
@@ -189,7 +201,9 @@ const handleCategorySelectChange = () => {
 const fetchBrands = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "brands"))
-    brands.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    brands.value = querySnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   } catch (e) {
     console.error("Lỗi lấy danh sách hãng:", e)
   }
@@ -302,7 +316,9 @@ const fetchProducts = async () => {
 
 // --- THAO TÁC SUBMIT SẢN PHẨM ---
 const handleSubmit = async () => {
-  if (!name_vi.value || !brandId.value || !categoryId.value || !price.value) return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Danh mục, Giá bán)!")
+  if (!name_vi.value || !brandId.value || !categoryId.value || !price.value) {
+    return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Danh mục, Giá bán)!")
+  }
   
   try {
     isSubmitting.value = true
@@ -317,6 +333,8 @@ const handleSubmit = async () => {
       category_en: category_en.value || category_vi.value,
       description_vi: description_vi.value,
       description_en: description_en.value || description_vi.value,
+      specifications_vi: specifications_vi.value, // [THÊM MỚI] Đẩy data Thông số lên Firebase
+      specifications_en: specifications_en.value || specifications_vi.value, // [THÊM MỚI] 
       gift_vi: gift_vi.value || '',
       gift_en: gift_en.value || '',
       brand: brand.value,
@@ -326,6 +344,7 @@ const handleSubmit = async () => {
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
       custom_url: custom_url.value.trim(), // ĐỒNG BỘ BACKEND: Lưu link cấu hình tay vào Firestore
+      catalog_link: catalog_link.value.trim(), // [UPDATE TẠI ĐÂY]: Lưu dữ liệu ô Link Catalog
       tags: selectedTags.value, // --- [THÊM MỚI] LƯU MẢNG TAGS LÊN FIREBASE ---
       updatedAt: serverTimestamp()
     }
@@ -343,7 +362,9 @@ const handleSubmit = async () => {
     } else {
       await addDoc(collection(db, "products"), { ...data, createdAt: serverTimestamp() })
     }
-    resetForm(); fetchProducts()
+    
+    resetForm()
+    fetchProducts()
     alert("Cập nhật hàng hóa thành công!")
   } catch (e) { 
     alert("Lỗi kết nối Firebase khi lưu sản phẩm!") 
@@ -393,7 +414,10 @@ const handleBrandSubmit = async () => {
       await addDoc(collection(db, "brands"), { ...brandData, createdAt: serverTimestamp() })
       alert(`Đã thêm mới thương hiệu ${brandName.value} thành công!`)
     }
-    resetBrandForm(); fetchBrands(); fetchProducts(); 
+    
+    resetBrandForm()
+    fetchBrands()
+    fetchProducts() 
   } catch (e) {
     alert("Lỗi kết nối Firebase khi lưu thương hiệu!")
   } finally {
@@ -402,31 +426,38 @@ const handleBrandSubmit = async () => {
 }
 
 const startEdit = (p) => {
-  editingId.value = p.id;
-  name_vi.value = p.name_vi || p.name || '';
-  name_en.value = p.name_en || '';
+  editingId.value = p.id
+  name_vi.value = p.name_vi || p.name || ''
+  name_en.value = p.name_en || ''
   
   // Tự động fill categoryId nếu đã lưu, nếu bản ghi cũ chưa lưu thì map ngược từ tên category_vi
-  categoryId.value = p.categoryId || categories.value.find(c => c.name_vi === (p.category_vi || p.category))?.id || '';
-  category_vi.value = p.category_vi || p.category || '';
-  category_en.value = p.category_en || '';
+  categoryId.value = p.categoryId || categories.value.find(c => c.name_vi === (p.category_vi || p.category))?.id || ''
+  category_vi.value = p.category_vi || p.category || ''
+  category_en.value = p.category_en || ''
   
-  description_vi.value = p.description_vi || p.description || '';
-  description_en.value = p.description_en || '';
-  gift_vi.value = p.gift_vi || '';
-  gift_en.value = p.gift_en || '';
-  brandId.value = p.brandId || brands.value.find(b => b.name === p.brand)?.id || '';
-  brand.value = p.brand || '';
-  price.value = p.price || 0;
-  stock.value = p.stock || 0;
-  image.value = p.image || '';
-  imageFile.value = null;
+  description_vi.value = p.description_vi || p.description || ''
+  description_en.value = p.description_en || ''
+  
+  specifications_vi.value = p.specifications_vi || '' // [THÊM MỚI] Load lại thông số khi sửa
+  specifications_en.value = p.specifications_en || '' // [THÊM MỚI] Load lại thông số khi sửa
+  
+  gift_vi.value = p.gift_vi || ''
+  gift_en.value = p.gift_en || ''
+  brandId.value = p.brandId || brands.value.find(b => b.name === p.brand)?.id || ''
+  brand.value = p.brand || ''
+  price.value = p.price || 0
+  stock.value = p.stock || 0
+  image.value = p.image || ''
+  imageFile.value = null
 
   // ĐỒNG BỘ BACKEND: Đổ dữ liệu link sản phẩm cũ ra ô input khi nhấn Edit
-  custom_url.value = p.custom_url || '';
+  custom_url.value = p.custom_url || ''
+  
+  // [UPDATE TẠI ĐÂY]: Đổ dữ liệu Link Catalog cũ ra ô input (nếu có)
+  catalog_link.value = p.catalog_link || ''
 
   // --- [THÊM MỚI] Load lại các tags (nhu cầu) người dùng đã tick nếu có ---
-  selectedTags.value = p.tags ? [...p.tags] : [];
+  selectedTags.value = p.tags ? [...p.tags] : []
 
   subImages.value = p.sub_images ? [...p.sub_images] : []
   subImageFiles.value = p.sub_images ? new Array(p.sub_images.length).fill(null) : []
@@ -454,7 +485,7 @@ const startEditBrand = (b) => {
 
 const confirmDelete = async (id, pName) => {
   if (confirm(`Xóa ${pName}?`)) { 
-    await deleteDoc(doc(db, "products", id)); 
+    await deleteDoc(doc(db, "products", id))
     fetchProducts() 
   }
 }
@@ -462,25 +493,41 @@ const confirmDelete = async (id, pName) => {
 const confirmDeleteBrand = async (id, bName) => {
   if (confirm(`Bạn chắc chắn muốn xóa vĩnh viễn nhãn hàng "${bName}"?\nHành động này có thể làm ảnh hưởng đến các sản phẩm đang liên kết thuộc nhãn hàng này.`)) {
     await deleteDoc(doc(db, "brands", id))
-    resetBrandForm(); fetchBrands(); fetchProducts();
+    resetBrandForm()
+    fetchBrands()
+    fetchProducts()
   }
 }
 
 const resetForm = () => {
-  editingId.value = null;
-  name_vi.value = ''; name_en.value = '';
-  categoryId.value = ''; // Reset ID Danh mục
-  category_vi.value = ''; category_en.value = '';
-  description_vi.value = ''; description_en.value = '';
-  gift_vi.value = ''; gift_en.value = '';
-  brandId.value = ''; brand.value = ''; 
-  price.value = 0; stock.value = 0; image.value = '';
-  imageFile.value = null;
-  hasPromotion.value = false; promotionValue.value = '';
-  custom_url.value = ''; // ĐỒNG BỘ BACKEND: Làm sạch input link sản phẩm khi reset form
+  editingId.value = null
+  name_vi.value = ''
+  name_en.value = ''
+  categoryId.value = '' // Reset ID Danh mục
+  category_vi.value = ''
+  category_en.value = ''
+  
+  description_vi.value = ''
+  description_en.value = ''
+  specifications_vi.value = '' // [THÊM MỚI] Clear form thông số
+  specifications_en.value = '' // [THÊM MỚI] Clear form thông số
+  
+  gift_vi.value = ''
+  gift_en.value = ''
+  brandId.value = ''
+  brand.value = '' 
+  price.value = 0
+  stock.value = 0
+  image.value = ''
+  imageFile.value = null
+  
+  hasPromotion.value = false
+  promotionValue.value = ''
+  custom_url.value = '' // ĐỒNG BỘ BACKEND: Làm sạch input link sản phẩm khi reset form
+  catalog_link.value = '' // [UPDATE TẠI ĐÂY]: Làm sạch ô Link Catalog
   
   // --- [THÊM MỚI] Làm sạch mảng tags ---
-  selectedTags.value = [];
+  selectedTags.value = []
   
   subImages.value = []
   subImageFiles.value = []
@@ -661,10 +708,16 @@ const resetBrandForm = () => {
                     <input v-model="custom_url" placeholder="Ví dụ: https://shopee.vn/san-pham-abc..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
                   </div>
 
+                  <!-- [UPDATE TẠI ĐÂY]: Giao diện ô nhập Link Catalog -->
+                  <div class="space-y-1">
+                    <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Link Catalog / Tài liệu kỹ thuật (PDF, Drive... nếu có)</label>
+                    <input v-model="catalog_link" placeholder="Ví dụ: https://drive.google.com/file/d/..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
+                  </div>
+
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
 
                   <div class="space-y-4">
-                    <!-- Ô soạn thảo Tiếng Việt -->
+                    <!-- Ô soạn thảo Tiếng Việt (Mô tả) -->
                     <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
                       <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
                         Mô tả chi tiết (VI)
@@ -678,7 +731,7 @@ const resetBrandForm = () => {
                       />
                     </div>
 
-                    <!-- Ô soạn thảo Tiếng Anh -->
+                    <!-- Ô soạn thảo Tiếng Anh (Mô tả) -->
                     <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
                       <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
                         Technical Description (EN)
@@ -688,6 +741,34 @@ const resetBrandForm = () => {
                         contentType="html" 
                         theme="snow" 
                         placeholder="Write detailed technical description and insert images here..." 
+                        class="min-h-62.5 bg-white/80 text-sm italic"
+                      />
+                    </div>
+
+                    <!-- [THÊM MỚI] Ô soạn thảo Thông số Tiếng Việt -->
+                    <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
+                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
+                        Thông số kỹ thuật (VI)
+                      </div>
+                      <QuillEditor 
+                        v-model:content="specifications_vi" 
+                        contentType="html" 
+                        theme="snow" 
+                        placeholder="Nhập thông số kỹ thuật, bảng dữ liệu bằng tiếng Việt tại đây..." 
+                        class="min-h-62.5 bg-white text-sm"
+                      />
+                    </div>
+
+                    <!-- [THÊM MỚI] Ô soạn thảo Thông số Tiếng Anh -->
+                    <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
+                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
+                        Technical Specifications (EN)
+                      </div>
+                      <QuillEditor 
+                        v-model:content="specifications_en" 
+                        contentType="html" 
+                        theme="snow" 
+                        placeholder="Enter detailed technical specifications here..." 
                         class="min-h-62.5 bg-white/80 text-sm italic"
                       />
                     </div>
