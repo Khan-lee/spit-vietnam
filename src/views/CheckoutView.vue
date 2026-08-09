@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase'
 import { collection, addDoc, doc, getDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
@@ -10,7 +10,7 @@ const router = useRouter()
 const rawCartItems = ref([])
 const promotions = ref([]) 
 
-const shippingFee = ref(0) 
+const baseShippingFee = ref(0) // Lưu phí ship gốc từ Firebase
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
@@ -84,6 +84,26 @@ const onOtherProvinceChange = () => {
   otherAddress.value.district = '' // Reset lại quận/huyện
 }
 
+// Logic giới hạn Giao hàng nhanh chỉ ở TP.HCM
+const isExpressAvailable = computed(() => {
+  const currentProvince = shipToOtherAddress.value ? otherAddress.value.province : customer.value.province;
+  return currentProvince === 'Thành phố Hồ Chí Minh';
+})
+
+// Tự động chuyển về giao hàng tiêu chuẩn nếu đổi tỉnh khác ngoài TP.HCM
+watch(isExpressAvailable, (available) => {
+  if (!available && shippingMethod.value === 'express') {
+    shippingMethod.value = 'standard'
+  }
+})
+
+// Tự động tính phí ship: Nếu chọn Giao hàng nhanh thì +100k
+const shippingFee = computed(() => {
+  return shippingMethod.value === 'express' 
+    ? baseShippingFee.value + 100000 
+    : baseShippingFee.value
+})
+
 const fetchActivePromotions = async () => {
   try {
     const now = new Date().getTime()
@@ -137,7 +157,7 @@ const cartItems = computed(() => {
 })
 
 const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
-// Tổng tiền (có thể cộng phí ship hoặc update logic phí ship theo shippingMethod sau)
+// Tổng tiền (đã tự động tính gộp cả phí ship nếu có +100k)
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
 onMounted(async () => {
@@ -149,7 +169,8 @@ onMounted(async () => {
     const settingsRef = doc(db, "settings", "website")
     const settingsSnap = await getDoc(settingsRef)
     if (settingsSnap.exists()) {
-      shippingFee.value = settingsSnap.data().shippingFee || 0
+      // Lưu vào phí ship gốc thay vì gán trực tiếp
+      baseShippingFee.value = settingsSnap.data().shippingFee || 0
     }
   } catch (e) {
     console.error("Lỗi khi tải phí vận chuyển:", e)
@@ -185,7 +206,7 @@ const handleCheckout = async () => {
       paymentMethod: paymentMethod.value,
       items: cartItems.value,
       subtotal: cartSubtotal.value,
-      shippingFee: shippingFee.value, 
+      shippingFee: shippingFee.value,  
       totalPrice: finalTotal.value,  
       status: 'pending',
       createdAt: serverTimestamp()
@@ -368,11 +389,16 @@ const handleCheckout = async () => {
                 <span class="block text-xs text-gray-500 mt-1">Theo chính sách giao hàng của công ty.<br/>Xem chính sách vận chuyển</span>
               </div>
             </label>
-            <label class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
+            <!-- GIAO HÀNG NHANH CÓ HIỂN THỊ +100.000đ -->
+            <label v-if="isExpressAvailable" 
+                   class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
                    :class="{'border-yellow-400 bg-yellow-50/30': shippingMethod === 'express'}">
               <input type="radio" v-model="shippingMethod" value="express" class="mt-1 text-yellow-500 focus:ring-yellow-400">
-              <div>
-                <span class="block text-sm font-bold">Giao hàng nhanh</span>
+              <div class="flex-1">
+                <div class="flex justify-between items-center">
+                   <span class="block text-sm font-bold">Giao hàng nhanh</span>
+                   <span class="text-sm font-bold text-red-600">+100.000 đ</span>
+                </div>
                 <span class="block text-xs text-gray-500 mt-1">Giao hàng nhanh trong 1-2 ngày khi đơn hàng của Quý khách được xác nhận<br/>Xem chính sách vận chuyển</span>
               </div>
             </label>
