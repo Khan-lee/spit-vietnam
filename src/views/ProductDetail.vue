@@ -252,7 +252,7 @@ onMounted(async () => {
                 <span class="w-3 h-8 bg-red-600 rounded-full"></span>
                 <div>
                   <h3 class="font-black text-white text-base sm:text-xl uppercase tracking-wider">
-                    ⚡ BẢNG BÀN CÂN THÔNG SỐ KỸ THUẬT
+                    BẢNG SO SÁNH THÔNG SỐ KỸ THUẬT
                   </h3>
                   <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     So sánh chi tiết đặc tính kỹ thuật sản phẩm cơ khí
