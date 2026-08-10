@@ -53,6 +53,12 @@ const promotionType = ref('percentage')
 const promotionValue = ref('')
 const activePromotions = ref([]) 
 
+// --- [BỔ SUNG MỚI] BIẾN QUẢN LÝ QUY CÁCH & BÁN HÀNG ---
+// sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp)
+const sales_type = ref('flexible') 
+const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh
+const box_discount_percent = ref(14) // Mặc định giảm 14% khi mua nguyên hộp
+
 // --- BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
 const subImages = ref([])       // Lưu các chuỗi URL (ảnh đã có trên server hoặc link ngoài)
 const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy tính để chuẩn bị upload
@@ -63,7 +69,7 @@ const brandName = ref('')
 const brandLogoUrl = ref('')
 const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn từ máy
 const brandDescription = ref('')
-const brandLink = ref('')       // <-- [THÊM MỚI] Biến lưu đường link website của hãng
+const brandLink = ref('')       // Biến lưu đường link website của hãng
 const editingBrandId = ref(null)
 
 // --- [ĐỒNG BỘ] BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
@@ -80,28 +86,24 @@ const category_vi = ref('')
 const category_en = ref('')
 const description_vi = ref('')
 const description_en = ref('')
-const specifications_vi = ref('') // [THÊM MỚI] Khai báo biến thông số kỹ thuật
-const specifications_en = ref('') // [THÊM MỚI] Khai báo biến thông số kỹ thuật
+const specifications_vi = ref('') 
+const specifications_en = ref('') 
 const gift_vi = ref('')
 const gift_en = ref('')
 
 const brand = ref('')
-const brandId = ref('') // Lưu ID document của Brand để đồng bộ truy vấn
+const brandId = ref('') 
 const price = ref(0)
 const stock = ref(0)
 const image = ref('')
 const imageFile = ref(null)
 
-// NÂNG CẤP: Thêm biến reactive lưu trữ Link sản phẩm tùy biến cấu hình từ Admin
 const custom_url = ref('')
-
-// [UPDATE TẠI ĐÂY]: Thêm biến reactive lưu trữ Link Catalog mượt mà
 const catalog_link = ref('')
 
-// --- [THÊM MỚI] BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
-const selectedTags = ref([]) // Mảng lưu các ô tick của người dùng
+// --- BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
+const selectedTags = ref([]) 
 
-// 1. Data Chuẩn của bạn
 const categoryTagsMap = {
   'DAO PHAY': [
     'Phá thô / Chịu tải nặng',
@@ -142,10 +144,8 @@ const categoryTagsMap = {
 const availableTags = computed(() => {
   if (!category_vi.value) return []
   
-  // Chuyển tên category thành chữ HOA để quét chuỗi cho bao quát
   const upperCat = String(category_vi.value).toUpperCase()
   
-  // Mapping thông minh tự bung Checkbox
   if (upperCat.includes('DAO PHAY')) return categoryTagsMap['DAO PHAY']
   if (upperCat.includes('DAO TIỆN')) return categoryTagsMap['DAO TIỆN']
   if (upperCat.includes('KHOAN') || upperCat.includes('TARO')) return categoryTagsMap['MŨI KHOAN & MŨI TARO']
@@ -153,7 +153,6 @@ const availableTags = computed(() => {
   
   return []
 })
-// -----------------------------------------------------------
 
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
@@ -161,7 +160,7 @@ onMounted(() => {
       isAuthenticated.value = true
       fetchProducts()
       fetchBrands()
-      fetchCategories() // Tải danh sách danh mục khi vào Admin
+      fetchCategories() 
       fetchActivePromotions() 
     } else {
       isAuthenticated.value = false
@@ -191,11 +190,9 @@ const handleLogout = async () => {
   router.push('/')
 }
 
-// --- HÀM LẤY DANH SÁCH DANH MỤC ---
 const fetchCategories = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "categories"))
-    // Lấy danh mục đang active và sắp xếp theo số thứ tự order
     categories.value = querySnapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter(c => c.isActive === true)
@@ -205,7 +202,6 @@ const fetchCategories = async () => {
   }
 }
 
-// Tự động gán tên danh mục (VI & EN) dựa trên ID được chọn ở dropdown
 const handleCategorySelectChange = () => {
   const selected = categories.value.find(c => c.id === categoryId.value)
   if (selected) {
@@ -215,12 +211,9 @@ const handleCategorySelectChange = () => {
     category_vi.value = ''
     category_en.value = ''
   }
-  
-  // [THÊM MỚI] Xóa trắng các lựa chọn tags khi đổi danh mục để tránh rác data
   selectedTags.value = []
 }
 
-// --- HÀM LẤY DANH SÁCH NHÃN HÀNG ---
 const fetchBrands = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "brands"))
@@ -232,7 +225,6 @@ const fetchBrands = async () => {
   }
 }
 
-// Tự động gán trường tên hãng (brand) dựa trên ID hãng được chọn ở dropdown
 const handleBrandSelectChange = () => {
   const selected = brands.value.find(b => b.id === brandId.value)
   if (selected) {
@@ -279,7 +271,6 @@ const filteredProducts = computed(() => {
   )
 })
 
-// Bộ lọc tìm kiếm thời gian thực cho danh sách nhãn hàng
 const filteredBrands = computed(() => {
   return brands.value.filter(b => 
     b.name?.toLowerCase().includes(brandSearchQuery.value.toLowerCase())
@@ -294,7 +285,6 @@ const onFileChange = (e) => {
   }
 }
 
-// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadImage = async () => {
   if (!imageFile.value) return image.value
   return await uploadToCloudinary(imageFile.value)
@@ -313,7 +303,6 @@ const removeSubImage = (index) => {
   subImageFiles.value.splice(index, 1)
 }
 
-// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadSubImages = async () => {
   const uploadedUrls = []
   for (let i = 0; i < subImages.value.length; i++) {
@@ -349,24 +338,30 @@ const handleSubmit = async () => {
     const data = {
       name_vi: name_vi.value,
       name_en: name_en.value || name_vi.value,
-      categoryId: categoryId.value, // ĐỒNG BỘ BACKEND: Lưu ID danh mục
+      categoryId: categoryId.value,
       category_vi: category_vi.value,
       category_en: category_en.value || category_vi.value,
       description_vi: description_vi.value,
       description_en: description_en.value || description_vi.value,
-      specifications_vi: specifications_vi.value, // [THÊM MỚI] Đẩy data Thông số lên Firebase
-      specifications_en: specifications_en.value || specifications_vi.value, // [THÊM MỚI] 
+      specifications_vi: specifications_vi.value, 
+      specifications_en: specifications_en.value || specifications_vi.value, 
       gift_vi: gift_vi.value || '',
       gift_en: gift_en.value || '',
       brand: brand.value,
-      brandId: brandId.value, // Lưu trữ phục vụ lọc On-page SEO
+      brandId: brandId.value, 
       price: Number(price.value),
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
-      custom_url: custom_url.value.trim(), // ĐỒNG BỘ BACKEND: Lưu link cấu hình tay vào Firestore
-      catalog_link: catalog_link.value.trim(), // [UPDATE TẠI ĐÂY]: Lưu dữ liệu ô Link Catalog
-      tags: selectedTags.value, // --- [THÊM MỚI] LƯU MẢNG TAGS LÊN FIREBASE ---
+      custom_url: custom_url.value.trim(), 
+      catalog_link: catalog_link.value.trim(), 
+      tags: selectedTags.value,
+      
+      // --- [BỔ SUNG MỚI] LƯU QUY CÁCH BÁN HÀNG VÀO FIREBASE ---
+      sales_type: sales_type.value || 'flexible',
+      box_qty: Number(box_qty.value) || 10,
+      box_discount_percent: Number(box_discount_percent.value) || 0,
+      
       updatedAt: serverTimestamp()
     }
 
@@ -395,7 +390,6 @@ const handleSubmit = async () => {
   }
 }
 
-// --- LOGIC TẢI ẢNH LOGO NHÃN HÀNG LÊN CLOUDINARY ---
 const onBrandLogoChange = (e) => {
   const file = e.target.files[0]
   if (file) {
@@ -404,13 +398,11 @@ const onBrandLogoChange = (e) => {
   }
 }
 
-// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadBrandLogo = async () => {
   if (!brandLogoFile.value) return brandLogoUrl.value 
   return await uploadToCloudinary(brandLogoFile.value)
 }
 
-// --- THAO TÁC SUBMIT NHÃN HÀNG (BRANDS CRU) ---
 const handleBrandSubmit = async () => {
   if (!brandName.value.trim() || (!brandLogoFile.value && !brandLogoUrl.value.trim()) || !brandDescription.value.trim()) {
     return alert("Vui lòng điền đủ thông tin nhãn hàng và cập nhật logo!")
@@ -424,7 +416,7 @@ const handleBrandSubmit = async () => {
       name: brandName.value.trim(),
       logoUrl: finalLogoUrl,
       description: brandDescription.value.trim(),
-      link: brandLink.value.trim(), // <-- [THÊM MỚI] Lưu thêm trường link vào Firestore
+      link: brandLink.value.trim(),
       updatedAt: serverTimestamp()
     }
 
@@ -452,7 +444,6 @@ const startEdit = (p) => {
   name_vi.value = p.name_vi || p.name || ''
   name_en.value = p.name_en || ''
   
-  // Tự động fill categoryId nếu đã lưu, nếu bản ghi cũ chưa lưu thì map ngược từ tên category_vi
   categoryId.value = p.categoryId || categories.value.find(c => c.name_vi === (p.category_vi || p.category))?.id || ''
   category_vi.value = p.category_vi || p.category || ''
   category_en.value = p.category_en || ''
@@ -460,8 +451,8 @@ const startEdit = (p) => {
   description_vi.value = p.description_vi || p.description || ''
   description_en.value = p.description_en || ''
   
-  specifications_vi.value = p.specifications_vi || '' // [THÊM MỚI] Load lại thông số khi sửa
-  specifications_en.value = p.specifications_en || '' // [THÊM MỚI] Load lại thông số khi sửa
+  specifications_vi.value = p.specifications_vi || '' 
+  specifications_en.value = p.specifications_en || '' 
   
   gift_vi.value = p.gift_vi || ''
   gift_en.value = p.gift_en || ''
@@ -472,13 +463,14 @@ const startEdit = (p) => {
   image.value = p.image || ''
   imageFile.value = null
 
-  // ĐỒNG BỘ BACKEND: Đổ dữ liệu link sản phẩm cũ ra ô input khi nhấn Edit
   custom_url.value = p.custom_url || ''
-  
-  // [UPDATE TẠI ĐÂY]: Đổ dữ liệu Link Catalog cũ ra ô input (nếu có)
   catalog_link.value = p.catalog_link || ''
 
-  // --- [THÊM MỚI] Load lại các tags (nhu cầu) người dùng đã tick nếu có ---
+  // --- [BỔ SUNG MỚI] LOAD QUY CÁCH BÁN HÀNG CŨ KHI SỬA SẢN PHẨM ---
+  sales_type.value = p.sales_type || 'flexible'
+  box_qty.value = p.box_qty !== undefined ? p.box_qty : 10
+  box_discount_percent.value = p.box_discount_percent !== undefined ? p.box_discount_percent : 14
+
   selectedTags.value = p.tags ? [...p.tags] : []
 
   subImages.value = p.sub_images ? [...p.sub_images] : []
@@ -501,7 +493,7 @@ const startEditBrand = (b) => {
   brandLogoUrl.value = b.logoUrl
   brandLogoFile.value = null 
   brandDescription.value = b.description
-  brandLink.value = b.link || '' // <-- [THÊM MỚI] Đổ dữ liệu link cũ ra để sửa nếu có
+  brandLink.value = b.link || '' 
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -525,14 +517,14 @@ const resetForm = () => {
   editingId.value = null
   name_vi.value = ''
   name_en.value = ''
-  categoryId.value = '' // Reset ID Danh mục
+  categoryId.value = '' 
   category_vi.value = ''
   category_en.value = ''
   
   description_vi.value = ''
   description_en.value = ''
-  specifications_vi.value = '' // [THÊM MỚI] Clear form thông số
-  specifications_en.value = '' // [THÊM MỚI] Clear form thông số
+  specifications_vi.value = '' 
+  specifications_en.value = '' 
   
   gift_vi.value = ''
   gift_en.value = ''
@@ -545,10 +537,14 @@ const resetForm = () => {
   
   hasPromotion.value = false
   promotionValue.value = ''
-  custom_url.value = '' // ĐỒNG BỘ BACKEND: Làm sạch input link sản phẩm khi reset form
-  catalog_link.value = '' // [UPDATE TẠI ĐÂY]: Làm sạch ô Link Catalog
+  custom_url.value = '' 
+  catalog_link.value = '' 
   
-  // --- [THÊM MỚI] Làm sạch mảng tags ---
+  // --- [BỔ SUNG MỚI] RESET VỀ MẶC ĐỊNH ---
+  sales_type.value = 'flexible'
+  box_qty.value = 10
+  box_discount_percent.value = 14
+
   selectedTags.value = []
   
   subImages.value = []
@@ -561,7 +557,7 @@ const resetBrandForm = () => {
   brandLogoUrl.value = ''
   brandLogoFile.value = null
   brandDescription.value = ''
-  brandLink.value = '' // <-- [THÊM MỚI] Reset lại link khi hủy hoặc thêm thành công
+  brandLink.value = '' 
 }
 </script>
 
@@ -958,6 +954,9 @@ const resetBrandForm = () => {
                       <img :src="b.logoUrl" class="w-12 h-12 rounded-xl object-contain bg-white border border-slate-100 p-1 shadow-sm" />
                       <div>
                         <div class="text-sm font-black text-slate-800 uppercase tracking-wider">{{ b.name }}</div>
+                        <a v-if="b.link" :href="b.link" target="_blank" class="text-[10px] text-blue-500 hover:underline font-medium block mt-0.5 truncate max-w-xs">
+                          {{ b.link }}
+                        </a>
                       </div>
                     </td>
                     <td class="p-5 text-right">
@@ -965,14 +964,14 @@ const resetBrandForm = () => {
                         <button @click="startEditBrand(b)" class="p-2 hover:bg-red-100 rounded-lg transition-colors cursor-pointer">
                           <span class="text-red-500 font-black text-[10px] uppercase">Sửa</span>
                         </button>
-                        <button @click="confirmDeleteBrand(b.id, b.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
-                          <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
+                        <button @click="confirmDeleteBrand(b.id, b.name)" class="p-2 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
+                          <span class="text-slate-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
                         </button>
                       </div>
                     </td>
                   </tr>
                   <tr v-if="filteredBrands.length === 0">
-                    <td colspan="2" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy thương hiệu nào...</td>
+                    <td colspan="2" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy nhãn hàng nào...</td>
                   </tr>
                 </tbody>
               </table>
