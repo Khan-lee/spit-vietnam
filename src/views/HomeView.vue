@@ -635,7 +635,7 @@ const getCategoryBanner = (catName) => {
       </div>
     </section>
 
-    <!-- 4. MAIN CONTENT AREA -->
+<!-- 4. MAIN CONTENT AREA -->
 <main class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-6">
   
   <!-- Loading Indicator -->
@@ -690,14 +690,14 @@ const getCategoryBanner = (catName) => {
 
             <!-- Nút Xem Catalog -->
             <a 
-              v-if="p.catalog || p.catalog_url || p.pdf"
-              :href="p.catalog || p.catalog_url || p.pdf" 
+              v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+              :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
               target="_blank"
               @click.stop
               class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <span>Xem Catalog</span>
+              <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
             </a>
           </div>
 
@@ -769,14 +769,14 @@ const getCategoryBanner = (catName) => {
 
                 <!-- Nút Xem Catalog -->
                 <a 
-                  v-if="p.catalog || p.catalog_url || p.pdf"
-                  :href="p.catalog || p.catalog_url || p.pdf" 
+                  v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+                  :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
                   target="_blank"
                   @click.stop
                   class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  <span>Xem Catalog</span>
+                  <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
                 </a>
               </div>
 
@@ -900,14 +900,14 @@ const getCategoryBanner = (catName) => {
 
                     <!-- Nút Xem Catalog -->
                     <a 
-                      v-if="p.catalog || p.catalog_url || p.pdf"
-                      :href="p.catalog || p.catalog_url || p.pdf" 
+                      v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+                      :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
                       target="_blank"
                       @click.stop
                       class="relative z-30 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      <span>Xem Catalog</span>
+                      <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
                     </a>
                   </div>
 
@@ -990,14 +990,14 @@ const getCategoryBanner = (catName) => {
 
                     <!-- Nút Xem Catalog -->
                     <a 
-                      v-if="p.catalog || p.catalog_url || p.pdf"
-                      :href="p.catalog || p.catalog_url || p.pdf" 
+                      v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+                      :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
                       target="_blank"
                       @click.stop
                       class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      <span>Xem Catalog</span>
+                      <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
                     </a>
                   </div>
 
