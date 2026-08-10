@@ -314,7 +314,7 @@ onMounted(async () => {
               </span>
             </button>
 
-            <!-- NÚT XEM CATALOG (THÊM MỚI TẠI ĐÂY) -->
+            <!-- NÚT XEM CATALOG -->
             <a v-if="product.catalog_link" 
                :href="product.catalog_link" 
                target="_blank" 
@@ -375,10 +375,10 @@ onMounted(async () => {
               </div>
             </div>
             
-            <!-- Nội dung: Đặc tính & Thông số kỹ thuật -->
+            <!-- Nội dung: Đặc tính & Thông số kỹ thuật (ĐÃ ĐỒNG BỘ ĐÚNG FIELD LƯU TỪ ADMIN) -->
             <div v-else-if="activeTab === 'features'" key="feat" class="w-full">
               <div class="text-slate-600 text-xs sm:text-sm leading-relaxed font-medium raw-html-content"
-                   v-html="product[`features_${locale}`] || product.features || (locale === 'vi' ? '<i>Chưa có thông số kỹ thuật cho sản phẩm này.</i>' : '<i>Specifications updating...</i>')">
+                   v-html="product[`specifications_${locale}`] || product.specifications || product[`features_${locale}`] || product.features || (locale === 'vi' ? '<i>Chưa có thông số kỹ thuật cho sản phẩm này.</i>' : '<i>Specifications updating...</i>')">
               </div>
             </div>
 

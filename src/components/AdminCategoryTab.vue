@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, serverTimestamp } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
+import { uploadToCloudinary } from '../utils/cloudinary'
 
 // Dữ liệu danh mục độc lập
 const categories = ref([])
@@ -122,24 +122,26 @@ const deleteCategory = async (id) => {
   }
 }
 
-// 6. Upload Banner
+// 6. Upload Banner qua Cloudinary
 const handleBannerUpload = async (event, catId) => {
   const file = event.target.files[0]
   if (!file) return
 
   try {
     isUploading.value = true
-    const fileRef = storageRef(storage, `banners/categories/${Date.now()}_${file.name}`)
-    await uploadBytes(fileRef, file)
-    const downloadUrl = await getDownloadURL(fileRef)
+    
+    // Gọi trực tiếp hàm helper uploadToCloudinary
+    const downloadUrl = await uploadToCloudinary(file)
 
-    await updateDoc(doc(db, 'categories', catId), {
-      bannerUrl: downloadUrl,
-      updatedAt: serverTimestamp()
-    })
+    if (downloadUrl) {
+      await updateDoc(doc(db, 'categories', catId), {
+        bannerUrl: downloadUrl,
+        updatedAt: serverTimestamp()
+      })
 
-    alert("Đã cập nhật banner thành công!")
-    fetchCategories()
+      alert("Đã cập nhật banner thành công!")
+      fetchCategories()
+    }
   } catch (error) {
     alert("Lỗi upload ảnh banner!")
     console.error(error)
@@ -178,7 +180,7 @@ const toggleVisibility = async (cat) => {
 
     <!-- Thông báo Upload -->
     <div v-if="isUploading" class="mb-4 p-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-xl text-center animate-pulse">
-      Đang tải ảnh lên server, vui lòng đợi...
+      Đang tải ảnh lên Cloudinary, vui lòng đợi...
     </div>
 
     <!-- Lưới hiển thị danh mục -->

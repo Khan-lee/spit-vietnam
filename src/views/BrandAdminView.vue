@@ -24,6 +24,7 @@
 
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
+      <!-- FORM NHẬP LIỆU -->
       <div class="lg:col-span-5 bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6 sticky top-6">
         <div class="space-y-1 border-b border-slate-100 pb-3">
           <h3 class="text-md font-black uppercase text-slate-900 tracking-tight">
@@ -35,6 +36,7 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
+          <!-- Tên nhãn hàng -->
           <div class="space-y-1.5">
             <label class="text-xs font-black uppercase text-slate-700 tracking-wide">Tên nhãn hàng *</label>
             <input 
@@ -46,17 +48,50 @@
             />
           </div>
 
+          <!-- Logo Nhãn Hàng (Tích hợp Cloudinary) -->
           <div class="space-y-1.5">
-            <label class="text-xs font-black uppercase text-slate-700 tracking-wide">Đường dẫn ảnh Logo (URL) *</label>
-            <input 
-              v-model="form.logoUrl" 
-              type="url" 
-              required
-              placeholder="https://domain.com/logo.png"
-              class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:border-red-500 focus:bg-white transition-all font-mono"
-            />
+            <label class="text-xs font-black uppercase text-slate-700 tracking-wide">Logo Nhãn hàng *</label>
+            
+            <div class="flex items-start gap-3">
+              <!-- Khung xem trước logo -->
+              <div class="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center p-2 shrink-0 overflow-hidden relative group">
+                <img v-if="form.logoUrl" :src="form.logoUrl" alt="Logo Preview" class="max-h-full max-w-full object-contain" />
+                <span v-else class="text-[9px] font-black text-slate-400 text-center uppercase">Chưa có logo</span>
+              </div>
+
+              <div class="flex-1 space-y-2">
+                <!-- Nút chọn file tải lên Cloudinary -->
+                <input 
+                  ref="logoFileInput"
+                  type="file" 
+                  accept="image/*" 
+                  class="hidden" 
+                  @change="handleLogoUpload"
+                />
+                
+                <button 
+                  type="button" 
+                  @click="logoFileInput.click()"
+                  :disabled="isUploadingLogo"
+                  class="w-full px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span v-if="isUploadingLogo" class="animate-spin text-xs">⏳</span>
+                  <span>{{ isUploadingLogo ? 'Đang tải lên Cloudinary...' : '📁 Tải ảnh Logo từ máy' }}</span>
+                </button>
+
+                <!-- URL nhập tay trực tiếp nếu muốn -->
+                <input 
+                  v-model="form.logoUrl" 
+                  type="url" 
+                  required
+                  placeholder="Hoặc dán URL logo trực tiếp vào đây..."
+                  class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:border-red-500 focus:bg-white transition-all font-mono"
+                />
+              </div>
+            </div>
           </div>
 
+          <!-- Nội dung giới thiệu HTML -->
           <div class="space-y-1.5">
             <div class="flex justify-between items-center">
               <label class="text-xs font-black uppercase text-slate-700 tracking-wide">Nội dung giới thiệu (HTML) *</label>
@@ -71,15 +106,17 @@
             ></textarea>
           </div>
 
+          <!-- Preview HTML -->
           <div v-if="form.description" class="p-4 bg-amber-50/40 rounded-xl border border-amber-100 space-y-1.5">
             <span class="text-[10px] font-black uppercase text-amber-700 tracking-wider block">Live Preview Nội dung:</span>
             <div class="text-xs text-slate-600 custom-preview prose max-w-none font-medium" v-html="form.description"></div>
           </div>
 
+          <!-- Nút bấm Action -->
           <div class="flex gap-3 pt-2">
             <button 
               type="submit" 
-              :disabled="submitting"
+              :disabled="submitting || isUploadingLogo"
               class="flex-1 py-3 rounded-xl text-xs font-black bg-slate-900 hover:bg-red-600 disabled:bg-slate-400 text-white uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-slate-900/10"
             >
               {{ submitting ? 'Đang xử lý...' : (isEditing ? 'Cập Nhật Ngay' : 'Đăng Nhãn Hàng') }}
@@ -96,6 +133,7 @@
         </form>
       </div>
 
+      <!-- DANH SÁCH THƯƠNG HIỆU -->
       <div class="lg:col-span-7 bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
@@ -164,12 +202,16 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { db } from '../firebase'
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { uploadToCloudinary } from '../utils/cloudinary'
 
 const brands = ref([])
 const loading = ref(true)
 const submitting = ref(false)
 const isEditing = ref(false)
 const currentBrandId = ref(null)
+
+const isUploadingLogo = ref(false)
+const logoFileInput = ref(null)
 
 const form = ref({
   name: '',
@@ -179,7 +221,7 @@ const form = ref({
 
 let unsubscribe = null
 
-// 1. Khởi chạy lắng nghe real-time toàn bộ collection 'brands' để render danh sách
+// 1. Khởi chạy lắng nghe real-time toàn bộ collection 'brands'
 onMounted(() => {
   const brandsRef = collection(db, 'brands')
   unsubscribe = onSnapshot(brandsRef, (snapshot) => {
@@ -190,7 +232,6 @@ onMounted(() => {
         ...docSnap.data()
       })
     })
-    // Sắp xếp Alphabet theo tên nhãn hàng cho dễ nhìn
     brands.value = fetched.sort((a, b) => a.name.localeCompare(b.name))
     loading.value = false
   }, (error) => {
@@ -204,14 +245,33 @@ onUnmounted(() => {
   if (unsubscribe) unsubscribe()
 })
 
-// 2. Xử lý submit Form (Thêm mới hoặc Cập nhật)
+// 2. Tải logo lên Cloudinary
+const handleLogoUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    isUploadingLogo.value = true
+    const uploadedUrl = await uploadToCloudinary(file)
+    if (uploadedUrl) {
+      form.value.logoUrl = uploadedUrl
+    }
+  } catch (error) {
+    console.error("Lỗi khi upload logo lên Cloudinary:", error)
+    alert("Không thể tải logo lên Cloudinary. Vui lòng kiểm tra lại kết nối!")
+  } finally {
+    isUploadingLogo.value = false
+    event.target.value = ''
+  }
+}
+
+// 3. Xử lý submit Form (Thêm mới hoặc Cập nhật)
 const handleSubmit = async () => {
   if (!form.value.name.trim() || !form.value.logoUrl.trim() || !form.value.description.trim()) return
   
   submitting.value = true
   try {
     if (isEditing.value && currentBrandId.value) {
-      // Logic Cập nhật document đã có sẵn
       const docRef = doc(db, 'brands', currentBrandId.value)
       await updateDoc(docRef, {
         name: form.value.name.trim(),
@@ -220,7 +280,6 @@ const handleSubmit = async () => {
       })
       alert(`Đã cập nhật thông tin thương hiệu ${form.value.name} thành công!`)
     } else {
-      // Logic Thêm mới hoàn toàn một document
       const collectionRef = collection(db, 'brands')
       await addDoc(collectionRef, {
         name: form.value.name.trim(),
@@ -238,7 +297,7 @@ const handleSubmit = async () => {
   }
 }
 
-// 3. Đưa thông tin hãng lên form để tiến hành chỉnh sửa
+// 4. Chỉnh sửa thương hiệu
 const handleEdit = (brandItem) => {
   isEditing.value = true
   currentBrandId.value = brandItem.id
@@ -250,7 +309,7 @@ const handleEdit = (brandItem) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 4. Xóa vĩnh viễn nhãn hàng khỏi database
+// 5. Xóa vĩnh viễn
 const handleDelete = async (id, name) => {
   const confirmDelete = confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thương hiệu "${name}" không? \nHành động này không thể hoàn tác và sẽ ảnh hưởng trực tiếp đến các liên kết sản phẩm.`)
   if (!confirmDelete) return
@@ -267,7 +326,7 @@ const handleDelete = async (id, name) => {
   }
 }
 
-// 5. Reset trạng thái form về trống
+// 6. Reset Form
 const resetForm = () => {
   isEditing.value = false
   currentBrandId.value = null
@@ -280,7 +339,7 @@ const resetForm = () => {
 </script>
 
 <style scoped>
-/* Đồng bộ định dạng hiển thị cho ô Preview text */
+/* Định dạng hiển thị Preview text */
 :deep(.custom-preview p) {
   margin-bottom: 0.5rem;
   line-height: 1.6;

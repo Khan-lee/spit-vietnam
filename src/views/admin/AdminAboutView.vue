@@ -155,7 +155,7 @@
               
               <div v-else class="py-2 space-y-2">
                 <div class="animate-spin rounded-full h-6 w-6 border-2 border-red-600 border-t-transparent mx-auto"></div>
-                <p class="text-[10px] font-black uppercase text-red-600 tracking-widest animate-pulse">Đang đẩy lên kho...</p>
+                <p class="text-[10px] font-black uppercase text-red-600 tracking-widest animate-pulse">Đang đẩy lên kho Cloudinary...</p>
               </div>
             </div>
 
@@ -179,7 +179,7 @@
                 <input 
                   v-model="aboutData.imageUrl" 
                   type="text" 
-                  placeholder="https://firebasestorage.googleapis.com/..."
+                  placeholder="https://res.cloudinary.com/..."
                   class="w-full bg-slate-50 border border-transparent rounded-xl p-3 text-[11px] font-mono text-slate-600 outline-none focus:bg-white focus:border-slate-200 transition-all shadow-inner" 
                 />
               </div>
@@ -258,11 +258,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { db, storage } from '../../firebase' 
+import { db } from '../../firebase' 
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { uploadToCloudinary } from '../../utils/cloudinary'
 
-// ĐÃ FIX: Import trực tiếp component và CSS từ vue-quill đã install trong node_modules
+// ĐÃ FIX: Import trực tiếp component và CSS từ vue-quill đã install trong node_modules
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
@@ -284,7 +284,7 @@ const isSaving = ref(false)
 const isUploading = ref(false)
 const fileInput = ref(null)
 
-// ĐÃ FIX: Định nghĩa mảng tùy chọn Toolbar khớp với giao diện của bạn
+// ĐÃ FIX: Định nghĩa mảng tùy chọn Toolbar khớp với giao diện của bạn
 const customToolbarOptions = [
   ['bold', 'italic', 'underline'],
   [{ 'header': '2' }, { 'header': '3' }],
@@ -303,13 +303,12 @@ const handleFileUpload = async (event) => {
 
   isUploading.value = true
   try {
-    const filePath = `b2b-about/banner_${Date.now()}_${file.name}`
-    const sRef = storageRef(storage, filePath)
-    await uploadBytes(sRef, file)
-    const downloadURL = await getDownloadURL(sRef)
-    aboutData.value.imageUrl = downloadURL
+    const downloadURL = await uploadToCloudinary(file)
+    if (downloadURL) {
+      aboutData.value.imageUrl = downloadURL
+    }
   } catch (error) {
-    console.error("Lỗi upload ảnh lên Firebase Storage:", error)
+    console.error("Lỗi upload ảnh lên Cloudinary:", error)
     alert('Có lỗi xảy ra trong quá trình upload ảnh.')
   } finally {
     isUploading.value = false
@@ -368,7 +367,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ĐÃ FIX: Tùy biến CSS mịn màng cho khối vue-quill mới */
+/* ĐÃ FIX: Tùy biến CSS mịn màng cho khối vue-quill mới */
 .quill-editor-wrapper :deep(.ql-toolbar.ql-snow) {
   border: 1px solid #e2e8f0 !important;
   border-top-left-radius: 1rem !important;

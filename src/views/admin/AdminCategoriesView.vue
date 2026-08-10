@@ -2,10 +2,10 @@
 import { ref, onMounted } from 'vue'
 // Bổ sung import các hàm của Firestore để cấu hình banner
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore'
-// Bổ sung import Storage để up ảnh
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-// Khai báo thêm storage (Đảm bảo file firebase.js của bạn có export storage)
-import { db, storage } from '../../firebase'
+// Import database từ firebase (đã bỏ storage)
+import { db } from '../../firebase'
+// Bổ sung import helper Cloudinary
+import { uploadToCloudinary } from '../../utils/cloudinary'
 import AdminSidebar from '../../components/AdminSidebar.vue'
 import AdminCategoryTab from '../../components/AdminCategoryTab.vue'
 
@@ -46,16 +46,17 @@ const handleHotSaleBannerUpload = async (event) => {
 
   isUploadingBanner.value = true
   try {
-    const imageRef = storageRef(storage, `banners/hotsale_${Date.now()}_${file.name}`)
-    await uploadBytes(imageRef, file)
-    const downloadURL = await getDownloadURL(imageRef)
+    // Gọi hàm upload lên Cloudinary
+    const downloadURL = await uploadToCloudinary(file)
 
-    await setDoc(doc(db, 'settings', 'home_config'), {
-      hotSaleBanner: downloadURL
-    }, { merge: true })
+    if (downloadURL) {
+      await setDoc(doc(db, 'settings', 'home_config'), {
+        hotSaleBanner: downloadURL
+      }, { merge: true })
 
-    hotSaleBannerUrl.value = downloadURL
-    alert('Đã cập nhật banner thành công!')
+      hotSaleBannerUrl.value = downloadURL
+      alert('Đã cập nhật banner thành công!')
+    }
   } catch (error) {
     console.error("Lỗi upload banner:", error)
     alert('Có lỗi xảy ra khi tải ảnh lên.')
@@ -104,7 +105,7 @@ onMounted(() => {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row gap-6 items-start">
           <div class="w-full md:w-1/4 shrink-0">
             <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Banner Hot Sale (Trang chủ)</p>
-            <div class="relative w-full aspect-[3/5] bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center group">
+            <div class="relative w-full aspect-3/5 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center group">
               <!-- Hiển thị ảnh nếu có -->
               <img v-if="hotSaleBannerUrl" :src="hotSaleBannerUrl" alt="Hot Sale Preview" class="w-full h-full object-cover" />
               
@@ -144,7 +145,7 @@ onMounted(() => {
 
             <!-- Hiển thị trạng thái tải ảnh -->
             <div v-if="isUploadingBanner" class="text-sm text-blue-600 font-semibold animate-pulse">
-              Đang tải ảnh và cập nhật hệ thống...
+              Đang tải ảnh lên Cloudinary và cập nhật hệ thống...
             </div>
           </div>
         </div>

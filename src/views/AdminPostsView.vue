@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, reactive, computed, watch } from 'vue'
-import { db, storage } from '../firebase' 
+import { db } from '../firebase' 
 import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' 
+import { uploadToCloudinary } from '../utils/cloudinary'
 import Editor from '@tinymce/tinymce-vue'
 import slugify from 'slugify'
 
@@ -12,7 +12,7 @@ const newPost = ref({
   slug: '',
   category: 'technical',
   image: '', 
-  imageAlt: '',         
+  imageAlt: '',        
   content: '',
   seoTitle: '',
   metaDescription: '',
@@ -33,7 +33,7 @@ const originalSlug = ref('')
 // Lưu trữ URL preview của ảnh để giải phóng bộ nhớ tránh memory leak
 const previewImageUrl = ref('')
 
-// --- [MỚI] TRẠNG THÁI AI SEO ---
+// --- TRẠNG THÁI AI SEO ---
 const isAIAnalyzing = ref(false)
 
 // --- BỘ ĐẾM KÝ TỰ & TỪ VỰNG TỐI ƯU ---
@@ -86,7 +86,7 @@ const getPlainTextSummary = (htmlContent, maxLength = 150) => {
   return pureText.slice(0, maxLength) + (pureText.length > maxLength ? '...' : '')
 }
 
-// --- [MỚI] TÍCH HỢP GEMINI API LÀM TRỢ LÝ SEO ---
+// --- TÍCH HỢP GEMINI API LÀM TRỢ LÝ SEO ---
 const generateSEOWithAI = async () => {
   if (!newPost.value.title && !newPost.value.content) {
     alert("Vui lòng nhập tiêu đề hoặc nội dung bài viết trước để AI có dữ liệu phân tích!")
@@ -95,10 +95,7 @@ const generateSEOWithAI = async () => {
   
   isAIAnalyzing.value = true
   try {
-    // URL API Backend/Cloud Function gọi Gemini của bạn (thay thế nếu cần)
     const apiEndpoint = 'https://us-central1-spit-vietnam.cloudfunctions.net/askSPITAssistant'
-    
-    // Lấy khoảng 1500 ký tự đầu của bài viết để tiết kiệm token gửi lên AI
     const plainTextContent = getPlainTextSummary(newPost.value.content, 1500)
 
     const response = await fetch(apiEndpoint, {
@@ -122,7 +119,6 @@ const generateSEOWithAI = async () => {
     if (!response.ok) throw new Error("API request failed")
     const data = await response.json()
     
-    // Xử lý text trả về, loại bỏ markdown nếu Gemini lỡ sinh ra
     let rawText = data.text || data.response || data
     if (typeof rawText === 'string') {
       rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim()
@@ -130,17 +126,15 @@ const generateSEOWithAI = async () => {
     
     let seoResult = null
 
-    // [QUAN TRỌNG] Bọc try-catch riêng cho việc Parse JSON
     try {
       seoResult = typeof rawText === 'string' ? JSON.parse(rawText) : rawText
     } catch (parseError) {
       console.error('❌ Lỗi Parse JSON. AI không trả về đúng định dạng:', rawText)
       alert('AI vừa trả lời dưới dạng văn bản bình thường thay vì cấu trúc dữ liệu JSON. Bạn click sinh dữ liệu lại lần nữa nhé!')
-      isAIAnalyzing.value = false // Tắt loading
-      return // Dừng hàm ngay lập tức, không chạy code fill data bên dưới
+      isAIAnalyzing.value = false
+      return
     }
 
-    // Fill data vào form (Chỉ chạy tiếp khi parse JSON thành công)
     if (seoResult) {
       if (seoResult.slug) newPost.value.slug = seoResult.slug
       if (seoResult.metaTitle) newPost.value.seoTitle = seoResult.metaTitle
@@ -149,7 +143,6 @@ const generateSEOWithAI = async () => {
       if (seoResult.suggestedKeywords) newPost.value.metaKeywords = seoResult.suggestedKeywords
     }
     
-    // Tự động sinh luôn Schema
     generateAutoSchema()
 
   } catch (error) {
@@ -200,34 +193,22 @@ const handleTitleInput = () => {
   }
 }
 
-// [MỚI ĐƯỢC THÊM VÀO] Hàm xử lý đưa ảnh từ khung soạn thảo TinyMCE lên Firebase Storage
-const handleImageUpload = (blobInfo, progress) => {
-  return new Promise((resolve, reject) => {
+// Hàm xử lý upload ảnh từ trình soạn thảo TinyMCE lên Cloudinary
+const handleImageUpload = async (blobInfo) => {
+  try {
     const file = blobInfo.blob()
-    // Tạo tên file duy nhất tránh trùng lặp
-    const fileRef = storageRef(storage, `posts/tinymce_${Date.now()}_${blobInfo.filename()}`)
-
-    uploadBytes(fileRef, file)
-      .then((snapshot) => {
-        getDownloadURL(snapshot.ref)
-          .then((downloadURL) => {
-            resolve(downloadURL) // Trả về link Firebase gốc cho HTML của trình soạn thảo
-          })
-          .catch((error) => {
-            reject('Lỗi khi lấy link ảnh từ Firebase: ' + error.message)
-          })
-      })
-      .catch((error) => {
-        reject('Lỗi upload ảnh lên Storage: ' + error.message)
-      })
-  })
+    const imageUrl = await uploadToCloudinary(file)
+    return imageUrl
+  } catch (error) {
+    console.error("Lỗi upload ảnh TinyMCE lên Cloudinary:", error)
+    throw new Error("Không thể tải ảnh lên Cloudinary: " + error.message)
+  }
 }
 
 const editorConfig = {
   height: 450,
   menubar: true,
   plugins: 'lists link image table code wordcount advlist charmap preview anchor searchreplace visualblocks fullscreen insertdatetime media help',
-  // Đã thêm 'image' vào toolbar và nhúng images_upload_handler để xử lý ảnh
   toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | table image code',
   images_upload_handler: handleImageUpload 
 }
@@ -244,11 +225,11 @@ const onFileChange = (e) => {
   }
 }
 
+// Upload ảnh đại diện bài viết lên Cloudinary
 const uploadImageToStorage = async () => {
   if (imageFile.value && newPost.value.image.startsWith('blob:')) {
-    const fileRef = storageRef(storage, `posts/${Date.now()}_${imageFile.value.name}`)
-    await uploadBytes(fileRef, imageFile.value)
-    return await getDownloadURL(fileRef)
+    const downloadUrl = await uploadToCloudinary(imageFile.value)
+    return downloadUrl
   }
   return newPost.value.image
 }

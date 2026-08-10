@@ -45,7 +45,7 @@
             <div class="md:col-span-2 space-y-2">
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Hoặc dán Link Hình Ảnh (URL)</label>
               <input v-model="newBanner.image" type="url" placeholder="https://..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all" />
-              <p class="text-[9px] text-slate-400 italic">* Khuyến khích tải ảnh trực tiếp từ máy để đảm bảo đường truyền ổn định.</p>
+              <p class="text-[9px] text-slate-400 italic">* Khuyến khích tải ảnh trực tiếp từ máy để lưu trữ ổn định qua Cloudinary.</p>
             </div>
           </div>
           
@@ -56,7 +56,7 @@
               <label for="useI18n" class="text-sm font-bold text-slate-700 cursor-pointer">Sử dụng Text I18n mặc định</label>
             </div>
 
-            <!-- UPDATE: CHECKBOX KÍCH HOẠT (isActive) -->
+            <!-- CHECKBOX KÍCH HOẠT (isActive) -->
             <div class="flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <input type="checkbox" id="isActive" v-model="newBanner.isActive" class="w-5 h-5 rounded border-slate-300 text-green-600 focus:ring-green-600" />
               <label for="isActive" class="text-sm font-bold text-slate-700 cursor-pointer">Bật hiển thị trên trang chủ</label>
@@ -70,7 +70,6 @@
             <input v-model="newBanner.title" type="text" placeholder='Ví dụ: GIẢI PHÁP <span class="text-slate-400">CHÍNH XÁC</span>' class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400" />
           </div>
           <div>
-            <!-- Label đổi tùy theo vị trí -->
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               {{ newBanner.position === 'right_sub' ? 'Thẻ nhỏ màu vàng (Sub)' : 'Tiêu đề phụ (Subtitle)' }}
             </label>
@@ -89,12 +88,13 @@
 
         <div class="md:col-span-2 flex justify-end mt-2">
           <button type="submit" :disabled="isSaving" class="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 shadow-md">
-            {{ isSaving ? 'Đang lưu...' : 'Lưu Banner' }}
+            {{ isSaving ? 'Đang tải ảnh & lưu...' : 'Lưu Banner' }}
           </button>
         </div>
       </form>
     </div>
 
+    <!-- DANH SÁCH BANNER -->
     <div v-if="isLoading" class="text-center py-10 font-bold text-slate-400 uppercase tracking-widest text-xs animate-pulse">
       Đang tải dữ liệu...
     </div>
@@ -109,20 +109,21 @@
 
         <div class="h-48 relative overflow-hidden bg-slate-100">
           <img :src="banner.image" alt="Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div class="absolute inset-0 bg-linear-to-t from-slate-900/80 to-transparent"></div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
           
-          <!-- UPDATE: NÚT TOGGLE BẬT/TẮT BANNER (Nằm cạnh nút Xóa) -->
+          <!-- NÚT TOGGLE BẬT/TẮT BANNER -->
           <button @click="toggleActiveStatus(banner)" class="absolute top-3 right-13 w-auto px-3 h-8 rounded-lg flex items-center justify-center transition-colors shadow-lg z-10 text-[10px] font-bold uppercase tracking-wide text-white" 
                   :class="banner.isActive !== false ? 'bg-green-500/90 hover:bg-green-600' : 'bg-slate-500/90 hover:bg-slate-600'" 
                   :title="banner.isActive !== false ? 'Đang bật - Nhấn để ẩn' : 'Đang ẩn - Nhấn để bật'">
             {{ banner.isActive !== false ? '👁️ Đang Bật' : '🙈 Đã Ẩn' }}
           </button>
 
-          <!-- NÚT XÓA (Giữ nguyên) -->
-          <button @click="deleteBanner(banner.id, banner.image)" class="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-lg z-10" title="Xóa Banner">
+          <!-- NÚT XÓA BANNER -->
+          <button @click="deleteBanner(banner.id)" class="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-lg z-10" title="Xóa Banner">
             ✕
           </button>
         </div>
+
         <div class="p-5">
           <div v-if="banner.useI18n" class="inline-block bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider mb-2">
             Sử dụng I18n Text
@@ -138,6 +139,7 @@
           <p v-if="banner.link" class="text-[10px] text-blue-500 font-medium truncate mt-2">🔗 Link: {{ banner.link }}</p>
         </div>
       </div>
+
       <div v-if="banners.length === 0" class="md:col-span-3 text-center py-10 bg-slate-50 border border-slate-100 rounded-3xl">
         <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Chưa có banner nào, hãy thêm mới!</p>
       </div>
@@ -147,10 +149,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-// UPDATE: Thêm hàm updateDoc từ firestore
 import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage' 
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
+// Import helper Cloudinary đã có sẵn trong project
+import { uploadToCloudinary } from '../utils/cloudinary'
 
 const banners = ref([])
 const isLoading = ref(true)
@@ -163,18 +165,18 @@ const newBanner = ref({
   position: 'main', 
   image: '',
   useI18n: false,
-  isActive: true, // UPDATE: Thêm biến quản lý trạng thái bật/tắt (Mặc định bật)
+  isActive: true,
   title: '',
   subtitle: '',
   desc: '',
   link: ''
 })
 
+// Lấy danh sách Banner từ Firestore
 const fetchBanners = async () => {
   isLoading.value = true
   try {
     const querySnapshot = await getDocs(collection(db, 'banners'))
-    // Sắp xếp thời gian tạo mới nhất lên đầu cho dễ quản lý
     let fetchedBanners = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     banners.value = fetchedBanners
@@ -186,6 +188,7 @@ const fetchBanners = async () => {
   }
 }
 
+// Xử lý chọn file ảnh từ máy
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
@@ -194,13 +197,7 @@ const onFileChange = (e) => {
   }
 }
 
-const uploadBannerImage = async () => {
-  if (!imageFile.value) return newBanner.value.image
-  const fileRef = storageRef(storage, `banners/${Date.now()}_${imageFile.value.name}`)
-  await uploadBytes(fileRef, imageFile.value)
-  return await getDownloadURL(fileRef)
-}
-
+// Thêm Banner mới
 const addBanner = async () => {
   if (!imageFile.value && !newBanner.value.image) {
     return alert("Vui lòng chọn ảnh từ máy hoặc nhập URL hình ảnh!")
@@ -208,13 +205,18 @@ const addBanner = async () => {
   
   isSaving.value = true
   try {
-    const finalImageUrl = await uploadBannerImage()
+    let finalImageUrl = newBanner.value.image
+
+    // Nếu chọn file từ máy, gọi hàm uploadToCloudinary từ helper
+    if (imageFile.value) {
+      finalImageUrl = await uploadToCloudinary(imageFile.value)
+    }
 
     const bannerData = {
       position: newBanner.value.position,
       image: finalImageUrl,
       useI18n: newBanner.value.useI18n,
-      isActive: newBanner.value.isActive, // UPDATE: Lưu trạng thái isActive lên Firestore
+      isActive: newBanner.value.isActive,
       title: newBanner.value.title.trim(),
       subtitle: newBanner.value.subtitle.trim(),
       desc: newBanner.value.desc.trim(),
@@ -232,40 +234,34 @@ const addBanner = async () => {
     await fetchBanners()
   } catch (error) {
     console.error("Lỗi khi thêm banner:", error)
-    alert("Không thể lưu banner mới!")
+    alert("Không thể lưu banner mới: " + error.message)
   } finally {
     isSaving.value = false
   }
 }
 
-// UPDATE: Hàm xử lý toggle Bật/Tắt nhanh trạng thái Banner
+// Bật / Tắt trạng thái hiển thị
 const toggleActiveStatus = async (banner) => {
   try {
-    // Nếu db cũ không có field isActive, ta coi nó đang là true
-    const currentStatus = banner.isActive !== false;
-    const newStatus = !currentStatus;
+    const currentStatus = banner.isActive !== false
+    const newStatus = !currentStatus
     
-    const bannerRef = doc(db, 'banners', banner.id);
+    const bannerRef = doc(db, 'banners', banner.id)
     await updateDoc(bannerRef, {
       isActive: newStatus
-    });
+    })
     
-    // Cập nhật lại UI ngay lập tức
-    banner.isActive = newStatus;
+    banner.isActive = newStatus
   } catch (error) {
-    console.error("Lỗi khi cập nhật trạng thái banner:", error);
-    alert("Không thể thay đổi trạng thái banner lúc này!");
+    console.error("Lỗi khi cập nhật trạng thái banner:", error)
+    alert("Không thể thay đổi trạng thái banner lúc này!")
   }
 }
 
-const deleteBanner = async (id, imageUrl) => {
+// Xóa Banner khỏi Firestore
+const deleteBanner = async (id) => {
   if (!confirm("Bạn có chắc chắn muốn xóa banner này?")) return
   try {
-    if (imageUrl && imageUrl.includes('firebasestorage')) {
-      const fileRef = storageRef(storage, imageUrl)
-      await deleteObject(fileRef).catch(e => console.log("Không tìm thấy file trên Storage, tiến hành xóa doc DB:", e))
-    }
-
     await deleteDoc(doc(db, 'banners', id))
     await fetchBanners()
   } catch (error) {

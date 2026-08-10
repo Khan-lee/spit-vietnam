@@ -2,11 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { db } from '../../firebase' 
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore'
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { uploadToCloudinary } from '../../utils/cloudinary'
 
 const brands = ref([])
 const isUploading = ref(false)
-const storage = getStorage()
 
 // Lấy danh sách nhãn hàng
 const fetchBrands = async () => {
@@ -19,30 +18,25 @@ const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (!file) return
 
-  // MỚI: Hỏi người quản trị nhập đường link cho nhãn hàng này
+  // Hỏi người quản trị nhập đường link cho nhãn hàng này
   const brandLink = prompt("Nhập đường link trang web của nhãn hàng (VD: https://norton.com).\nNếu không có link, bạn cứ để trống và bấm OK:")
 
   isUploading.value = true
   
   try {
-    // 1. Tạo đường dẫn lưu file trên Storage
-    const fileRef = storageRef(storage, `brands/${Date.now()}_${file.name}`)
+    // 1. Tải file lên Cloudinary
+    const downloadURL = await uploadToCloudinary(file)
     
-    // 2. Tải file lên
-    const snapshot = await uploadBytes(fileRef, file)
-    
-    // 3. Lấy Link ảnh công khai
-    const downloadURL = await getDownloadURL(snapshot.ref)
-    
-    // 4. Lưu Link ảnh, Storage path và LINK WEBSITE vào Firestore
-    await addDoc(collection(db, "brands"), {
-      logoUrl: downloadURL,
-      storagePath: snapshot.ref.fullPath,
-      link: brandLink || "" // Lưu link, nếu bỏ trống thì lưu chuỗi rỗng
-    })
+    if (downloadURL) {
+      // 2. Lưu Link ảnh và LINK WEBSITE vào Firestore
+      await addDoc(collection(db, "brands"), {
+        logoUrl: downloadURL,
+        link: brandLink || "" // Lưu link, nếu bỏ trống thì lưu chuỗi rỗng
+      })
 
-    await fetchBrands()
-    alert('Tải logo lên thành công!')
+      await fetchBrands()
+      alert('Tải logo lên thành công!')
+    }
   } catch (e) {
     console.error("Lỗi upload:", e)
     alert('Có lỗi xảy ra khi tải ảnh lên.')
@@ -56,10 +50,6 @@ const handleFileUpload = async (event) => {
 const deleteBrand = async (brand) => {
   if (confirm('Bạn có chắc muốn xóa nhãn hàng này?')) {
     try {
-      if (brand.storagePath) {
-        const fileRef = storageRef(storage, brand.storagePath)
-        await deleteObject(fileRef)
-      }
       await deleteDoc(doc(db, "brands", brand.id))
       await fetchBrands()
     } catch (e) {
@@ -89,7 +79,7 @@ onMounted(fetchBrands)
         
         <img :src="brand.logoUrl" class="max-h-full max-w-full object-contain grayscale group-hover:grayscale-0 transition-all shadow-sm" />
         
-        <!-- MỚI: Icon hiển thị nếu logo này có gắn link -->
+        <!-- Icon hiển thị nếu logo này có gắn link -->
         <a v-if="brand.link" :href="brand.link" target="_blank" 
            class="absolute bottom-3 left-3 text-blue-500 text-sm hover:scale-125 transition-transform" 
            title="Đã gắn link">🔗</a>

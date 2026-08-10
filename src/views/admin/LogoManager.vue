@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { db } from '../../firebase'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { uploadToCloudinary } from '../../utils/cloudinary'
 
 const logoUrl = ref('')
 const isLoading = ref(true)
@@ -33,23 +34,25 @@ const fetchLogo = async () => {
   }
 }
 
-// Xử lý upload file và chuyển thành Base64
-const handleFileUpload = (event) => {
+// Xử lý upload file lên Cloudinary
+const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (!file) return
-  
-  // Giới hạn dung lượng < 500KB để lưu trực tiếp vào Firestore an toàn, tối ưu
-  if (file.size > 500 * 1024) {
-    triggerToast("Vui lòng chọn ảnh logo có dung lượng dưới 500KB!", "error")
-    event.target.value = '' // Reset input
-    return
-  }
 
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    logoUrl.value = e.target.result
+  isSaving.value = true
+  try {
+    const downloadURL = await uploadToCloudinary(file)
+    if (downloadURL) {
+      logoUrl.value = downloadURL
+      triggerToast("Tải ảnh lên thành công!", "success")
+    }
+  } catch (error) {
+    console.error("Lỗi upload logo:", error)
+    triggerToast("Có lỗi xảy ra khi tải ảnh lên.", "error")
+  } finally {
+    isSaving.value = false
+    event.target.value = '' // Reset input
   }
-  reader.readAsDataURL(file)
 }
 
 // Lưu logo vào Firestore
@@ -116,7 +119,7 @@ onMounted(() => {
 
           <!-- Cách 1: Upload File -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tải ảnh lên từ thiết bị (Tối đa 500KB)</label>
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tải ảnh lên từ thiết bị</label>
             <div class="relative flex items-center justify-center w-full">
               <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-blue-500 transition-all">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
@@ -126,7 +129,7 @@ onMounted(() => {
                   <p class="mb-1 text-xs text-slate-500 font-bold"><span class="text-blue-600">Click để tải lên</span> hoặc kéo thả ảnh</p>
                   <p class="text-[10px] text-slate-400 font-medium">SVG, PNG, JPG hoặc GIF</p>
                 </div>
-                <input id="dropzone-file" type="file" accept="image/*" class="hidden" @change="handleFileUpload" />
+                <input id="dropzone-file" type="file" accept="image/*" class="hidden" @change="handleFileUpload" :disabled="isSaving" />
               </label>
             </div>
           </div>

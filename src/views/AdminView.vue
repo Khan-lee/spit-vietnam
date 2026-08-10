@@ -3,11 +3,34 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore'
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage' 
-import { db, auth, storage } from '../firebase' 
+import { db, auth } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
+
+// --- CẤU HÌNH CLOUDINARY ---
+const CLOUD_NAME = 'hwwcmq1i'
+const UPLOAD_PRESET = 'pvcoi7no'
+
+// Hàm dùng chung hỗ trợ Upload ảnh trực tiếp lên Cloudinary REST API
+const uploadToCloudinary = async (file) => {
+  if (!file) return ''
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', UPLOAD_PRESET)
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData
+  })
+
+  if (!response.ok) {
+    throw new Error('Lỗi khi tải ảnh lên Cloudinary')
+  }
+
+  const data = await response.json()
+  return data.secure_url
+}
 
 const router = useRouter()
 const isAuthenticated = ref(false)
@@ -271,11 +294,10 @@ const onFileChange = (e) => {
   }
 }
 
+// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadImage = async () => {
   if (!imageFile.value) return image.value
-  const fileRef = storageRef(storage, `products/${Date.now()}_${imageFile.value.name}`)
-  await uploadBytes(fileRef, imageFile.value)
-  return await getDownloadURL(fileRef)
+  return await uploadToCloudinary(imageFile.value)
 }
 
 const onSubFilesChange = (e) => {
@@ -291,6 +313,7 @@ const removeSubImage = (index) => {
   subImageFiles.value.splice(index, 1)
 }
 
+// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadSubImages = async () => {
   const uploadedUrls = []
   for (let i = 0; i < subImages.value.length; i++) {
@@ -298,9 +321,7 @@ const uploadSubImages = async () => {
     const currentFile = subImageFiles.value[i]
 
     if (currentFile) {
-      const fileRef = storageRef(storage, `products/subs/${Date.now()}_${currentFile.name}`)
-      await uploadBytes(fileRef, currentFile)
-      const downloadUrl = await getDownloadURL(fileRef)
+      const downloadUrl = await uploadToCloudinary(currentFile)
       uploadedUrls.push(downloadUrl)
     } else if (currentUrl && !currentUrl.startsWith('blob:')) {
       uploadedUrls.push(currentUrl)
@@ -367,13 +388,14 @@ const handleSubmit = async () => {
     fetchProducts()
     alert("Cập nhật hàng hóa thành công!")
   } catch (e) { 
-    alert("Lỗi kết nối Firebase khi lưu sản phẩm!") 
+    console.error(e)
+    alert("Lỗi khi lưu sản phẩm! Vui lòng thử lại.") 
   } finally { 
     isSubmitting.value = false 
   }
 }
 
-// --- LOGIC TẢI ẢNH LOGO NHÃN HÀNG LÊN FIREBASE STORAGE ---
+// --- LOGIC TẢI ẢNH LOGO NHÃN HÀNG LÊN CLOUDINARY ---
 const onBrandLogoChange = (e) => {
   const file = e.target.files[0]
   if (file) {
@@ -382,11 +404,10 @@ const onBrandLogoChange = (e) => {
   }
 }
 
+// --- ĐÃ ĐỔI SANG CLOUDINARY ---
 const uploadBrandLogo = async () => {
   if (!brandLogoFile.value) return brandLogoUrl.value 
-  const fileRef = storageRef(storage, `brands/${Date.now()}_${brandLogoFile.value.name}`)
-  await uploadBytes(fileRef, brandLogoFile.value)
-  return await getDownloadURL(fileRef)
+  return await uploadToCloudinary(brandLogoFile.value)
 }
 
 // --- THAO TÁC SUBMIT NHÃN HÀNG (BRANDS CRU) ---
@@ -419,7 +440,8 @@ const handleBrandSubmit = async () => {
     fetchBrands()
     fetchProducts() 
   } catch (e) {
-    alert("Lỗi kết nối Firebase khi lưu thương hiệu!")
+    console.error(e)
+    alert("Lỗi khi lưu thương hiệu!")
   } finally {
     isSubmitting.value = false
   }
