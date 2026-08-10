@@ -23,6 +23,22 @@ const user = ref(null)
 // Biến lưu trữ Logo (Mặc định dùng logoImg trong assets)
 const dynamicLogo = ref(logoImg)
 
+// Avatar mặc định khi user đăng nhập bằng Email/Pass chưa có photoURL
+const defaultAvatar = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/anonymous.png'
+
+// Computed lấy tên hiển thị an toàn (Không bao giờ bị crash kể cả khi displayName = null)
+const userDisplayName = computed(() => {
+  if (!user.value) return ''
+  return user.value.displayName || user.value.email?.split('@')[0] || 'Tài khoản'
+})
+
+// Computed lấy chữ cuối của tên an toàn
+const userShortName = computed(() => {
+  if (!userDisplayName.value) return ''
+  const parts = userDisplayName.value.trim().split(' ')
+  return parts[parts.length - 1]
+})
+
 // Hàm tải Logo từ Firestore
 const fetchLogo = async () => {
   try {
@@ -94,11 +110,9 @@ const changeLanguage = (event) => {
     <!-- MAIN HEADER BAR -->
     <div class="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2 lg:gap-4">
       
-<!-- LOGO -->
+      <!-- LOGO -->
       <RouterLink to="/" class="flex items-center shrink-0 group">
-        <!-- Đã bỏ bg-white/10 và padding để logo không bị khung lồng khung -->
         <div class="transition-colors flex items-center justify-center rounded-xl overflow-hidden">
-          <!-- Đổi từ fix width sang fix height (h-10 md:h-12), auto width và bỏ aspect-3/1 -->
           <img :src="dynamicLogo" alt="Logo" class="h-10 md:h-12 w-auto max-w-45 object-contain transition-transform group-hover:scale-105" />
         </div>
       </RouterLink>
@@ -143,7 +157,7 @@ const changeLanguage = (event) => {
       <div class="flex items-center gap-1.5 lg:gap-2 shrink-0">
 
         <!-- HOTLINE / TƯ VẤN (HIDDEN MOBILE) -->
-        <a href="tel:0900000000" class="hidden xl:flex items-center gap-2 bg-primary hover:bg-primary text-white px-2.5 py-1.5 rounded-xl text-left transition-colors border border-white/10">
+        <a href="tel:0347527093" class="hidden xl:flex items-center gap-2 bg-primary hover:bg-primary text-white px-2.5 py-1.5 rounded-xl text-left transition-colors border border-white/10">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <div class="leading-tight">
             <p class="text-[9px] text-red-200 font-medium">Tư vấn mua hàng</p>
@@ -177,8 +191,8 @@ const changeLanguage = (event) => {
 
           <div v-else class="group relative flex items-center cursor-pointer">
             <div class="flex items-center gap-1.5 bg-red-700/60 hover:bg-red-800 px-2 py-1 rounded-xl border border-white/10">
-              <img :src="user.photoURL" class="w-7 h-7 rounded-full border border-white object-cover" />
-              <span class="hidden md:inline text-[10px] font-bold max-w-17.5 truncate">{{ user.displayName.split(' ').pop() }}</span>
+              <img :src="user.photoURL || defaultAvatar" class="w-7 h-7 rounded-full border border-white object-cover" />
+              <span class="hidden md:inline text-[10px] font-bold max-w-17.5 truncate">{{ userShortName }}</span>
             </div>
 
             <!-- DROPDOWN USER -->
@@ -186,7 +200,7 @@ const changeLanguage = (event) => {
               <div class="bg-white text-slate-800 shadow-2xl border border-slate-100 rounded-2xl py-2 w-48 overflow-hidden">
                 <div class="px-4 py-2 border-b border-slate-100 bg-slate-50">
                   <p class="text-[9px] font-bold text-slate-400 uppercase">Tài khoản</p>
-                  <p class="text-[11px] font-black text-slate-800 truncate">{{ user.displayName }}</p>
+                  <p class="text-[11px] font-black text-slate-800 truncate">{{ userDisplayName }}</p>
                 </div>
                 <RouterLink to="/orders" class="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 transition-colors flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/></svg>
@@ -229,9 +243,9 @@ const changeLanguage = (event) => {
         <!-- USER MOBILE CARD -->
         <div v-if="user" class="mb-6 p-4 bg-slate-50 rounded-2xl flex flex-col gap-3 border border-slate-100">
           <div class="flex items-center gap-3">
-            <img :src="user.photoURL" class="w-10 h-10 rounded-full border border-white shadow-sm" />
+            <img :src="user.photoURL || defaultAvatar" class="w-10 h-10 rounded-full border border-white shadow-sm object-cover" />
             <div class="overflow-hidden">
-              <p class="text-xs font-black uppercase truncate text-slate-800">{{ user.displayName }}</p>
+              <p class="text-xs font-black uppercase truncate text-slate-800">{{ userDisplayName }}</p>
               <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
             </div>
           </div>
