@@ -587,53 +587,73 @@ const getCategoryBanner = (catName) => {
 
     <!-- === SECTION SẢN PHẨM HOT / BÁN CHẠY NẰM NGANG === -->
     <section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-4">
-      <div class="w-full bg-linear-to-r from-red-50 via-white to-orange-50 rounded-2xl border border-red-200 p-3 shadow-sm flex flex-col md:flex-row gap-4 items-stretch overflow-hidden relative">
-        <!-- Hiệu ứng viền sáng -->
-        <div class="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-red-500 to-orange-400"></div>
+  <div class="w-full bg-linear-to-r from-red-50 via-white to-orange-50 rounded-2xl border border-red-200 p-3 shadow-sm flex flex-col md:flex-row gap-4 items-stretch overflow-hidden relative">
+    <!-- Hiệu ứng viền sáng -->
+    <div class="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-red-500 to-orange-400"></div>
 
-        <!-- CỘT TRÁI: BANNER NỔI BẬT (ĐÃ UPDATE ĐỒNG BỘ ẢNH DYNAMIC) -->
-        <div class="w-full md:w-1/5 shrink-0 rounded-xl overflow-hidden relative group cursor-pointer shadow-sm min-h-50">
-          <img :src="dynamicHotSaleBanner" alt="Hot Sale Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-          <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
-            <h3 class="text-primary font-black text-lg uppercase leading-tight">Top<br>Bán Chạy</h3>
-            <!--<p class="text-white/80 text-[10px] mt-1">Sản phẩm được mua nhiều nhất</p>-->
-          </div>
-        </div>
-
-        <!-- CỘT PHẢI: 4 SẢN PHẨM HOT -->
-        <div class="w-full md:w-4/5 grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <router-link 
-            v-for="product in hotProducts" 
-            :key="'hot-' + product.id"
-            :to="'/product/' + product.id"
-            class="bg-white rounded-xl p-3 border border-slate-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300 flex flex-col relative group cursor-pointer"
-          >
-            <!-- Badge HOT -->
-            <div class="absolute top-2 left-2 z-10 bg-linear-to-r from-red-600 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">
-              🔥 HOT
-            </div>
-            
-            <div class="aspect-square bg-white rounded-lg overflow-hidden mb-3 p-1">
-               <img :src="product.image" :alt="product[`name_${locale}`] || product.name" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
-            </div>
-            
-            <h4 class="text-[11px] font-bold text-slate-800 line-clamp-2 mb-1 group-hover:text-red-600 transition-colors leading-relaxed">
-              {{ product[`name_${locale}`] || product.name }}
-            </h4>
-            <p class="text-[10px] font-medium text-slate-400 mb-2 truncate uppercase">{{ product.brand || 'Khác' }}</p>
-            
-            <div class="mt-auto">
-               <div class="text-red-600 font-black text-sm">
-                 {{ (getSalePrice(product) || product.price || 0).toLocaleString('vi-VN') }}đ
-               </div>
-               <div v-if="getSalePrice(product)" class="text-[10px] text-slate-400 line-through mt-0.5">
-                 {{ (product.price || 0).toLocaleString('vi-VN') }}đ
-               </div>
-            </div>
-          </router-link>
-        </div>
+    <!-- CỘT TRÁI: BANNER NỔI BẬT (ĐÃ UPDATE ĐỒNG BỘ ẢNH DYNAMIC) -->
+    <div class="w-full md:w-1/5 shrink-0 rounded-xl overflow-hidden relative group cursor-pointer shadow-sm min-h-50">
+      <img :src="dynamicHotSaleBanner" alt="Hot Sale Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+      <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
+        <h3 class="text-primary font-black text-lg uppercase leading-tight">Top<br>Bán Chạy</h3>
+        <!--<p class="text-white/80 text-[10px] mt-1">Sản phẩm được mua nhiều nhất</p>-->
       </div>
-    </section>
+    </div>
+
+    <!-- CỘT PHẢI: 4 SẢN PHẨM HOT -->
+    <div class="w-full md:w-4/5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div 
+        v-for="product in hotProducts" 
+        :key="'hot-' + product.id"
+        class="bg-white rounded-xl p-3 border border-slate-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-xl hover:border-red-400 transition-all duration-300 flex flex-col justify-between relative group cursor-pointer"
+      >
+        <!-- Badge HOT -->
+        <div class="absolute top-2 left-2 z-20 bg-linear-to-r from-red-600 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">
+          🔥 HOT
+        </div>
+        
+        <div>
+          <div class="aspect-square bg-white rounded-lg overflow-hidden mb-2 p-1 flex items-center justify-center">
+             <img :src="product.image" :alt="product[`name_${locale}`] || product.name" class="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-500" />
+          </div>
+          
+          <p class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5 truncate">{{ product.brand || 'Khác' }}</p>
+          
+          <h4 class="text-xs font-bold text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors leading-tight">
+            {{ product[`name_${locale}`] || product.name }}
+          </h4>
+        </div>
+        
+        <!-- PHẦN GIÁ TO + NÚT CATALOG -->
+        <div class="mt-3 pt-2 border-t border-slate-100">
+           <div class="flex items-baseline gap-1 flex-wrap">
+             <span class="text-base sm:text-lg font-black text-red-600">
+               {{ (getSalePrice(product) || product.price || 0).toLocaleString('vi-VN') }}đ
+             </span>
+             <span v-if="getSalePrice(product)" class="text-[10px] text-slate-400 line-through font-medium">
+               {{ (product.price || 0).toLocaleString('vi-VN') }}đ
+             </span>
+           </div>
+
+           <!-- Nút Xem Catalog -->
+           <a 
+             v-if="product.catalog_link || product.catalog || product.catalog_url || product.pdf"
+             :href="product.catalog_link || product.catalog || product.catalog_url || product.pdf" 
+             target="_blank"
+             @click.stop
+             class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+             <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+           </a>
+        </div>
+
+        <!-- Layer click nhảy sang trang chi tiết -->
+        <router-link :to="'/product/' + product.id" class="absolute inset-0 z-10"></router-link>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- 4. MAIN CONTENT AREA -->
 <main class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-6">
