@@ -680,7 +680,7 @@ const resetBrandForm = () => {
                     </div>
                   </div>
 
-                  <!-- [BỔ SUNG TẠI ĐÂY]: Quy cách bán / Đơn vị đóng gói -->
+                  <!-- Quy cách bán / Đơn vị đóng gói -->
                   <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                     <div class="space-y-1">
                       <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Quy cách bán (VI) *</label>
@@ -689,6 +689,51 @@ const resetBrandForm = () => {
                     <div class="space-y-1">
                       <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Unit / Packaging (EN)</label>
                       <input v-model="unit_en" placeholder="Ex: Box of 10 pcs, Pc..." class="w-full p-2.5 bg-white/80 rounded-xl outline-none text-xs italic border border-slate-100 focus:border-blue-200" />
+                    </div>
+                  </div>
+
+                  <!-- [MỚI BỔ SUNG KHỐI NÀY]: CẤU HÌNH BÁN HÀNG SỈ & LẺ (FLEXIBLE / PIECE / BOX) -->
+                  <div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
+                    <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
+                    
+                    <!-- 3 Nút chọn Kịch bản Bán -->
+                    <div class="grid grid-cols-3 gap-1.5">
+                      <button 
+                        type="button"
+                        @click="sales_type = 'flexible'"
+                        :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Linh hoạt (Sỉ+Lẻ)
+                      </button>
+                      <button 
+                        type="button"
+                        @click="sales_type = 'piece'"
+                        :class="sales_type === 'piece' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Mảnh
+                      </button>
+                      <button 
+                        type="button"
+                        @click="sales_type = 'box'"
+                        :class="sales_type === 'box' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Hộp
+                      </button>
+                    </div>
+
+                    <!-- Ô Nhập Quy cách Hộp & % Giảm giá (Ẩn/Hiện linh hoạt) -->
+                    <div v-if="sales_type !== 'piece'" class="grid grid-cols-2 gap-2 pt-1">
+                      <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
+                        <input v-model.number="box_qty" type="number" min="1" placeholder="10" class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" />
+                      </div>
+                      <div v-if="sales_type === 'flexible'" class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">% Giảm khi đủ Hộp</label>
+                        <input v-model.number="box_discount_percent" type="number" min="0" max="100" placeholder="14" class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400 text-blue-600" />
+                      </div>
                     </div>
                   </div>
 
@@ -838,10 +883,14 @@ const resetBrandForm = () => {
                       <div>
                         <div class="text-sm font-black text-slate-800 leading-tight">{{ p.name_vi || p.name }}</div>
                         <div class="text-[10px] font-medium text-slate-400 italic mb-1">{{ p.name_en }}</div>
-                        <div class="inline-flex items-center gap-2">
+                        <div class="inline-flex items-center gap-1.5 flex-wrap">
                            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
                            <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
                            <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
+                           
+                           <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
+                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>
+                           <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
                         </div>
                       </div>
                     </td>
