@@ -680,6 +680,18 @@ const resetBrandForm = () => {
                     </div>
                   </div>
 
+                  <!-- [BỔ SUNG TẠI ĐÂY]: Quy cách bán / Đơn vị đóng gói -->
+                  <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="space-y-1">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Quy cách bán (VI) *</label>
+                      <input v-model="unit_vi" placeholder="Ví dụ: Hộp 10 cái, Cái, Bộ..." class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-100 focus:border-blue-200" />
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Unit / Packaging (EN)</label>
+                      <input v-model="unit_en" placeholder="Ex: Box of 10 pcs, Pc..." class="w-full p-2.5 bg-white/80 rounded-xl outline-none text-xs italic border border-slate-100 focus:border-blue-200" />
+                    </div>
+                  </div>
+
                   <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Đặc tính / Phân loại nhu cầu</label>
                     <div class="flex flex-wrap gap-2">
@@ -726,7 +738,6 @@ const resetBrandForm = () => {
                     <input v-model="custom_url" placeholder="Ví dụ: https://shopee.vn/san-pham-abc..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
                   </div>
 
-                  <!-- [UPDATE TẠI ĐÂY]: Giao diện ô nhập Link Catalog -->
                   <div class="space-y-1">
                     <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Link Catalog / Tài liệu kỹ thuật (PDF, Drive... nếu có)</label>
                     <input v-model="catalog_link" placeholder="Ví dụ: https://drive.google.com/file/d/..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
@@ -763,7 +774,7 @@ const resetBrandForm = () => {
                       />
                     </div>
 
-                    <!-- [THÊM MỚI] Ô soạn thảo Thông số Tiếng Việt -->
+                    <!-- Ô soạn thảo Thông số Tiếng Việt -->
                     <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
                       <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
                         Thông số kỹ thuật (VI)
@@ -777,7 +788,7 @@ const resetBrandForm = () => {
                       />
                     </div>
 
-                    <!-- [THÊM MỚI] Ô soạn thảo Thông số Tiếng Anh -->
+                    <!-- Ô soạn thảo Thông số Tiếng Anh -->
                     <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
                       <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
                         Technical Specifications (EN)
@@ -830,6 +841,7 @@ const resetBrandForm = () => {
                         <div class="inline-flex items-center gap-2">
                            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
                            <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
+                           <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
                         </div>
                       </div>
                     </td>
@@ -872,7 +884,6 @@ const resetBrandForm = () => {
                   />
                 </div>
 
-                <!-- [THÊM MỚI] Giao diện ô nhập Link Website -->
                 <div class="space-y-1.5">
                   <label class="text-[10px] font-black uppercase text-slate-500">Đường link Website (Nếu có)</label>
                   <input 
@@ -882,7 +893,6 @@ const resetBrandForm = () => {
                     class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-medium text-blue-600 border border-transparent focus:border-red-400"
                   />
                 </div>
-                <!-- KẾT THÚC [THÊM MỚI] -->
 
                 <div class="space-y-1.5">
                   <label class="text-[10px] font-black uppercase text-slate-500">Logo nhãn hàng *</label>
