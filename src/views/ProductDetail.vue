@@ -38,29 +38,36 @@ const openCompareModal = () => {
   }
 }
 
-// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT THÀNH TỪNG HÀNG (MỚI NÂNG CẤP) ---
+// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT (ĐÃ FIX LỖI TÁCH THẺ HTML) ---
 const getParsedSpecs = (item) => {
   if (!item) return {}
   
-  // 1. Nếu trong Firestore lưu sẵn dạng Object { "Lớp phủ": "PVD", "Vật liệu": "P, M, K" }
+  // 1. Nếu trong Firestore lưu sẵn dạng Object
   if (item.specs && typeof item.specs === 'object' && !Array.isArray(item.specs)) {
     return item.specs
   }
 
-  // 2. Nếu lưu dạng Text/HTML, tự động quét dấu ":" để tách ra Key - Value
+  // 2. Nếu lưu dạng Text/HTML
   const rawText = item[`specifications_${locale.value}`] || item.specifications || item[`features_${locale.value}`] || item.features || ''
-  
-  // Xóa bớt tag HTML chỉ lấy text
-  const cleanText = rawText.replace(/<[^>]*>/g, '\n')
-  const lines = cleanText.split('\n').map(l => l.trim()).filter(Boolean)
+  if (!rawText) return {}
+
+  let cleaned = rawText
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n') // Chỉ xuống dòng ở cuối thẻ khối
+    .replace(/<[^>]*>/g, '') // Xóa sạch các thẻ HTML còn lại (strong, b, span...)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean)
   
   const result = {}
   lines.forEach(line => {
     if (line.includes(':')) {
-      const parts = line.split(':')
-      const key = parts[0].trim()
-      const val = parts.slice(1).join(':').trim()
-      if (key && val && key.length < 35) { // Tránh quét nhầm đoạn văn dài
+      const colonIndex = line.indexOf(':')
+      const key = line.substring(0, colonIndex).trim()
+      const val = line.substring(colonIndex + 1).trim()
+      
+      if (key && val && key.length < 40) { // Tránh quét nhầm đoạn văn dài
         result[key] = val
       }
     }
@@ -69,13 +76,34 @@ const getParsedSpecs = (item) => {
   return result
 }
 
-// Lấy danh sách tất cả các Key thông số của cả 2 sản phẩm để tạo hàng so sánh
+// Helper lấy giá trị thông số (Không phân biệt hoa/thường)
+const getSpecValue = (specs, targetKey) => {
+  if (!specs) return '-'
+  if (specs[targetKey]) return specs[targetKey]
+  
+  const normalizedTarget = targetKey.toLowerCase().trim()
+  const foundKey = Object.keys(specs).find(k => k.toLowerCase().trim() === normalizedTarget)
+  
+  return foundKey ? specs[foundKey] : '-'
+}
+
+// Lấy danh sách tất cả các Key thông số của cả 2 sản phẩm (Khử trùng lặp thông minh)
 const allSpecKeys = computed(() => {
   if (!product.value || !compareProduct.value) return []
   const specs1 = getParsedSpecs(product.value)
   const specs2 = getParsedSpecs(compareProduct.value)
-  const keys = new Set([...Object.keys(specs1), ...Object.keys(specs2)])
-  return Array.from(keys)
+  
+  const rawKeys = [...Object.keys(specs1), ...Object.keys(specs2)]
+  
+  const uniqueKeys = []
+  rawKeys.forEach(k => {
+    const trimmed = k.trim()
+    if (trimmed && !uniqueKeys.some(uk => uk.toLowerCase() === trimmed.toLowerCase())) {
+      uniqueKeys.push(trimmed)
+    }
+  })
+  
+  return uniqueKeys
 })
 
 const cleanNumber = (val) => {
@@ -218,7 +246,7 @@ onMounted(async () => {
         <div v-if="isCompareOpen" class="fixed inset-0 z-999 flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
           <div class="bg-white rounded-4xl sm:rounded-[2.5rem] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
             
-            <!-- Header Modal (Tiêu đề Mới Rõ Ràng) -->
+            <!-- Header Modal -->
             <div class="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
               <div class="flex items-center gap-3">
                 <span class="w-3 h-8 bg-red-600 rounded-full"></span>
@@ -294,15 +322,15 @@ onMounted(async () => {
                   </thead>
                   <tbody class="divide-y divide-slate-100">
                     
-                    <!-- THÔNG SỐ TỰ ĐỘNG BÓC TÁCH THÀNH HÀNG RỜI (NẾU CÓ DẤU HOẶC OBJECT) -->
+                    <!-- THÔNG SỐ TỰ ĐỘNG BÓC TÁCH THÀNH HÀNG RỜI -->
                     <template v-if="allSpecKeys.length > 0">
                       <tr v-for="key in allSpecKeys" :key="key" class="hover:bg-slate-50/80 transition-colors">
                         <td class="p-3 font-extrabold text-slate-700 bg-slate-50/60 uppercase text-[10px] tracking-wider">{{ key }}</td>
                         <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
-                          {{ getParsedSpecs(product)[key] || '-' }}
+                          {{ getSpecValue(getParsedSpecs(product), key) }}
                         </td>
                         <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
-                          {{ getParsedSpecs(compareProduct)[key] || '-' }}
+                          {{ getSpecValue(getParsedSpecs(compareProduct), key) }}
                         </td>
                       </tr>
                     </template>
@@ -381,7 +409,7 @@ onMounted(async () => {
       </transition>
     </Teleport>
 
-    <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM GIỮ NGUYÊN HOÀN HẢO -->
+    <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM -->
     <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
