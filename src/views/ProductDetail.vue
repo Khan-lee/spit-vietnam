@@ -13,10 +13,14 @@ const isAdding = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 
+// --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
+const selectedUnit = ref('piece') // 'piece' hoặc 'box'
+const quantity = ref(1)
+
 // --- TAB MÔ TẢ VÀ ĐẶC TÍNH ---
 const activeTab = ref('description')
 
-// --- CHIẾN DỊCH KHUYẾN MÃI ---
+// --- CHIẾN DỊCH KHUYẾN MÃI & HÌNH ẢNH ---
 const activePromotions = ref([])
 const activeImage = ref('')
 const isZoomed = ref(false)
@@ -38,63 +42,51 @@ const openCompareModal = () => {
   }
 }
 
-// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT (ĐÃ FIX LỖI TÁCH THẺ HTML) ---
+// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT ---
 const getParsedSpecs = (item) => {
   if (!item) return {}
-  
-  // 1. Nếu trong Firestore lưu sẵn dạng Object
   if (item.specs && typeof item.specs === 'object' && !Array.isArray(item.specs)) {
     return item.specs
   }
 
-  // 2. Nếu lưu dạng Text/HTML
   const rawText = item[`specifications_${locale.value}`] || item.specifications || item[`features_${locale.value}`] || item.features || ''
   if (!rawText) return {}
 
   let cleaned = rawText
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n') // Chỉ xuống dòng ở cuối thẻ khối
-    .replace(/<[^>]*>/g, '') // Xóa sạch các thẻ HTML còn lại (strong, b, span...)
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
 
   const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean)
-  
   const result = {}
   lines.forEach(line => {
     if (line.includes(':')) {
       const colonIndex = line.indexOf(':')
       const key = line.substring(0, colonIndex).trim()
       const val = line.substring(colonIndex + 1).trim()
-      
-      if (key && val && key.length < 40) { // Tránh quét nhầm đoạn văn dài
+      if (key && val && key.length < 40) {
         result[key] = val
       }
     }
   })
-  
   return result
 }
 
-// Helper lấy giá trị thông số (Không phân biệt hoa/thường)
 const getSpecValue = (specs, targetKey) => {
   if (!specs) return '-'
   if (specs[targetKey]) return specs[targetKey]
-  
   const normalizedTarget = targetKey.toLowerCase().trim()
   const foundKey = Object.keys(specs).find(k => k.toLowerCase().trim() === normalizedTarget)
-  
   return foundKey ? specs[foundKey] : '-'
 }
 
-// Lấy danh sách tất cả các Key thông số của cả 2 sản phẩm (Khử trùng lặp thông minh)
 const allSpecKeys = computed(() => {
   if (!product.value || !compareProduct.value) return []
   const specs1 = getParsedSpecs(product.value)
   const specs2 = getParsedSpecs(compareProduct.value)
-  
   const rawKeys = [...Object.keys(specs1), ...Object.keys(specs2)]
-  
   const uniqueKeys = []
   rawKeys.forEach(k => {
     const trimmed = k.trim()
@@ -102,7 +94,6 @@ const allSpecKeys = computed(() => {
       uniqueKeys.push(trimmed)
     }
   })
-  
   return uniqueKeys
 })
 
@@ -112,6 +103,69 @@ const cleanNumber = (val) => {
   return parseFloat(cleaned) || 0
 }
 
+// --- LOGIC BẮT DỮ LIỆU TỪ ADMIN ---
+// 1. Số lượng mảnh/hộp
+const boxSize = computed(() => {
+  return cleanNumber(product.value?.box_qty || product.value?.box_size || product.value?.items_per_box) || 1
+})
+
+// 2. Tự động đọc Chế Độ Bán từ AdminView
+const normalizedSellingMode = computed(() => {
+  const mode = String(
+    product.value?.sales_type || 
+    product.value?.selling_mode || 
+    product.value?.sale_type || 
+    product.value?.sale_mode || 
+    ''
+  ).toLowerCase().trim()
+
+  if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
+  if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
+  if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
+
+  // Smart Fallback
+  const unitVi = String(product.value?.unit_vi || '').toLowerCase()
+  if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
+
+  if (boxSize.value > 1) return 'flexible'
+  return 'piece_only'
+})
+
+const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
+const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
+const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
+
+// 3. Tên đơn vị Lẻ & Hộp
+const unitPieceName = computed(() => {
+  if (product.value?.unit_piece) return product.value.unit_piece
+  return locale.value === 'vi' ? 'Mảnh' : 'Pc'
+})
+
+const unitBoxName = computed(() => {
+  if (product.value?.unit_box) return product.value.unit_box
+  if (locale.value === 'vi' && product.value?.unit_vi) return product.value.unit_vi
+  if (locale.value === 'en' && product.value?.unit_en) return product.value.unit_en
+  return locale.value === 'vi' ? 'Hộp' : 'Box'
+})
+
+// 4. Chuỗi Quy Cách Bán hiển thị trên Header Chi Tiết
+const displayUnitLabel = computed(() => {
+  if (isBoxOnlyMode.value) {
+    const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
+    return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${unitPieceName.value})` : mainUnit
+  }
+  if (isPieceOnlyMode.value) {
+    return unitPieceName.value
+  }
+  if (selectedUnit.value === 'box') {
+    return `${unitBoxName.value} (${boxSize.value} ${unitPieceName.value})`
+  }
+  return unitPieceName.value
+})
+
+const boxDiscountPercent = computed(() => cleanNumber(product.value?.box_discount || product.value?.box_discount_percent) || 0)
+
+// --- CHIẾN DỊCH KHUYẾN MÃI ---
 const fetchActivePromotions = async () => {
   try {
     const q = query(collection(db, "promotions"), where("is_active", "==", true))
@@ -138,40 +192,99 @@ const effectivePromo = computed(() => {
 
 const hasPromo = () => !!effectivePromo.value
 
-const getDiscountedPrice = (item) => {
-  if (!item || !item.price) return 0
-  const basePrice = cleanNumber(item.price)
-  if (item.id === product.value?.id) {
-    const promo = effectivePromo.value
-    if (!promo) return basePrice
-    if (promo.type === 'percentage') return basePrice * (1 - promo.value / 100)
-    if (promo.type === 'fixed') return Math.max(0, basePrice - promo.value)
+// --- 🔥 TÍNH GIÁ CHUẨN XÁC THEO HỘP / MẢNH & ÁP DỤNG KHUYẾN MÃI ĐÚNG QUY TẮC ---
+const basePrice = computed(() => cleanNumber(product.value?.price))
+const directBoxPrice = computed(() => cleanNumber(product.value?.price_box))
+const directPiecePrice = computed(() => cleanNumber(product.value?.price_piece || product.value?.price))
+
+// Đơn giá niêm yết (Chưa giảm) của quy cách đang chọn
+const originalUnitPrice = computed(() => {
+  if (isBoxOnlyMode.value || selectedUnit.value === 'box') {
+    return directBoxPrice.value > 0 ? directBoxPrice.value : (basePrice.value * boxSize.value)
   }
-  return basePrice
+  // Nếu chọn bán Mảnh
+  return directPiecePrice.value
+})
+
+// Đơn giá thực tế sau khi tính Khuyến Mãi
+const currentUnitPrice = computed(() => {
+  if (!product.value) return 0
+  let price = originalUnitPrice.value
+
+  const isBuyingBox = isBoxOnlyMode.value || selectedUnit.value === 'box'
+
+  // ⚡ CHỈ TÍNH KHUYẾN MÃI NẾU KHÁCH CHỌN MUA HỘP
+  if (isBuyingBox) {
+    // 1. Áp dụng Chiết khấu % Hộp (Nếu không có Giá Hộp nhập tay độc lập)
+    if (isFlexibleMode.value && directBoxPrice.value === 0 && boxDiscountPercent.value > 0) {
+      price = price * (1 - boxDiscountPercent.value / 100)
+    }
+
+    // 2. Áp dụng Khuyến mãi Chiến dịch / Sale lẻ
+    const promo = effectivePromo.value
+    if (promo) {
+      if (promo.type === 'percentage') {
+        price = price * (1 - promo.value / 100)
+      } else if (promo.type === 'fixed') {
+        price = Math.max(0, price - promo.value)
+      }
+    }
+  } 
+  // ⚡ NẾU MUA MẢNH -> KỆ MẸ KHUYẾN MÃI: Giữ nguyên originalUnitPrice (không trừ tiền)
+
+  return Math.round(price)
+})
+
+// Tổng tiền
+const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
+
+// Số tiền tiết kiệm được
+const savingsAmount = computed(() => Math.max(0, originalUnitPrice.value - currentUnitPrice.value))
+
+const changeQuantity = (delta) => {
+  const newQty = quantity.value + delta
+  if (newQty >= 1) quantity.value = newQty
 }
 
+// --- THÊM VÀO GIỎ HÀNG ---
 const addToCart = (item) => {
   if (item.stock <= 0) return
   isAdding.value = true
 
   setTimeout(() => {
     const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
-    const existingItem = cart.find(i => i.id === route.params.id)
     const pName = item[`name_${locale.value}`] || item.name
-    const finalPrice = getDiscountedPrice(item)
+    
+    const currentUnitKey = isBoxOnlyMode.value ? 'box' : selectedUnit.value
+    const currentUnitLabel = isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)
+    
+    const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
 
-    if (existingItem) {
-      existingItem.quantity += 1
-      existingItem.price = finalPrice 
+    if (existingIndex > -1) {
+      cart[existingIndex].quantity += quantity.value
+      cart[existingIndex].price = currentUnitPrice.value
     } else {
-      cart.push({ id: route.params.id, name: pName, price: finalPrice, image: item.image, quantity: 1 })
+      cart.push({
+        id: route.params.id,
+        name: pName,
+        price: currentUnitPrice.value,
+        original_price: originalUnitPrice.value,
+        image: item.image,
+        quantity: quantity.value,
+        unit: currentUnitKey,
+        unit_name: currentUnitLabel,
+        box_size: boxSize.value,
+        sku: item.sku || ''
+      })
     }
     
     localStorage.setItem('spit_cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart-updated'))
     
     isAdding.value = false
-    toastMessage.value = locale.value === 'vi' ? `Đã thêm vào giỏ hàng thành công!` : `Added to cart successfully!`
+    toastMessage.value = locale.value === 'vi' 
+      ? `Đã thêm ${quantity.value} ${currentUnitLabel} vào giỏ hàng!` 
+      : `Added ${quantity.value} ${currentUnitLabel} to cart!`
     showToast.value = true
     setTimeout(() => { showToast.value = false }, 3000)
   }, 200)
@@ -203,6 +316,13 @@ onMounted(async () => {
     const docSnap = await getDoc(docRef)
     if (docSnap.exists()) {
       product.value = { id: docSnap.id, ...docSnap.data() }
+      
+      if (isBoxOnlyMode.value) {
+        selectedUnit.value = 'box'
+      } else {
+        selectedUnit.value = 'piece'
+      }
+
       if (product.value.image) activeImage.value = product.value.image
       const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
       if (targetCategory) await fetchRelatedProducts(targetCategory)
@@ -240,13 +360,12 @@ onMounted(async () => {
       </div>
     </transition>
 
-    <!-- MODAL SO SÁNH SẢN PHẨM PHIÊN BẢN CHUẨN CƠ KHÍ (CHIA HÀNG CHI TIẾT) -->
+    <!-- MODAL SO SÁNH SẢN PHẨM -->
     <Teleport to="body">
       <transition name="fade">
         <div v-if="isCompareOpen" class="fixed inset-0 z-999 flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
           <div class="bg-white rounded-4xl sm:rounded-[2.5rem] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
             
-            <!-- Header Modal -->
             <div class="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
               <div class="flex items-center gap-3">
                 <span class="w-3 h-8 bg-red-600 rounded-full"></span>
@@ -262,10 +381,7 @@ onMounted(async () => {
               <button @click="isCompareOpen = false" class="w-10 h-10 rounded-2xl bg-slate-800 hover:bg-red-600 text-white font-bold flex items-center justify-center transition-colors">✕</button>
             </div>
 
-            <!-- Body Modal -->
             <div class="p-4 sm:p-6 overflow-y-auto space-y-6 grow">
-              
-              <!-- Khối 2 Sản Phẩm Đầu Bảng -->
               <div class="grid grid-cols-2 gap-3 sm:gap-6">
                 <!-- Sản phẩm hiện tại -->
                 <div class="bg-slate-50/80 p-4 rounded-3xl border border-slate-200 flex flex-col items-center text-center relative">
@@ -276,7 +392,7 @@ onMounted(async () => {
                   <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
                   <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">{{ product[`name_${locale}`] || product.name }}</h4>
                   <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
-                    {{ getDiscountedPrice(product).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
+                    {{ currentUnitPrice.toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ / {{ displayUnitLabel }}</span>
                   </p>
                 </div>
 
@@ -310,7 +426,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <!-- BẢNG SO SÁNH PHÂN RA TỪNG HÀNG THÔNG SỐ CỤ THỂ -->
+              <!-- BẢNG SO SÁNH -->
               <div v-if="compareProduct" class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                 <table class="w-full text-xs text-left border-collapse">
                   <thead>
@@ -321,8 +437,6 @@ onMounted(async () => {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100">
-                    
-                    <!-- THÔNG SỐ TỰ ĐỘNG BÓC TÁCH THÀNH HÀNG RỜI -->
                     <template v-if="allSpecKeys.length > 0">
                       <tr v-for="key in allSpecKeys" :key="key" class="hover:bg-slate-50/80 transition-colors">
                         <td class="p-3 font-extrabold text-slate-700 bg-slate-50/60 uppercase text-[10px] tracking-wider">{{ key }}</td>
@@ -335,7 +449,6 @@ onMounted(async () => {
                       </tr>
                     </template>
 
-                    <!-- NẾU KHÔNG TÁCH ĐƯỢC KEY THÌ HIỂN THỊ NGUYÊN KHỐI MÔ TẢ ĐẶC TÍNH KỸ THUẬT -->
                     <tr v-else>
                       <td class="p-3.5 font-black text-red-600 uppercase tracking-wider bg-slate-50/60 align-top">
                         Đặc tính & Thông số
@@ -352,7 +465,6 @@ onMounted(async () => {
                       </td>
                     </tr>
 
-                    <!-- HÀM MÔ TẢ TÓM TẮT -->
                     <tr class="bg-slate-50/30">
                       <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60 align-top">Mô tả sản phẩm</td>
                       <td class="p-3.5 align-top border-l border-slate-200 text-slate-600">
@@ -363,7 +475,6 @@ onMounted(async () => {
                       </td>
                     </tr>
 
-                    <!-- CÁC THÔNG TIN HỆ THỐNG CƠ BẢN -->
                     <tr>
                       <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Thương hiệu</td>
                       <td class="p-3.5 font-black text-slate-900 border-l border-slate-200">{{ product.brand || 'SPIT' }}</td>
@@ -387,18 +498,6 @@ onMounted(async () => {
                         </span>
                       </td>
                     </tr>
-                    <tr>
-                      <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Catalog / PDF</td>
-                      <td class="p-3.5 border-l border-slate-200">
-                        <a v-if="product.catalog_link" :href="product.catalog_link" target="_blank" class="text-blue-600 font-bold hover:underline">📄 Xem File Catalog</a>
-                        <span v-else class="text-slate-300 italic">Không có</span>
-                      </td>
-                      <td class="p-3.5 border-l border-slate-200">
-                        <a v-if="compareProduct.catalog_link" :href="compareProduct.catalog_link" target="_blank" class="text-blue-600 font-bold hover:underline">📄 Xem File Catalog</a>
-                        <span v-else class="text-slate-300 italic">Không có</span>
-                      </td>
-                    </tr>
-
                   </tbody>
                 </table>
               </div>
@@ -417,7 +516,7 @@ onMounted(async () => {
         <!-- Cột hình ảnh -->
         <div class="lg:sticky lg:top-24 space-y-5 w-full">
           <div class="relative bg-[#f8fafc] p-8 md:p-12 rounded-4xl border border-slate-100 flex items-center justify-center aspect-square shadow-inner overflow-hidden group">
-            <div v-if="hasPromo()" class="absolute top-5 left-5 z-10 text-white font-black text-[10px] tracking-wider px-3 py-1.5 rounded-xl shadow-md uppercase" :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-linear-to-r from-orange-500 to-amber-500' : 'bg-linear-to-r from-red-600 to-red-500'">
+            <div v-if="hasPromo()" class="absolute top-5 left-5 z-10 text-white font-black text-[10px] tracking-wider px-3 py-1.5 rounded-xl shadow-md uppercase" :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-red-600 to-red-500'">
               🔥 {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
             </div>
             <img :src="activeImage" @click="isZoomed = true" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" title="Bấm để phóng to ảnh" />
@@ -457,28 +556,109 @@ onMounted(async () => {
             </p>
           </div>
           
-          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500" :class="hasPromo() ? 'bg-red-50/50 border-red-100' : 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10'">
-            <div class="flex flex-col gap-1">
-              <div v-if="hasPromo()" class="text-slate-400 font-bold text-xs sm:text-sm line-through opacity-70">
-                {{ cleanNumber(product.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
+          <!-- HIỂN THỊ CHỌN QUY CÁCH (NẾU BÁN LINH HOẠT SỈ+LẺ) -->
+          <div v-if="isFlexibleMode" class="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-3xl border border-slate-200/80">
+            <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
+              Chọn quy cách mua:
+            </label>
+            
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Mua Lẻ -->
+              <button 
+                type="button"
+                @click="selectedUnit = 'piece'"
+                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between"
+                :class="selectedUnit === 'piece' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
+              >
+                <div class="flex items-center justify-between w-full mb-1">
+                  <span class="text-xs uppercase font-black">Mua lẻ ({{ unitPieceName }})</span>
+                  <span v-if="selectedUnit === 'piece'" class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-semibold">Theo từng mảnh</span>
+              </button>
+
+              <!-- Mua Hộp -->
+              <button 
+                type="button"
+                @click="selectedUnit = 'box'"
+                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between"
+                :class="selectedUnit === 'box' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
+              >
+                <div class="flex items-center justify-between w-full mb-1">
+                  <span class="text-xs uppercase font-black">Mua {{ unitBoxName }}</span>
+                  <span v-if="boxDiscountPercent > 0 && directBoxPrice === 0" class="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.5 rounded-md uppercase">
+                    -{{ boxDiscountPercent }}%
+                  </span>
+                </div>
+                <span class="text-[10px] text-slate-500 font-bold">
+                  Quy cách: {{ boxSize }} {{ unitPieceName }}/{{ unitBoxName }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CHẾ ĐỘ "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
+          <div v-else class="inline-flex items-center gap-2 bg-slate-100/90 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold border border-slate-200/80 shadow-sm">
+            <span class="text-slate-400 uppercase text-[10px] tracking-wider font-extrabold">QUY CÁCH BÁN:</span>
+            <span class="text-slate-900 font-black uppercase tracking-wide text-xs">{{ displayUnitLabel }}</span>
+          </div>
+
+          <!-- KHỐI TÍNH GIÁ ĐỒNG BỘ THEO "HỘP" & MẢNH -->
+          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  ĐƠN GIÁ THEO {{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }}:
+                </span>
+                <span v-if="savingsAmount > 0" class="text-[10px] bg-red-600 text-white font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
+                </span>
               </div>
-              <div class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5" :class="hasPromo() ? 'text-primary' : 'text-white'">
-                {{ getDiscountedPrice(product).toLocaleString('vi-VN') }} 
-                <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">VNĐ</span>
+
+              <!-- Giá hiển thị -->
+              <div class="flex items-baseline gap-3">
+                <div class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5 text-white">
+                  {{ currentUnitPrice.toLocaleString('vi-VN') }} 
+                  <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">
+                    VNĐ/{{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }}
+                  </span>
+                </div>
+                <div v-if="originalUnitPrice > currentUnitPrice" class="text-slate-400 font-bold text-xs sm:text-sm line-through opacity-70">
+                  {{ originalUnitPrice.toLocaleString('vi-VN') }} VNĐ
+                </div>
+              </div>
+
+              <!-- Tổng tiền Real-time -->
+              <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TỔNG TIỀN THÀNH TIỀN:</span>
+                <span class="text-xl sm:text-2xl font-black text-red-500">
+                  {{ totalPrice.toLocaleString('vi-VN') }} <span class="text-xs font-bold">VNĐ</span>
+                </span>
               </div>
             </div>
           </div>
 
-          <!-- NÚT MUA HÀNG VÀ SO SÁNH -->
+          <!-- BỘ CHỌN SỐ LƯỢNG & NÚT THÊM VÀO GIỎ -->
           <div class="space-y-3">
-            <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]" :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
-              <span v-if="product.stock > 0" class="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-black text-slate-700 uppercase tracking-wider shrink-0">SỐ LƯỢNG:</span>
+              <div class="flex items-center border-2 border-slate-200 rounded-2xl bg-white overflow-hidden shrink-0">
+                <button @click="changeQuantity(-1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200">-</button>
+                <input type="number" v-model.number="quantity" min="1" class="w-14 text-center font-black text-sm text-slate-900 focus:outline-none" />
+                <button @click="changeQuantity(1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200">+</button>
+              </div>
+              <span class="text-xs font-extrabold text-slate-500 uppercase">
+                ({{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }})
+              </span>
+            </div>
+
+            <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]" :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10 hover:bg-red-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'">
               <span class="relative z-10 tracking-[0.2em] flex items-center justify-center gap-2">
-                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? 'Thêm vào giỏ hàng' : 'Add to cart') : 'Hết hàng tạm thời') }}
+                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? `Thêm ${quantity} ${isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName)} vào giỏ` : 'Add to cart') : 'Hết hàng tạm thời') }}
               </span>
             </button>
 
-            <a v-if="product.catalog_link" :href="product.catalog_link" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black uppercase text-xs transition-all border-2 border-slate-200 bg-white text-slate-700 hover:border-slate-950 hover:text-slate-950 active:scale-[0.98]">
+            <a v-if="product.catalog_link" :href="product.catalog_link" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black uppercase text-xs transition-all border-2 border-slate-200 bg-white text-slate-700 hover:border-slate-950 hover:text-slate-950">
               <span class="tracking-[0.2em]">{{ locale === 'vi' ? 'Xem Catalog / Tài liệu' : 'View Catalog / Specs' }}</span>
             </a>
 
@@ -495,10 +675,10 @@ onMounted(async () => {
       <!-- TABS MÔ TẢ & ĐẶC TÍNH -->
       <div class="bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 min-h-100">
         <div class="flex flex-wrap gap-3 mb-8 border-b border-slate-100 pb-5">
-          <button @click="activeTab = 'description'" class="px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all" :class="activeTab === 'description' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400'">
+          <button @click="activeTab = 'description'" class="px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer" :class="activeTab === 'description' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:text-slate-600'">
             {{ locale === 'vi' ? 'Mô tả chi tiết' : 'Description' }}
           </button>
-          <button @click="activeTab = 'features'" class="px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all" :class="activeTab === 'features' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400'">
+          <button @click="activeTab = 'features'" class="px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer" :class="activeTab === 'features' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:text-slate-600'">
             {{ locale === 'vi' ? 'Đặc tính & Thông số' : 'Features & Specs' }}
           </button>
         </div>
@@ -525,4 +705,10 @@ onMounted(async () => {
 .raw-html-content :deep(ul) { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
 .raw-html-content :deep(table) { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; }
 .raw-html-content :deep(td), .raw-html-content :deep(th) { border: 1px solid #e2e8f0; padding: 6px 8px; font-size: 11px; }
+
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
 </style>

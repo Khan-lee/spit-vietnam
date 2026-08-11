@@ -41,7 +41,7 @@ const passwordInput = ref('')
 const ADMIN_EMAIL = 'spitsaigon@gmail.com'
 
 // --- BIẾN ĐIỀU HƯỚNG TAB TRONG ADMIN ---
-const currentTab = ref('products') // Có 2 chế độ: 'products' hoặc 'brands'
+const currentTab = ref('products') // 'products' hoặc 'brands'
 
 // --- BIẾN TÌM KIẾM ---
 const searchQuery = ref('')
@@ -53,28 +53,27 @@ const promotionType = ref('percentage')
 const promotionValue = ref('')
 const activePromotions = ref([]) 
 
-// --- [BỔ SUNG MỚI] BIẾN QUẢN LÝ QUY CÁCH & BÁN HÀNG ---
+// --- BIẾN QUẢN LÝ QUY CÁCH & BÁN HÀNG ---
 // sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp)
 const sales_type = ref('flexible') 
 const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh
-const box_discount_percent = ref(14) // Mặc định giảm 14% khi mua nguyên hộp
 
 // --- BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
-const subImages = ref([])       // Lưu các chuỗi URL (ảnh đã có trên server hoặc link ngoài)
-const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy tính để chuẩn bị upload
+const subImages = ref([])       // Lưu các chuỗi URL
+const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy
 
-// --- [ĐỒNG BỘ] BIẾN QUẢN LÝ NHÃN HÀNG (BRANDS) ---
+// --- BIẾN QUẢN LÝ NHÃN HÀNG (BRANDS) ---
 const brands = ref([])
 const brandName = ref('')
 const brandLogoUrl = ref('')
-const brandLogoFile = ref(null) // Biến lưu file logo tạm thời chọn từ máy
+const brandLogoFile = ref(null) 
 const brandDescription = ref('')
-const brandLink = ref('')       // Biến lưu đường link website của hãng
+const brandLink = ref('')       
 const editingBrandId = ref(null)
 
-// --- [ĐỒNG BỘ] BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
+// --- BIẾN QUẢN LÝ DANH MỤC (CATEGORIES) ---
 const categories = ref([])
-const categoryId = ref('') // Lưu ID document của Category để đồng bộ
+const categoryId = ref('') 
 
 // --- QUẢN LÝ SẢN PHẨM ---
 const products = ref([])
@@ -93,13 +92,58 @@ const gift_en = ref('')
 
 const brand = ref('')
 const brandId = ref('') 
-const price = ref(0)
+
+// --- 2 LOẠI GIÁ BÁN ĐỘC LẬP ---
+const price_piece = ref(0) // Giá bán theo Mảnh
+const price_box = ref(0)   // Giá bán theo Hộp
+const price = ref(0)       // Đồng bộ với price_piece để tương thích ngược dữ liệu cũ
+
 const stock = ref(0)
 const image = ref('')
 const imageFile = ref(null)
 
 const custom_url = ref('')
 const catalog_link = ref('')
+
+// =========================================================================
+// ⚡ LOGIC TÍNH TOÁN GIÁ TỰ ĐỘNG & ĐIỀU CHỈNH HÌNH THỨC BÁN (THÊM MỚI CHUẨN)
+// =========================================================================
+
+// 1. Chuyển đổi loại hình bán
+const setSalesType = (type) => {
+  sales_type.value = type
+}
+
+// 2. Tự động gợi ý Giá Mảnh khi nhập Giá Hộp
+const onPriceBoxInput = () => {
+  const bQty = Number(box_qty.value) || 1
+  const pBox = Number(price_box.value) || 0
+
+  if (pBox > 0 && bQty > 0) {
+    const calculatedPiecePrice = Math.round(pBox / bQty)
+    price_piece.value = calculatedPiecePrice
+    price.value = calculatedPiecePrice
+  }
+}
+
+// 3. Tự động gợi ý lại Giá Mảnh khi thay đổi Số Mảnh / Hộp
+const onBoxQtyInput = () => {
+  const bQty = Number(box_qty.value) || 1
+  const pBox = Number(price_box.value) || 0
+
+  if (pBox > 0 && bQty > 0) {
+    const calculatedPiecePrice = Math.round(pBox / bQty)
+    price_piece.value = calculatedPiecePrice
+    price.value = calculatedPiecePrice
+  }
+}
+
+// 4. Đồng bộ biến `price` khi người dùng tự tay sửa `price_piece`
+const onPricePieceInput = () => {
+  price.value = Number(price_piece.value) || 0
+}
+
+// =========================================================================
 
 // --- BẢN ĐỒ MAPPING VÀ BIẾN LƯU TAGS THÔNG MINH ---
 const selectedTags = ref([]) 
@@ -326,8 +370,8 @@ const fetchProducts = async () => {
 
 // --- THAO TÁC SUBMIT SẢN PHẨM ---
 const handleSubmit = async () => {
-  if (!name_vi.value || !brandId.value || !categoryId.value || !price.value) {
-    return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Danh mục, Giá bán)!")
+  if (!name_vi.value || !brandId.value || !categoryId.value || (!price_piece.value && !price_box.value && !price.value)) {
+    return alert("Thiếu thông tin quan trọng (Tên sản phẩm, Nhãn hàng, Danh mục, hoặc Giá bán)!")
   }
   
   try {
@@ -349,7 +393,11 @@ const handleSubmit = async () => {
       gift_en: gift_en.value || '',
       brand: brand.value,
       brandId: brandId.value, 
-      price: Number(price.value),
+
+      price_piece: Number(price_piece.value) || 0,
+      price_box: Number(price_box.value) || 0,
+      price: Number(price_piece.value) || Number(price.value) || 0,
+
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
@@ -357,10 +405,8 @@ const handleSubmit = async () => {
       catalog_link: catalog_link.value.trim(), 
       tags: selectedTags.value,
       
-      // --- [BỔ SUNG MỚI] LƯU QUY CÁCH BÁN HÀNG VÀO FIREBASE ---
       sales_type: sales_type.value || 'flexible',
       box_qty: Number(box_qty.value) || 10,
-      box_discount_percent: Number(box_discount_percent.value) || 0,
       
       updatedAt: serverTimestamp()
     }
@@ -458,7 +504,11 @@ const startEdit = (p) => {
   gift_en.value = p.gift_en || ''
   brandId.value = p.brandId || brands.value.find(b => b.name === p.brand)?.id || ''
   brand.value = p.brand || ''
+
+  price_piece.value = p.price_piece !== undefined ? p.price_piece : (p.price || 0)
+  price_box.value = p.price_box || 0
   price.value = p.price || 0
+
   stock.value = p.stock || 0
   image.value = p.image || ''
   imageFile.value = null
@@ -466,10 +516,8 @@ const startEdit = (p) => {
   custom_url.value = p.custom_url || ''
   catalog_link.value = p.catalog_link || ''
 
-  // --- [BỔ SUNG MỚI] LOAD QUY CÁCH BÁN HÀNG CŨ KHI SỬA SẢN PHẨM ---
   sales_type.value = p.sales_type || 'flexible'
   box_qty.value = p.box_qty !== undefined ? p.box_qty : 10
-  box_discount_percent.value = p.box_discount_percent !== undefined ? p.box_discount_percent : 14
 
   selectedTags.value = p.tags ? [...p.tags] : []
 
@@ -530,7 +578,11 @@ const resetForm = () => {
   gift_en.value = ''
   brandId.value = ''
   brand.value = '' 
+
+  price_piece.value = 0
+  price_box.value = 0
   price.value = 0
+
   stock.value = 0
   image.value = ''
   imageFile.value = null
@@ -540,10 +592,8 @@ const resetForm = () => {
   custom_url.value = '' 
   catalog_link.value = '' 
   
-  // --- [BỔ SUNG MỚI] RESET VỀ MẶC ĐỊNH ---
   sales_type.value = 'flexible'
   box_qty.value = 10
-  box_discount_percent.value = 14
 
   selectedTags.value = []
   
@@ -692,50 +742,83 @@ const resetBrandForm = () => {
                     </div>
                   </div>
 
-                  <!-- [MỚI BỔ SUNG KHỐI NÀY]: CẤU HÌNH BÁN HÀNG SỈ & LẺ (FLEXIBLE / PIECE / BOX) -->
-                  <div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
-                    <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
-                    
-                    <!-- 3 Nút chọn Kịch bản Bán -->
-                    <div class="grid grid-cols-3 gap-1.5">
-                      <button 
-                        type="button"
-                        @click="sales_type = 'flexible'"
-                        :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-                      >
-                        Linh hoạt (Sỉ+Lẻ)
-                      </button>
-                      <button 
-                        type="button"
-                        @click="sales_type = 'piece'"
-                        :class="sales_type === 'piece' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-                      >
-                        Chỉ bán Mảnh
-                      </button>
-                      <button 
-                        type="button"
-                        @click="sales_type = 'box'"
-                        :class="sales_type === 'box' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-                      >
-                        Chỉ bán Hộp
-                      </button>
-                    </div>
+                  <!-- 1. KHỐI CẤU HÌNH BÁN HÀNG SỈ & LẺ -->
+<div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
+  <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
+  
+  <!-- 3 Nút chọn Kịch bản Bán -->
+  <div class="grid grid-cols-3 gap-1.5">
+    <button 
+      type="button"
+      @click="sales_type = 'flexible'"
+      :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+    >
+      Linh hoạt (Sỉ+Lẻ)
+    </button>
+    <button 
+      type="button"
+      @click="sales_type = 'piece'"
+      :class="sales_type === 'piece' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+    >
+      Chỉ bán Mảnh
+    </button>
+    <button 
+      type="button"
+      @click="sales_type = 'box'"
+      :class="sales_type === 'box' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+    >
+      Chỉ bán Hộp
+    </button>
+  </div>
 
-                    <!-- Ô Nhập Quy cách Hộp & % Giảm giá (Ẩn/Hiện linh hoạt) -->
-                    <div v-if="sales_type !== 'piece'" class="grid grid-cols-2 gap-2 pt-1">
-                      <div class="space-y-1">
-                        <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
-                        <input v-model.number="box_qty" type="number" min="1" placeholder="10" class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" />
-                      </div>
-                      <div v-if="sales_type === 'flexible'" class="space-y-1">
-                        <label class="text-[9px] font-bold text-slate-500 ml-1">% Giảm khi đủ Hộp</label>
-                        <input v-model.number="box_discount_percent" type="number" min="0" max="100" placeholder="14" class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400 text-blue-600" />
-                      </div>
-                    </div>
-                  </div>
+  <!-- Ô Nhập Quy cách Hộp & % Giảm giá -->
+  <div v-if="sales_type !== 'piece'" class="grid grid-cols-2 gap-2 pt-1">
+    <div class="space-y-1">
+      <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
+      <!-- Đã thêm @input="onBoxQtyInput" để tự tính lại giá mảnh khi đổi số lượng mảnh/hộp -->
+      <input 
+        v-model.number="box_qty" 
+        @input="onBoxQtyInput"
+        type="number" 
+        min="1" 
+        placeholder="10" 
+        class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
+      />
+    </div>
+  </div>
+</div>
+
+<!-- 2. KHỐI NHẬP GIÁ SẢN PHẨM (NẰM NGAY DƯỚI KHỐI CẤU HÌNH) -->
+<div class="grid grid-cols-2 gap-2 pt-2">
+  <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh') -->
+  <div v-if="sales_type !== 'piece'" class="space-y-1">
+    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Hộp (VNĐ)</label>
+    <!-- Thêm @input="onPriceBoxInput" để gõ giá hộp -> tự động gợi ý chia ra giá mảnh -->
+    <input 
+      v-model.number="price_box" 
+      @input="onPriceBoxInput"
+      type="number" 
+      placeholder="0" 
+      class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+    />
+  </div>
+
+  <!-- Ô Nhập Giá Mảnh (Hiện khi không phải 'Chỉ bán hộp') -->
+  <div v-if="sales_type !== 'box'" class="space-y-1">
+    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Mảnh (VNĐ)</label>
+    <!-- Thêm @input="onPricePieceInput" để tự sửa giá mảnh thoải mái không lo lỗi -->
+    <input 
+      v-model.number="price_piece" 
+      @input="onPricePieceInput"
+      type="number" 
+      placeholder="0" 
+      class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+    />
+  </div>
+</div>
 
                   <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Đặc tính / Phân loại nhu cầu</label>

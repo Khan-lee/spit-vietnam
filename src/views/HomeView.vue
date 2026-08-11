@@ -214,14 +214,34 @@ const activeBannerPromo = computed(() => {
 })
 
 const getCountdown = (endDate) => {
-  if (!endDate) return null
-  const diff = new Date(endDate) - currentTime.value
-  if (diff <= 0) return null
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60 * 60)) / 1000)
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
+  if (!endDate) return '';
+  
+  const target = new Date(endDate).getTime();
+  const now = new Date().getTime();
+  const diff = target - now;
+
+  // Nếu hết hạn khuyến mãi
+  if (diff <= 0) return 'Đã hết hạn';
+
+  // Tính toán Ngày, Giờ, Phút, Giây
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  // Thêm số 0 phía trước nếu < 10 (Ví dụ: 05 thay vì 5)
+  const hh = String(hours).padStart(2, '0');
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+
+  // Định dạng hiển thị đẹp mắt
+  if (days > 0) {
+    return `${days} ngày ${hh}:${mm}:${ss}`; 
+    // Hoặc nếu muốn hiện chữ rõ ràng: return `${days} ngày ${hh} giờ ${mm} phút ${ss} giây`;
+  }
+  
+  return `${hh}:${mm}:${ss}`;
+};
 
 const categories = computed(() => {
   const activeCats = categoryDocs.value
@@ -391,9 +411,20 @@ const getCategoryBanner = (catName) => {
   {{ activeBannerPromo.tiers?.[0]?.discount_value?.toLocaleString('vi-VN') }}
   {{ activeBannerPromo.tiers?.[0]?.discount_type === 'percentage' ? '%' : ' VNĐ' }}
 </span>
-              <span v-if="activeBannerPromo.end_date" class="text-[11px] font-mono text-yellow-200 bg-black/20 px-2.5 py-1 rounded-full border border-yellow-400/30">
-                Kết thúc sau: {{ getCountdown(activeBannerPromo.end_date) }}
-              </span>
+              <span 
+  v-if="activeBannerPromo.end_date" 
+  class="inline-flex items-center gap-1.5 text-[11px] font-medium text-yellow-300 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-yellow-400/40 shadow-inner"
+>
+  <!-- Icon đồng hồ chạy nhẹ nhàng -->
+  <svg class="w-3.5 h-3.5 text-yellow-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+
+  <span class="text-white/90">Kết thúc sau:</span>
+  <span class="font-mono font-black text-yellow-300 tracking-wider">
+    {{ getCountdown(activeBannerPromo.end_date) }}
+  </span>
+</span>
               <span class="text-white/40 text-xs"></span>
             </div>
           </div>
@@ -586,7 +617,7 @@ const getCategoryBanner = (catName) => {
     </section>
 
     <!-- === SECTION SẢN PHẨM HOT / BÁN CHẠY NẰM NGANG === -->
-    <section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-4">
+<section class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-4">
   <div class="w-full bg-linear-to-r from-red-50 via-white to-orange-50 rounded-2xl border border-red-200 p-3 shadow-sm flex flex-col md:flex-row gap-4 items-stretch overflow-hidden relative">
     <!-- Hiệu ứng viền sáng -->
     <div class="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-red-500 to-orange-400"></div>
@@ -614,11 +645,17 @@ const getCategoryBanner = (catName) => {
         
         <div>
           <div class="aspect-square bg-white rounded-lg overflow-hidden mb-2 p-1 flex items-center justify-center">
-             <img :src="product.image" :alt="product[`name_${locale}`] || product.name" class="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-500" />
+            <img :src="product.image" :alt="product[`name_${locale}`] || product.name" class="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-500" />
           </div>
           
-          <p class="text-[10px] font-bold text-slate-400 uppercase block mb-0.5 truncate">{{ product.brand || 'Khác' }}</p>
-          
+          <!-- UPDATE MỚI: Tag quy cách bán hàng + Thương hiệu -->
+          <div class="flex items-center justify-between gap-1 mb-0.5">
+            <span class="text-[9px] font-bold text-slate-400 uppercase block truncate">{{ product.brand || 'Khác' }}</span>
+            <span v-if="product.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+            <span v-else-if="product.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+            <span v-else-if="product.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
+          </div>
+
           <h4 class="text-xs font-bold text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors leading-tight">
             {{ product[`name_${locale}`] || product.name }}
           </h4>
@@ -626,26 +663,26 @@ const getCategoryBanner = (catName) => {
         
         <!-- PHẦN GIÁ TO + NÚT CATALOG -->
         <div class="mt-3 pt-2 border-t border-slate-100">
-           <div class="flex items-baseline gap-1 flex-wrap">
-             <span class="text-base sm:text-lg font-black text-red-600">
-               {{ (getSalePrice(product) || product.price || 0).toLocaleString('vi-VN') }}đ
-             </span>
-             <span v-if="getSalePrice(product)" class="text-[10px] text-slate-400 line-through font-medium">
-               {{ (product.price || 0).toLocaleString('vi-VN') }}đ
-             </span>
-           </div>
+          <div class="flex items-baseline gap-1 flex-wrap">
+            <span class="text-base sm:text-lg font-black text-red-600">
+              {{ (getSalePrice(product) || product.price || 0).toLocaleString('vi-VN') }}đ
+            </span>
+            <span v-if="getSalePrice(product)" class="text-[10px] text-slate-400 line-through font-medium">
+              {{ (product.price || 0).toLocaleString('vi-VN') }}đ
+            </span>
+          </div>
 
-           <!-- Nút Xem Catalog -->
-           <a 
-             v-if="product.catalog_link || product.catalog || product.catalog_url || product.pdf"
-             :href="product.catalog_link || product.catalog || product.catalog_url || product.pdf" 
-             target="_blank"
-             @click.stop
-             class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-             <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-           </a>
+          <!-- Nút Xem Catalog -->
+          <a 
+            v-if="product.catalog_link || product.catalog || product.catalog_url || product.pdf"
+            :href="product.catalog_link || product.catalog || product.catalog_url || product.pdf" 
+            target="_blank"
+            @click.stop
+            class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+          </a>
         </div>
 
         <!-- Layer click nhảy sang trang chi tiết -->
@@ -687,7 +724,13 @@ const getCategoryBanner = (catName) => {
               <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
             </div>
             <div>
-              <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+              <!-- UPDATE MỚI: Tag quy cách bán hàng -->
+              <div class="flex items-center justify-between gap-1 mb-0.5">
+                <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+                <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+                <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+                <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
+              </div>
               <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
                 {{ p[`name_${locale}`] || p.name }}
               </h3>
@@ -697,7 +740,7 @@ const getCategoryBanner = (catName) => {
           <!-- PHẦN GIÁ TO + NÚT CATALOG -->
           <div class="mt-3 pt-2 border-t border-slate-100">
             <div v-if="getSalePrice(p)" class="flex items-baseline gap-1 flex-wrap">
-              <span class="text-sm sm:text-base font-black text-red-600">
+              <span class="text-xl sm:text-2xl font-black text-red-600">
                 {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
               </span>
               <span class="text-[10px] text-slate-400 line-through font-medium">
@@ -766,7 +809,13 @@ const getCategoryBanner = (catName) => {
                 </div>
 
                 <div>
-                  <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                  <!-- UPDATE MỚI: Tag quy cách bán hàng -->
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+                    <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+                    <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+                    <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
+                  </div>
                   <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
                     {{ p[`name_${locale}`] || p.name }}
                   </h3>
@@ -896,7 +945,13 @@ const getCategoryBanner = (catName) => {
                     </div>
                     
                     <div>
-                      <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                      <!-- UPDATE MỚI: Tag quy cách bán hàng -->
+                      <div class="flex items-center justify-between gap-1 mb-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+                        <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+                        <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+                        <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
+                      </div>
                       <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
                         {{ p[`name_${locale}`] || p.name }}
                       </h3>
@@ -987,7 +1042,13 @@ const getCategoryBanner = (catName) => {
                     </div>
 
                     <div>
-                      <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">{{ p.brand }}</span>
+                      <!-- UPDATE MỚI: Tag quy cách bán hàng -->
+                      <div class="flex items-center justify-between gap-1 mb-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+                        <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+                        <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+                        <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
+                      </div>
                       <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
                         {{ p[`name_${locale}`] || p.name }}
                       </h3>

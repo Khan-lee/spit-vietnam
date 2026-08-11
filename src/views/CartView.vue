@@ -26,7 +26,7 @@
         <div v-else class="space-y-3.5">
           <div v-for="item in cart" :key="item.id" 
                :class="['group flex gap-4 p-3.5 bg-white rounded-xl border border-slate-200/70 transition-all duration-300 relative overflow-hidden', 
-                       item.isSoldOut ? 'bg-slate-50/80 opacity-60 border-slate-200' : 'hover:border-slate-900 hover:shadow-xs']"
+                        item.isSoldOut ? 'bg-slate-50/80 opacity-60 border-slate-200' : 'hover:border-slate-900 hover:shadow-xs']"
           >
             <div class="relative overflow-hidden rounded-xl w-20 h-20 shadow-2xs border border-slate-100 shrink-0 bg-slate-50">
               <img :src="item.image" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -40,8 +40,9 @@
                   </span>
                   <h3 class="text-[12px] font-black text-slate-900 line-clamp-2 leading-tight uppercase tracking-tight">{{ item.name }}</h3>
                   
-                  <p v-if="item.appliedPromoTitle" class="text-[10px] text-emerald-600 font-bold mt-1">
-                    🎉 {{ item.appliedPromoTitle }}
+                  <!-- ⚡ HIỆN TÊN PROMO NẾU ĐẠT ĐIỀU KIỆN KHUYẾN MÃI -->
+                  <p v-if="getItemPricing(item).promoTitle" class="text-[10px] text-emerald-600 font-bold mt-1">
+                    🎉 {{ getItemPricing(item).promoTitle }}
                   </p>
                 </div>
                 <button @click="removeItemWithoutPopup(item.id)" class="text-slate-300 hover:text-red-600 transition-colors shrink-0 p-1 rounded-lg hover:bg-red-50">
@@ -51,11 +52,12 @@
               
               <div class="flex items-end justify-between mt-2.5">
                 <div class="space-y-0.5">
-                  <p v-if="item.finalPrice < item.price" class="text-[11px] text-slate-400 line-through">
-                    {{ item.price.toLocaleString() }}₫
+                  <!-- ⚡ GIÁ GẠCH & GIÁ SAU KHI TÍNH PROMOTION DỘNG -->
+                  <p v-if="getItemPricing(item).hasDiscount" class="text-[11px] text-slate-400 line-through">
+                    {{ getItemPricing(item).originalPrice.toLocaleString() }}₫
                   </p>
                   <p class="text-[14px] font-black text-red-600 tracking-tight">
-                    {{ item.finalPrice.toLocaleString() }}₫
+                    {{ getItemPricing(item).finalPrice.toLocaleString() }}₫
                   </p>
                 </div>
 
@@ -96,8 +98,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '../firebase'
 
 const router = useRouter()
 const props = defineProps(['cart'])
@@ -105,21 +109,128 @@ const emit = defineEmits(['close', 'change-qty', 'remove-item'])
 
 const isCartEmpty = computed(() => !props.cart || props.cart.length === 0)
 
-// KHÔNG CẦN hàm calculateItemPrice tự chế nữa, vì App.vue đã tính sẵn 'finalPrice' cực chuẩn rồi!
+// Ref lưu danh sách Khuyến mãi tải từ Firestore
+const activePromotions = ref([])
 
-// Tổng tiền lấy trực tiếp từ thuộc tính 'itemTotal' mà App.vue đã cộng sẵn theo Tiers
-const totalAmount = computed(() => 
-  props.cart?.reduce((t, i) => t + (i.itemTotal || (i.price * i.quantity)), 0) || 0
-)
+// Tải danh sách Khuyến mãi từ Firestore khi component được mount
+const fetchPromotions = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'promotions'))
+    const list = []
+    querySnapshot.forEach((doc) => {
+      list.push({ id: doc.id, ...doc.data() })
+    })
+    activePromotions.value = list
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách khuyến mãi:', error)
+  }
+}
 
-const hasSoldOutInCart = computed(() => props.cart?.some(item => item.isSoldOut))
+onMounted(() => {
+  fetchPromotions()
+})
+
+// ⚡ HÀM TÍNH GIÁ ĐỘNG CHUẨN TỪ FIRESTORE PROMOTIONS
+const getItemPricing = (item) => {
+  if (!item) return { finalPrice: 0, originalPrice: 0, hasDiscount: false, promoTitle: null, itemTotal: 0 }
+
+  const basePrice = Number(item.original_price || item.price) || 0
+  const qty = Number(item.quantity) || 1
+  const isBox = item.unit === 'box'
+
+  // 1. Kiểm tra đơn vị tính: Nếu sản phẩm có phân biệt đơn vị và không phải là 'box', giữ nguyên giá gốc
+  if (item.unit && !isBox) {
+    return {
+      finalPrice: basePrice,
+      originalPrice: basePrice,
+      hasDiscount: false,
+      promoTitle: null,
+      itemTotal: basePrice * qty
+    }
+  }
+
+  const now = new Date()
+
+  // 2. Lọc danh sách chiến dịch đang KÍCH HOẠT (is_active === true) và TRONG THỜI HẠN
+  const validPromos = activePromotions.value.filter((promo) => {
+    if (!promo.is_active) return false
+
+    // Parse thời gian (hỗ trợ cả Firebase Timestamp và dạng String/Date)
+    const start = promo.start_date?.toDate ? promo.start_date.toDate() : new Date(promo.start_date)
+    const end = promo.end_date?.toDate ? promo.end_date.toDate() : new Date(promo.end_date)
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return false
+    if (now < start || now > end) return false
+
+    // Kiểm tra áp dụng cho tất cả sản phẩm hay sản phẩm cụ thể
+    if (promo.apply_to === 'all') return true
+    if (Array.isArray(promo.applied_ids)) {
+      return promo.applied_ids.includes(item.id) || promo.applied_ids.includes(item.productId)
+    }
+    return false
+  })
+
+  let bestDiscountAmount = 0
+  let matchedPromoTitle = null
+
+  // 3. Tính toán mốc chiết khấu (Tier) tốt nhất đạt điều kiện số lượng
+  validPromos.forEach((promo) => {
+    if (!Array.isArray(promo.tiers) || promo.tiers.length === 0) return
+
+    // Lọc các mốc đạt đủ số lượng mua
+    const matchedTiers = promo.tiers.filter((t) => qty >= Number(t.quantity || 0))
+    if (matchedTiers.length === 0) return
+
+    // Lấy mốc có yêu cầu số lượng cao nhất đạt được
+    matchedTiers.sort((a, b) => Number(a.quantity) - Number(b.quantity))
+    const highestTier = matchedTiers[matchedTiers.length - 1]
+
+    let discountVal = 0
+    const type = highestTier.discount_type || 'percentage'
+    const val = Number(highestTier.discount_value) || 0
+
+    if (type === 'percentage') {
+      discountVal = (basePrice * val) / 100
+    } else if (type === 'amount' || type === 'fixed_discount') {
+      discountVal = val
+    }
+
+    if (discountVal > bestDiscountAmount) {
+      bestDiscountAmount = discountVal
+      matchedPromoTitle = promo.title || promo.name || 'Khuyến mãi đại lý'
+    }
+  })
+
+  const finalPrice = Math.max(0, basePrice - bestDiscountAmount)
+  const hasDiscount = bestDiscountAmount > 0
+
+  return {
+    finalPrice,
+    originalPrice: basePrice,
+    hasDiscount,
+    promoTitle: hasDiscount ? matchedPromoTitle : null,
+    itemTotal: finalPrice * qty
+  }
+}
+
+// Tổng tiền tạm tính: Cộng dồn trực tiếp từ hàm getItemPricing
+const totalAmount = computed(() => {
+  return props.cart?.reduce((total, item) => total + getItemPricing(item).itemTotal, 0) || 0
+})
+
+const hasSoldOutInCart = computed(() => props.cart?.some((item) => item.isSoldOut))
 
 const changeQty = (id, delta) => {
-  const item = props.cart?.find(i => i.id === id)
+  const item = props.cart?.find((i) => i.id === id)
   if (item && item.quantity === 1 && delta === -1) emit('remove-item', id)
   else emit('change-qty', id, delta)
 }
 
 const removeItemWithoutPopup = (id) => emit('remove-item', id)
-const handleProceed = () => { if (!isCartEmpty.value) { emit('close'); router.push('/checkout') } }
+const handleProceed = () => {
+  if (!isCartEmpty.value) {
+    emit('close')
+    router.push('/checkout')
+  }
+}
 </script>
