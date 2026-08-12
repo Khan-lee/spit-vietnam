@@ -258,7 +258,7 @@ const changeLanguage = (event) => {
 
         <!-- NAVIGATION LINKS -->
         <nav class="flex flex-col gap-2">
-          <RouterLink v-for="item in ['home', 'about', 'contact']" 
+          <RouterLink v-for="item in ['home', 'contact']" 
                       :key="item" :to="item === 'home' ? '/' : '/' + item"
                       @click="isMobileMenuOpen = false"
                       class="text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex justify-between items-center" 
