@@ -83,7 +83,7 @@ onMounted(fetchAllPosts)
           <span class="text-slate-500 block md:inline md:ml-2">{{ t('news.all_posts_subtitle') }}</span>
         </h1>
         <p class="text-slate-500 text-sm mt-3 max-w-2xl leading-relaxed">
-          {{ locale === 'vi' ? 'Cập nhật các giải pháp gia công chính xác, hướng dẫn tối ưu thông số cắt gọt và tin tức mới nhất từ hệ sinh thái SPIT.' : 'Update high-precision machining solutions, cutting parameters optimization guidelines and the latest news from SPIT.' }}
+          {{ locale === 'vi' ? 'Cập nhật các giải pháp gia công chính xác, hướng dẫn tối ưu thông số cắt gọt và tin tức mới nhất từ cửa hàng vật tư công nghiệp vô cực.' : 'Update high-precision machining solutions, cutting parameters optimization guidelines and the latest news from SPIT.' }}
         </p>
       </header>
 

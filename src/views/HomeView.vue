@@ -181,15 +181,25 @@ const getActivePromo = (product) => {
   })
 }
 
-const getSalePrice = (product) => {
-  const activePromo = getActivePromo(product)
-  if (!activePromo || !activePromo.tiers || activePromo.tiers.length === 0) return null
-  const firstTier = activePromo.tiers[0]
-  if (firstTier.discount_type === 'percentage') {
-    return product.price * (1 - firstTier.discount_value / 100)
+// 1. Hàm tính giá HỘP sau khi giảm
+const getSalePriceBox = (p) => {
+  if (!p || !p.price_box) return null;
+  const discount = p.discount_percent || getDiscountPercent(p) || 0;
+  if (discount > 0) {
+    return p.price_box * (1 - discount / 100); // 345.000 * 0.86 = 296.700đ
   }
-  return product.price - firstTier.discount_value
-}
+  return null;
+};
+
+// 2. Hàm tính giá MẢNH sau khi giảm (giữ nguyên nếu bán lẻ mảnh)
+const getSalePrice = (p) => {
+  if (!p || !p.price) return null;
+  const discount = p.discount_percent || getDiscountPercent(p) || 0;
+  if (discount > 0) {
+    return p.price * (1 - discount / 100);
+  }
+  return null;
+};
 
 const getDiscountPercent = (product) => {
   const activePromo = getActivePromo(product)
@@ -661,29 +671,78 @@ const getCategoryBanner = (catName) => {
           </h4>
         </div>
         
-        <!-- PHẦN GIÁ TO + NÚT CATALOG -->
-        <div class="mt-3 pt-2 border-t border-slate-100">
-          <div class="flex items-baseline gap-1 flex-wrap">
-            <span class="text-base sm:text-lg font-black text-red-600">
-              {{ (getSalePrice(product) || product.price || 0).toLocaleString('vi-VN') }}đ
-            </span>
-            <span v-if="getSalePrice(product)" class="text-[10px] text-slate-400 line-through font-medium">
-              {{ (product.price || 0).toLocaleString('vi-VN') }}đ
-            </span>
-          </div>
+<!-- PHẦN GIÁ TO + NÚT CATALOG -->
+<div class="mt-3 pt-2 border-t border-slate-100">
 
-          <!-- Nút Xem Catalog -->
-          <a 
-            v-if="product.catalog_link || product.catalog || product.catalog_url || product.pdf"
-            :href="product.catalog_link || product.catalog || product.catalog_url || product.pdf" 
-            target="_blank"
-            @click.stop
-            class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-          </a>
-        </div>
+  <!-- ================= TRƯỜNG HỢP 1: BÁN THEO HỘP (sales_type === 'box') ================= -->
+  <template v-if="product?.sales_type === 'box'">
+    
+    <!-- 1.1 Hộp CÓ Giảm Giá -->
+    <div v-if="getSalePriceBox(product)" class="flex flex-col">
+      <div class="flex items-baseline gap-1 flex-wrap">
+        <!-- Giá Hộp sau giảm: 296.700đ -->
+        <span class="text-base sm:text-lg font-black text-red-600">
+          {{ Math.round(getSalePriceBox(product)).toLocaleString('vi-VN') }}đ
+        </span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase">/ HỘP</span>
+        
+        <!-- Giá Hộp gốc từ Firebase: 345.000đ -->
+        <span class="text-[10px] text-slate-400 line-through font-medium ml-1">
+          {{ product.price_box?.toLocaleString('vi-VN') }}đ
+        </span>
+      </div>
+    </div>
+
+    <!-- 1.2 Hộp KHÔNG Giảm Giá -->
+    <div v-else-if="product?.price_box" class="flex flex-col">
+      <div class="flex items-baseline gap-1 flex-wrap">
+        <!-- Giá Hộp gốc: 345.000đ -->
+        <span class="text-base sm:text-lg font-black text-red-600">
+          {{ product.price_box.toLocaleString('vi-VN') }}đ
+        </span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase">/ HỘP</span>
+      </div>
+
+      <!-- Dòng phụ: 345.000 / 10 = 34.500đ/mảnh -->
+      <div v-if="product?.box_qty > 0" class="text-[10px] text-slate-500 font-semibold italic mt-0.5">
+        (~{{ Math.round(product.price_box / product.box_qty).toLocaleString('vi-VN') }}đ/mảnh)
+      </div>
+    </div>
+
+    <!-- 1.3 Hộp Chưa Có Giá -->
+    <div v-else class="text-base sm:text-lg font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+
+ <!-- ================= TRƯỜNG HỢP 2: CHỈ BÁN MẢNH (sales_type !== 'box') -> BÁN ĐÚNG GIÁ GỐC, KHÔNG GIẢM ================= -->
+  <template v-else>
+    <!-- Chỉ hiển thị đúng giá gốc p.price (Ví dụ: 34.500đ / Mảnh) -->
+    <div v-if="product?.price" class="flex items-baseline gap-1 flex-wrap">
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ product.price.toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Mảnh</span>
+    </div>
+
+    <div v-else class="text-sm sm:text-base font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+  <!-- Nút Xem Catalog -->
+  <a 
+    v-if="product?.catalog_link || product?.catalog || product?.catalog_url || product?.pdf"
+    :href="product.catalog_link || product.catalog || product.catalog_url || product.pdf" 
+    target="_blank"
+    @click.stop
+    class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+  </a>
+</div>
 
         <!-- Layer click nhảy sang trang chi tiết -->
         <router-link :to="'/product/' + product.id" class="absolute inset-0 z-10"></router-link>
@@ -735,33 +794,6 @@ const getCategoryBanner = (catName) => {
                 {{ p[`name_${locale}`] || p.name }}
               </h3>
             </div>
-          </div>
-
-          <!-- PHẦN GIÁ TO + NÚT CATALOG -->
-          <div class="mt-3 pt-2 border-t border-slate-100">
-            <div v-if="getSalePrice(p)" class="flex items-baseline gap-1 flex-wrap">
-              <span class="text-xl sm:text-2xl font-black text-red-600">
-                {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-              </span>
-              <span class="text-[10px] text-slate-400 line-through font-medium">
-                {{ p.price?.toLocaleString() }}đ
-              </span>
-            </div>
-            <div v-else class="text-sm sm:text-base font-black text-red-600">
-              {{ p.price ? p.price.toLocaleString() + 'đ' : 'Liên hệ giá' }}
-            </div>
-
-            <!-- Nút Xem Catalog -->
-            <a 
-              v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
-              :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
-              target="_blank"
-              @click.stop
-              class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-            </a>
           </div>
 
           <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
@@ -820,33 +852,6 @@ const getCategoryBanner = (catName) => {
                     {{ p[`name_${locale}`] || p.name }}
                   </h3>
                 </div>
-              </div>
-
-              <!-- PHẦN GIÁ TO + NÚT CATALOG -->
-              <div class="mt-3 pt-2 border-t border-slate-100">
-                <div v-if="getSalePrice(p)" class="flex items-baseline gap-1 flex-wrap">
-                  <span class="text-sm sm:text-base font-black text-red-600">
-                    {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                  </span>
-                  <span class="text-[10px] text-slate-400 line-through font-medium">
-                    {{ p.price?.toLocaleString() }}đ
-                  </span>
-                </div>
-                <div v-else class="text-sm sm:text-base font-black text-red-600">
-                  {{ p.price ? p.price.toLocaleString() + 'đ' : 'Liên hệ giá' }}
-                </div>
-
-                <!-- Nút Xem Catalog -->
-                <a 
-                  v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
-                  :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
-                  target="_blank"
-                  @click.stop
-                  class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-                </a>
               </div>
 
               <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
@@ -958,33 +963,68 @@ const getCategoryBanner = (catName) => {
                     </div>
                   </div>
 
-                  <!-- PHẦN GIÁ TO + NÚT CATALOG (HOT SALE) -->
-                  <div class="mt-3 pt-2 border-t border-slate-100">
-                    <div class="flex items-baseline gap-1 flex-wrap">
-                      <span class="text-sm sm:text-base font-black text-red-600">
-                        {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                      </span>
-                      <span class="text-[10px] text-slate-400 line-through font-medium">
-                        {{ p.price?.toLocaleString() }}đ
-                      </span>
-                    </div>
+<!-- PHẦN GIÁ TO + NÚT CATALOG -->
+<div class="mt-3 pt-2 border-t border-slate-100">
 
-                    <div class="mt-1 bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-red-100 line-clamp-1">
-                      🎁 Ưu đãi đặc biệt
-                    </div>
+  <!-- ================= TRƯỜNG HỢP 1: BÁN THEO HỘP (sales_type === 'box') ================= -->
+  <template v-if="p?.sales_type === 'box'">
+    
+    <!-- 1.1 Hộp CÓ Giảm Giá -->
+    <div v-if="getSalePriceBox(p)" class="flex items-baseline gap-1 flex-wrap">
+      <!-- Giá Hộp sau giảm (Ví dụ: 296.700đ) -->
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ Math.round(getSalePriceBox(p)).toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
+      
+      <!-- Giá Hộp gốc gạch đi (Ví dụ: 345.000đ từ price_box) -->
+      <span class="text-[10px] text-slate-400 line-through font-medium ml-1">
+        {{ p.price_box?.toLocaleString('vi-VN') }}đ
+      </span>
+    </div>
 
-                    <!-- Nút Xem Catalog -->
-                    <a 
-                      v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
-                      :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
-                      target="_blank"
-                      @click.stop
-                      class="relative z-30 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-                    </a>
-                  </div>
+    <!-- 1.2 Hộp KHÔNG Giảm Giá -->
+    <div v-else-if="p?.price_box" class="flex items-baseline gap-1 flex-wrap">
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ p.price_box.toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
+    </div>
+
+    <!-- 1.3 Hộp Chưa Có Giá -->
+    <div v-else class="text-sm sm:text-base font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+
+  <!-- ================= TRƯỜNG HỢP 2: CHỈ BÁN MẢNH (sales_type !== 'box') -> BÁN ĐÚNG GIÁ GỐC, KHÔNG GIẢM ================= -->
+  <template v-else>
+    <!-- Chỉ hiển thị đúng giá gốc p.price (Ví dụ: 34.500đ / Mảnh) -->
+    <div v-if="p?.price" class="flex items-baseline gap-1 flex-wrap">
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ p.price.toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Mảnh</span>
+    </div>
+
+    <div v-else class="text-sm sm:text-base font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+  <!-- Nút Xem Catalog -->
+  <a 
+    v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+    :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
+    target="_blank"
+    @click.stop
+    class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+  </a>
+</div>
 
                   <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
                 </div>
@@ -1055,32 +1095,68 @@ const getCategoryBanner = (catName) => {
                     </div>
                   </div>
 
-                  <!-- PHẦN GIÁ TO + NÚT CATALOG (DANH MỤC) -->
-                  <div class="mt-3 pt-2 border-t border-slate-100">
-                    <div v-if="getSalePrice(p)" class="flex items-baseline gap-1 flex-wrap">
-                      <span class="text-sm sm:text-base font-black text-red-600">
-                        {{ Math.round(getSalePrice(p)).toLocaleString() }}đ
-                      </span>
-                      <span class="text-[10px] text-slate-400 line-through font-medium">
-                        {{ p.price?.toLocaleString() }}đ
-                      </span>
-                    </div>
-                    <div v-else class="text-sm sm:text-base font-black text-red-600">
-                      {{ p.price ? p.price.toLocaleString() + 'đ' : 'Liên hệ giá' }}
-                    </div>
+                  <!-- PHẦN GIÁ TO + NÚT CATALOG -->
+<div class="mt-3 pt-2 border-t border-slate-100">
 
-                    <!-- Nút Xem Catalog -->
-                    <a 
-                      v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
-                      :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
-                      target="_blank"
-                      @click.stop
-                      class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-                    </a>
-                  </div>
+  <!-- ================= TRƯỜNG HỢP 1: BÁN THEO HỘP (sales_type === 'box') ================= -->
+  <template v-if="p?.sales_type === 'box'">
+    
+    <!-- 1.1 Hộp CÓ Giảm Giá -->
+    <div v-if="getSalePriceBox(p)" class="flex items-baseline gap-1 flex-wrap">
+      <!-- Giá Hộp sau giảm (Ví dụ: 296.700đ) -->
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ Math.round(getSalePriceBox(p)).toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
+      
+      <!-- Giá Hộp gốc gạch đi (Ví dụ: 345.000đ từ price_box) -->
+      <span class="text-[10px] text-slate-400 line-through font-medium ml-1">
+        {{ p.price_box?.toLocaleString('vi-VN') }}đ
+      </span>
+    </div>
+
+    <!-- 1.2 Hộp KHÔNG Giảm Giá -->
+    <div v-else-if="p?.price_box" class="flex items-baseline gap-1 flex-wrap">
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ p.price_box.toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
+    </div>
+
+    <!-- 1.3 Hộp Chưa Có Giá -->
+    <div v-else class="text-sm sm:text-base font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+
+  <!-- ================= TRƯỜNG HỢP 2: CHỈ BÁN MẢNH (sales_type !== 'box') -> BÁN ĐÚNG GIÁ GỐC, KHÔNG GIẢM ================= -->
+  <template v-else>
+    <!-- Chỉ hiển thị đúng giá gốc p.price (Ví dụ: 34.500đ / Mảnh) -->
+    <div v-if="p?.price" class="flex items-baseline gap-1 flex-wrap">
+      <span class="text-sm sm:text-base font-black text-red-600">
+        {{ p.price.toLocaleString('vi-VN') }}đ
+      </span>
+      <span class="text-[10px] font-bold text-slate-500 uppercase">/ Mảnh</span>
+    </div>
+
+    <div v-else class="text-sm sm:text-base font-black text-red-600">
+      Liên hệ giá
+    </div>
+  </template>
+
+  <!-- Nút Xem Catalog -->
+  <a 
+    v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+    :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
+    target="_blank"
+    @click.stop
+    class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+  </a>
+</div>
 
                   <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
                 </div>
