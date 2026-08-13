@@ -48,6 +48,8 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
 
+// Danh sách email Admin
+const ADMIN_EMAILS = ['spitsaigon@gmail.com', 'p.tri@spit.vn']
 const handleAdminLogin = async () => {
   isLoading.value = true
   errorMessage.value = ''
@@ -55,20 +57,21 @@ const handleAdminLogin = async () => {
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
-    
-    // Nơi đây bạn có thể thêm logic kiểm tra xem Email/UID này có phải Admin thật không
-    // Ví dụ: Check custom claims hoặc query Firestore doc 'users'
-    
+    const loggedInEmail = userCredential.user.email
+
+    // KIỂM TRA: Nếu không phải Email Admin -> Đăng xuất luôn!
+    if (!ADMIN_EMAILS.includes(loggedInEmail)) {
+      await signOut(auth) // Đăng xuất lập tức
+      errorMessage.value = 'Tài khoản này là tài khoản Khách hàng, không có quyền truy cập Admin!'
+      return
+    }
+
+    // Nếu đúng là Admin -> Cho vào Dashboard
     router.push('/spit-system-manager')
+
   } catch (error) {
     console.error("Lỗi đăng nhập Admin:", error)
-    if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-      errorMessage.value = 'Tài khoản hoặc mật khẩu Admin không chính xác!'
-    } else if (error.code === 'auth/unauthorized-domain') {
-      errorMessage.value = 'Domain chưa được cấp quyền trong Firebase Console!'
-    } else {
-      errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại sau!'
-    }
+    errorMessage.value = 'Tài khoản hoặc mật khẩu không chính xác!'
   } finally {
     isLoading.value = false
   }

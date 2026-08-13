@@ -140,17 +140,25 @@ const getCurrentUser = () => {
   });
 };
 
+// 1. Khai báo danh sách Email có quyền Admin ở đây (Thay bằng email admin thực tế của bạn)
+const ADMIN_EMAILS = [
+  'spitsaigon@gmail.com',
+  'p.tri@spit.vn', // Thêm các email admin khác nếu có
+];
+
 // Guard bảo vệ các trang Admin và Hiệu ứng Loading
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
 
+  // Kiểm tra nếu route yêu cầu quyền Auth (Các trang Admin)
   if (to.meta.requiresAuth) {
     const user = await getCurrentUser();
-    if (user) {
-      next();
+    
+    // ĐIỀU KIỆN MỚI: Phải ĐÃ ĐĂNG NHẬP + Email phải thuộc DANH SÁCH ADMIN
+    if (user && ADMIN_EMAILS.includes(user.email)) {
+      next(); // Cho phép vào trang Admin
     } else {
-      // Khi cố gắng truy cập trang Admin mà chưa đăng nhập,
-      // sẽ chuyển hướng chính xác đến trang Đăng nhập Admin
+      // Nếu là User thường hoặc Chưa đăng nhập -> Đá về trang Login Admin
       next({ name: 'admin-login' });
     }
   } else {
