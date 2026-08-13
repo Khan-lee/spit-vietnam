@@ -9,12 +9,10 @@ const router = useRouter()
 
 const rawCartItems = ref([])
 const promotions = ref([]) 
-
-const baseShippingFee = ref(0) // Lưu phí ship gốc từ Firebase
+const baseShippingFee = ref(0)
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
-// Quản lý trạng thái
 const paymentMethod = ref('cod')
 const shippingMethod = ref('standard')
 const shipToOtherAddress = ref(false)
@@ -32,76 +30,123 @@ const triggerToast = (message, type = 'error') => {
   setTimeout(() => { toast.value.show = false }, 3500)
 }
 
-// Data form chính
+// Data form chính (Lưu code để query API, lưu name để gửi order)
 const customer = ref({ 
-  name: '', phone: '', email: '', address: '', province: '', district: '', note: ''
+  name: '', phone: '', address: '', 
+  provinceCode: '', province: '', 
+  districtCode: '', district: '', 
+  note: ''
 })
 
 // Data form phụ
 const otherAddress = ref({
-  name: '', phone: '', address: '', province: '', district: ''
+  name: '', phone: '', address: '', 
+  provinceCode: '', province: '', 
+  districtCode: '', district: ''
 })
 
-const vatInfo = ref({
-  companyName: '', companyAddress: '', taxCode: ''
-})
+const vatInfo = ref({ companyName: '', companyAddress: '', taxCode: '', email: '' })
 
-// Thêm state để lưu danh sách tỉnh/quận
+// Danh sách Tỉnh/Quận
 const provinces = ref([])
 const customerDistricts = ref([])
 const otherDistricts = ref([])
 
-// Hàm lấy dữ liệu Tỉnh/Thành phố từ Open API
+// 1. Lấy danh sách Tỉnh/Thành
 const fetchProvinces = async () => {
   try {
-    const res = await fetch('https://provinces.open-api.vn/api/?depth=2')
+    const res = await fetch('https://esgoo.net/api-tinhthanh/1/0.htm')
     const data = await res.json()
-    provinces.value = data
+    if (data.error === 0) {
+      provinces.value = data.data.map(item => ({
+        code: item.id,
+        name: item.name,          // Dùng tên ngắn gọn (Hà Nội, An Giang...)
+        fullName: item.full_name  // Tên đầy đủ
+      }))
+    }
   } catch (error) {
     console.error("Lỗi lấy dữ liệu tỉnh/thành:", error)
   }
 }
 
-// Xử lý khi chọn Tỉnh/Thành phố của Khách hàng
-const onCustomerProvinceChange = () => {
-  const selectedProvince = provinces.value.find(p => p.name === customer.value.province)
-  if (selectedProvince) {
-    customerDistricts.value = selectedProvince.districts
-  } else {
-    customerDistricts.value = []
-  }
-  customer.value.district = '' // Reset lại quận/huyện
-}
+// 2. Dùng WATCH thay vì @change để tự động bắt thay đổi (kể cả khi load từ DB)
+watch(() => customer.value.provinceCode, async (newCode) => {
+  customer.value.districtCode = ''
+  customer.value.district = ''
+  customerDistricts.value = []
 
-// Xử lý khi chọn Tỉnh/Thành phố của Địa chỉ khác
-const onOtherProvinceChange = () => {
-  const selectedProvince = provinces.value.find(p => p.name === otherAddress.value.province)
-  if (selectedProvince) {
-    otherDistricts.value = selectedProvince.districts
-  } else {
-    otherDistricts.value = []
-  }
-  otherAddress.value.district = '' // Reset lại quận/huyện
-}
+  if (!newCode) return
 
-// Logic giới hạn Giao hàng nhanh chỉ ở TP.HCM
-const isExpressAvailable = computed(() => {
-  const currentProvince = shipToOtherAddress.value ? otherAddress.value.province : customer.value.province;
-  return currentProvince === 'Thành phố Hồ Chí Minh';
+  // Lưu lại tên Tỉnh/Thành vào object customer
+  const foundProv = provinces.value.find(p => p.code === newCode)
+  if (foundProv) customer.value.province = foundProv.name
+
+  try {
+    const res = await fetch(`https://esgoo.net/api-tinhthanh/2/${newCode}.htm`)
+    const data = await res.json()
+    if (data.error === 0) {
+      customerDistricts.value = data.data.map(item => ({
+        code: item.id,
+        name: item.name,
+        fullName: item.full_name
+      }))
+    }
+  } catch (error) {
+    console.error("Lỗi lấy danh sách quận/huyện:", error)
+  }
 })
 
-// Tự động chuyển về giao hàng tiêu chuẩn nếu đổi tỉnh khác ngoài TP.HCM
+// Tự động cập nhật tên Quận/Huyện chính
+watch(() => customer.value.districtCode, (newCode) => {
+  const foundDist = customerDistricts.value.find(d => d.code === newCode)
+  if (foundDist) customer.value.district = foundDist.name
+})
+
+// Watch cho Địa chỉ khác
+watch(() => otherAddress.value.provinceCode, async (newCode) => {
+  otherAddress.value.districtCode = ''
+  otherAddress.value.district = ''
+  otherDistricts.value = []
+
+  if (!newCode) return
+
+  const foundProv = provinces.value.find(p => p.code === newCode)
+  if (foundProv) otherAddress.value.province = foundProv.name
+
+  try {
+    const res = await fetch(`https://esgoo.net/api-tinhthanh/2/${newCode}.htm`)
+    const data = await res.json()
+    if (data.error === 0) {
+      otherDistricts.value = data.data.map(item => ({
+        code: item.id,
+        name: item.name,
+        fullName: item.full_name
+      }))
+    }
+  } catch (error) {
+    console.error("Lỗi lấy quận/huyện địa chỉ khác:", error)
+  }
+})
+
+watch(() => otherAddress.value.districtCode, (newCode) => {
+  const foundDist = otherDistricts.value.find(d => d.code === newCode)
+  if (foundDist) otherAddress.value.district = foundDist.name
+})
+
+// Logic Giao hàng nhanh TP.HCM
+const isExpressAvailable = computed(() => {
+  const currentProvince = shipToOtherAddress.value ? otherAddress.value.province : customer.value.province
+  return currentProvince ? currentProvince.includes('Hồ Chí Minh') : false
+})
+
 watch(isExpressAvailable, (available) => {
   if (!available && shippingMethod.value === 'express') {
     shippingMethod.value = 'standard'
   }
 })
 
-// Tự động tính phí ship: Nếu chọn Giao hàng nhanh thì +100k
 const shippingFee = computed(() => {
-  return shippingMethod.value === 'express' 
-    ? baseShippingFee.value + 100000 
-    : baseShippingFee.value
+  return shippingMethod.value === 'express' ? baseShippingFee.value + 100000 : baseShippingFee.value
 })
 
 const fetchActivePromotions = async () => {
@@ -157,19 +202,17 @@ const cartItems = computed(() => {
 })
 
 const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
-// Tổng tiền (đã tự động tính gộp cả phí ship nếu có +100k)
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
 onMounted(async () => {
   rawCartItems.value = JSON.parse(localStorage.getItem('spit_cart')) || []
   await fetchActivePromotions()
-  await fetchProvinces() // Gọi API load tỉnh thành
+  await fetchProvinces()
 
   try {
     const settingsRef = doc(db, "settings", "website")
     const settingsSnap = await getDoc(settingsRef)
     if (settingsSnap.exists()) {
-      // Lưu vào phí ship gốc thay vì gán trực tiếp
       baseShippingFee.value = settingsSnap.data().shippingFee || 0
     }
   } catch (e) {
@@ -182,14 +225,14 @@ onMounted(async () => {
 const handleCheckout = async () => {
   if (!customer.value.name || !customer.value.phone) return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
   if (!customer.value.address) return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
-  if (!customer.value.province || !customer.value.district) return triggerToast("Vui lòng chọn đầy đủ Tỉnh/Thành phố và Quận/Huyện!")
+  if (!customer.value.provinceCode || !customer.value.districtCode) return triggerToast("Vui lòng chọn đầy đủ Tỉnh/Thành phố và Quận/Huyện!")
   
-  if (shipToOtherAddress.value && (!otherAddress.value.name || !otherAddress.value.address || !otherAddress.value.province || !otherAddress.value.district)) {
+  if (shipToOtherAddress.value && (!otherAddress.value.name || !otherAddress.value.address || !otherAddress.value.provinceCode || !otherAddress.value.districtCode)) {
     return triggerToast("Vui lòng điền đủ thông tin và địa chỉ người nhận khác!")
   }
   
-  if (requestVAT.value && (!vatInfo.value.companyName || !vatInfo.value.taxCode)) {
-    return triggerToast("Vui lòng nhập đầy đủ Tên công ty và Mã số thuế!")
+  if (requestVAT.value && (!vatInfo.value.companyName || !vatInfo.value.taxCode || !vatInfo.value.email)) {
+    return triggerToast("Vui lòng nhập đầy đủ Tên công ty, Mã số thuế và Email nhận hóa đơn!")
   }
 
   if (cartItems.value.length === 0) return triggerToast("Giỏ hàng của bạn đang trống, không thể thanh toán!")
@@ -264,43 +307,36 @@ const handleCheckout = async () => {
               <div class="md:col-span-2">
                 <input v-model="customer.name" placeholder="Họ và tên *" class="v-input" />
               </div>
-              <div>
+              <div class="md:col-span-2">
                 <input v-model="customer.phone" placeholder="Điện thoại *" class="v-input" />
-              </div>
-              <div>
-                <input v-model="customer.email" placeholder="Email *" class="v-input" />
               </div>
               <div class="md:col-span-2">
                 <input v-model="customer.address" placeholder="Địa chỉ *" class="v-input" />
               </div>
               
-              <!-- Select Tỉnh / Thành phố -->
-              <div>
-                <select 
-                  v-model="customer.province" 
-                  @change="onCustomerProvinceChange" 
-                  class="v-input cursor-pointer"
-                >
-                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
-                  <option v-for="p in provinces" :key="p.code" :value="p.name">
-                    {{ p.name }}
-                  </option>
-                </select>
-              </div>
-              
-              <!-- Select Quận / Huyện -->
-              <div>
-                <select 
-                  v-model="customer.district" 
-                  class="v-input cursor-pointer"
-                  :disabled="!customer.province"
-                >
-                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
-                  <option v-for="d in customerDistricts" :key="d.code" :value="d.name">
-                    {{ d.name }}
-                  </option>
-                </select>
-              </div>
+<!-- Select Tỉnh / Thành phố Khách hàng -->
+<div>
+  <select v-model="customer.provinceCode" class="v-input cursor-pointer">
+    <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+    <option v-for="p in provinces" :key="p.code" :value="p.code">
+      {{ p.name }}
+    </option>
+  </select>
+</div>
+
+<!-- Select Quận / Huyện Khách hàng -->
+<div>
+  <select 
+    v-model="customer.districtCode" 
+    class="v-input cursor-pointer"
+    :disabled="!customer.provinceCode"
+  >
+    <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+    <option v-for="d in customerDistricts" :key="d.code" :value="d.code">
+      {{ d.name }}
+    </option>
+  </select>
+</div>
 
               <div class="md:col-span-2">
                 <textarea v-model="customer.note" placeholder="Ghi chú cho hóa đơn" rows="2" class="v-input resize-none"></textarea>
@@ -368,9 +404,10 @@ const handleCheckout = async () => {
 
             <!-- Form Xuất VAT -->
             <div v-if="requestVAT" class="grid grid-cols-1 gap-4 pt-2">
-              <input v-model="vatInfo.companyName" placeholder="Tên công ty" class="v-input" />
+              <input v-model="vatInfo.companyName" placeholder="Tên công ty *" class="v-input" />
               <input v-model="vatInfo.companyAddress" placeholder="Địa chỉ công ty" class="v-input" />
-              <input v-model="vatInfo.taxCode" placeholder="Mã số thuế" class="v-input" />
+              <input v-model="vatInfo.taxCode" placeholder="Mã số thuế *" class="v-input" />
+              <input v-model="vatInfo.email" placeholder="Email nhận hóa đơn *" class="v-input" />
             </div>
           </div>
         </div>

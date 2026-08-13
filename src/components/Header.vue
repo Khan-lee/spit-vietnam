@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue' 
+import { ref, onMounted, computed, watch, nextTick } from 'vue' 
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router' 
 import { auth, googleProvider, db } from '../firebase' 
@@ -7,7 +7,6 @@ import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { useSearchStore } from '../stores/search' 
 
-// Logo mặc định từ assets (Fallback)
 import logoImg from '../assets/noBG_logo.png'
 
 const props = defineProps(['cartCount', 'searchQuery', 'products']) 
@@ -20,26 +19,21 @@ const isMobileMenuOpen = ref(false)
 const isSearchFocused = ref(false)
 const user = ref(null) 
 
-// Biến lưu trữ Logo (Mặc định dùng logoImg trong assets)
+const selectedIndex = ref(-1)
 const dynamicLogo = ref(logoImg)
-
-// Avatar mặc định khi user đăng nhập bằng Email/Pass chưa có photoURL
 const defaultAvatar = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/anonymous.png'
 
-// Computed lấy tên hiển thị an toàn (Không bao giờ bị crash kể cả khi displayName = null)
 const userDisplayName = computed(() => {
   if (!user.value) return ''
   return user.value.displayName || user.value.email?.split('@')[0] || 'Tài khoản'
 })
 
-// Computed lấy chữ cuối của tên an toàn
 const userShortName = computed(() => {
   if (!userDisplayName.value) return ''
   const parts = userDisplayName.value.trim().split(' ')
   return parts[parts.length - 1]
 })
 
-// Hàm tải Logo từ Firestore
 const fetchLogo = async () => {
   try {
     const docRef = doc(db, 'settings', 'logo')
@@ -56,34 +50,133 @@ onMounted(() => {
   onAuthStateChanged(auth, (currentUser) => {
     user.value = currentUser
   })
-  
-  // Gọi hàm lấy logo từ hệ thống
   fetchLogo()
+  searchStore.fetchProducts()
 })
 
-// [FIX LỖI] Hàm đóng kết quả tìm kiếm
+// 1. HÀM XÓA DẤU TIẾNG VIỆT CHUẨN
+const removeAccents = (str) => {
+  if (!str) return ''
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .trim()
+}
+
+// 2. HÀM LẤY TÊN SẢN PHẨM THEO ĐÚNG NGUÔN NGỮ (Y HỆT HOMEVIEW)
+const getProductName = (p) => {
+  if (!p) return ''
+  const langKey = `name_${locale.value}`
+  return p[langKey] || p.name || p.title || p.code || 'Sản phẩm'
+}
+
+// 3. LOGIC GỢI Ý TÌM KIẾM (ĐÃ ĐỒNG BỘ HOÀN TOÀN VỚI MAIN)
+const suggestions = computed(() => {
+  const rawQuery = (props.searchQuery || searchStore.searchQuery || '').trim()
+  // 🔴 DÒNG DEBUG: Mở F12 trên trình duyệt xem 2 dòng này in ra gì!
+  console.log('1. Từ khóa đang gõ:', rawQuery)
+  console.log('2. Dữ liệu sản phẩm Header nhận được:', props.products || searchStore.products)
+  if (!rawQuery) return []
+  
+  // Tự động lấy nguồn dữ liệu từ props hoặc searchStore
+  const productList = (Array.isArray(props.products) && props.products.length > 0)
+    ? props.products
+    : (searchStore.products || [])
+
+  if (!productList.length) return []
+  
+  const query = removeAccents(rawQuery)
+  
+  return productList.filter(p => {
+    if (!p) return false
+    const nameLocalized = p[`name_${locale.value}`] || ''
+    const nameVi = p.name_vi || ''
+    const nameEn = p.name_en || ''
+    const name = p.name || ''
+    const title = p.title || ''
+    const code = p.code || p.sku || ''
+    const brand = p.brand || ''
+    
+    const fullSearchText = removeAccents(`${nameLocalized} ${nameVi} ${nameEn} ${name} ${title} ${code} ${brand}`)
+    return fullSearchText.includes(query)
+  }).slice(0, 5)
+})
+
+watch(() => suggestions.value, () => {
+  selectedIndex.value = -1
+})
+
+const getHighlightedParts = (text, query) => {
+  if (!query || !text) return [{ text: text || '', match: false }]
+  const normText = removeAccents(text)
+  const normQuery = removeAccents(query.trim())
+  const index = normText.indexOf(normQuery)
+  
+  if (index === -1) return [{ text, match: false }]
+  
+  return [
+    { text: text.slice(0, index), match: false },
+    { text: text.slice(index, index + query.trim().length), match: true },
+    { text: text.slice(index + query.trim().length), match: false }
+  ]
+}
+
 const handleBlur = () => {
   setTimeout(() => {
     isSearchFocused.value = false
   }, 200)
 }
 
-// [FIX LỖI] Cập nhật searchQuery vào Store & Emit
 const handleInput = (e) => {
   const value = e.target.value
   emit('update:searchQuery', value)
   searchStore.setSearchQuery(value)
 }
 
-// LOGIC GỢI Ý
-const suggestions = computed(() => {
-  const query = (props.searchQuery || '').toLowerCase().trim()
-  if (!query || !props.products) return []
-  return props.products.filter(p => {
-    const name = (p[`name_${locale.value}`] || p.name || '').toLowerCase()
-    return name.includes(query) || p.brand?.toLowerCase().includes(query)
-  }).slice(0, 5)
-})
+// 4. HÀM TỰ ĐỘNG CUỘN XUỐNG KẾT QUẢ TÌM KIẾM
+const scrollToSearchResults = () => {
+  setTimeout(() => {
+    const el = document.getElementById('search-results')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, 150)
+}
+
+// 5. XỬ LÝ PHÍM ENTER VÀ MŨI TÊN
+const handleKeyDown = (e) => {
+  if (e.key === 'ArrowDown') {
+    if (!isSearchFocused.value) isSearchFocused.value = true
+    e.preventDefault()
+    if (suggestions.value.length > 0) {
+      selectedIndex.value = (selectedIndex.value + 1) % suggestions.value.length
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    if (suggestions.value.length > 0) {
+      selectedIndex.value = (selectedIndex.value - 1 + suggestions.value.length) % suggestions.value.length
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    // Nếu chọn mục trong Dropdown gợi ý
+    if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
+      selectSuggestion(suggestions.value[selectedIndex.value].id)
+    } else {
+      // Bấm Enter trực tiếp trên thanh tìm kiếm
+      isSearchFocused.value = false
+      if (router.currentRoute.value.path !== '/') {
+        router.push('/').then(() => scrollToSearchResults())
+      } else {
+        scrollToSearchResults()
+      }
+    }
+  } else if (e.key === 'Escape') {
+    isSearchFocused.value = false
+  }
+}
 
 const selectSuggestion = (id) => {
   router.push('/product/' + id)
@@ -120,15 +213,16 @@ const changeLanguage = (event) => {
       <!-- THANH TÌM KIẾM TRUNG TÂM (CENTER SEARCH BAR) -->
       <div class="relative flex-1 max-w-2xl mx-1 md:mx-2">
         <div class="relative flex items-center">
-          <input
-            :value="searchQuery"
-            @input="handleInput"
-            @focus="isSearchFocused = true"
-            @blur="handleBlur" 
-            type="text"
-            :placeholder="$t('nav.search') !== 'nav.search' ? $t('nav.search') : 'Bạn cần tìm sản phẩm, linh kiện gì...'"
-            class="w-full bg-white text-slate-800 placeholder-slate-400 py-2 pl-9 pr-8 rounded-xl text-xs font-semibold outline-none shadow-inner border border-transparent focus:ring-2 focus:ring-yellow-300 transition-all"
-          />
+<input 
+  type="text" 
+  :value="searchQuery"
+  @input="handleInput"
+  @focus="isSearchFocused = true"
+  @blur="handleBlur"
+  @keydown="handleKeyDown"
+  placeholder="Tìm kiếm sản phẩm, mã dao..."
+  class="w-full pl-10 pr-10 py-2 bg-white text-slate-900 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+/>
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           
           <button v-if="searchQuery" @click="emit('update:searchQuery', ''); searchStore.setSearchQuery('')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -137,27 +231,55 @@ const changeLanguage = (event) => {
         </div>
 
         <!-- DROPDOWN KẾT QUẢ TÌM KIẾM -->
-        <div v-if="isSearchFocused && suggestions.length > 0" class="absolute top-full left-0 right-0 mt-2 bg-white text-slate-800 shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
-          <div class="p-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-            <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Gợi ý tìm kiếm</span>
-            <span class="text-[10px] text-primary font-bold">{{ suggestions.length }} kết quả</span>
-          </div>
-          <div v-for="p in suggestions" :key="p.id" @mousedown="selectSuggestion(p.id)" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0">
-            <img :src="p.image" class="w-10 h-10 object-contain bg-slate-100 rounded-lg p-1 shrink-0" />
-            <div class="overflow-hidden flex-1">
-              <p class="text-[9px] font-black text-red-600 uppercase leading-none mb-1">{{ p.brand || 'SPIT' }}</p>
-              <p class="text-[11px] font-bold text-slate-800 truncate leading-tight">{{ p[`name_${locale}`] || p.name }}</p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-300"><path d="m9 18 6-6-6-6"/></svg>
-          </div>
-        </div>
+<div 
+  v-if="isSearchFocused && searchQuery && searchQuery.trim()" 
+  class="absolute top-full left-0 right-0 mt-2 bg-white text-slate-800 shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
+>
+  <template v-if="suggestions.length > 0">
+    <div class="p-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+      <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Gợi ý tìm kiếm</span>
+      <span class="text-[10px] text-primary font-bold">{{ suggestions.length }} kết quả</span>
+    </div>
+    <div 
+      v-for="(p, index) in suggestions" 
+      :key="p.id" 
+      @mousedown="selectSuggestion(p.id)"
+      @mouseenter="selectedIndex = index"
+      :class="[
+        'flex items-center gap-3 p-2.5 cursor-pointer transition-colors border-b border-slate-50 last:border-0',
+        selectedIndex === index ? 'bg-slate-100' : 'hover:bg-slate-50'
+      ]"
+    >
+      <img :src="p.image || p.img" class="w-10 h-10 object-contain bg-slate-100 rounded-lg p-1 shrink-0" />
+      <div class="overflow-hidden flex-1">
+        <p class="text-[9px] font-black text-red-600 uppercase leading-none mb-1">{{ p.brand || 'SPIT' }}</p>
+        
+        <!-- HIỂN THỊ TÊN VÀ HIGHLIGHT CỦA SẢN PHẨM -->
+        <p class="text-[11px] font-bold text-slate-800 truncate leading-tight">
+          <span 
+            v-for="(part, i) in getHighlightedParts(getProductName(p), searchQuery)" 
+            :key="i"
+            :class="{ 'text-red-600 bg-yellow-200/80 rounded-xs px-0.5': part.match }"
+          >
+            {{ part.text }}
+          </span>
+        </p>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-300"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+  </template>
+
+  <div v-else class="p-4 text-center text-slate-400 text-xs font-medium">
+    Không tìm thấy sản phẩm phù hợp cho "<span class="text-slate-700 font-bold">{{ searchQuery }}</span>"
+  </div>
+</div>
       </div>
 
       <!-- TIỆN ÍCH PHẢI (RIGHT ACTION BUTTONS) -->
       <div class="flex items-center gap-1.5 lg:gap-2 shrink-0">
 
         <!-- HOTLINE / TƯ VẤN (HIDDEN MOBILE) -->
-        <a href="tel:0347527093" class="hidden xl:flex items-center gap-2 bg-primary hover:bg-primary text-white px-2.5 py-1.5 rounded-xl text-left transition-colors border border-white/10">
+        <a href="tel:0347527093" class="hidden xl:flex items-center gap-2 bg-red-700/50 hover:bg-red-800 text-white px-2.5 py-1.5 rounded-xl text-left transition-colors border border-white/10">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <div class="leading-tight">
             <p class="text-[9px] text-red-200 font-medium">Tư vấn mua hàng</p>

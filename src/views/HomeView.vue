@@ -697,11 +697,6 @@ const getCategoryBanner = (catName) => {
         </span>
         <span class="text-[10px] font-bold text-slate-500 uppercase">/ HỘP</span>
       </div>
-
-      <!-- Dòng phụ: 345.000 / 10 = 34.500đ/mảnh -->
-      <div v-if="product?.box_qty > 0" class="text-[10px] text-slate-500 font-semibold italic mt-0.5">
-        (~{{ Math.round(product.price_box / product.box_qty).toLocaleString('vi-VN') }}đ/mảnh)
-      </div>
     </div>
 
     <!-- 1.3 Hộp Chưa Có Giá -->
@@ -756,45 +751,45 @@ const getCategoryBanner = (catName) => {
   </div>
 
   <div v-else>
-    <!-- KẾT QUẢ TÌM KIẾM TỪ SEARCH BAR -->
-    <div v-if="searchStore.searchQuery && searchStore.searchQuery.trim() !== ''" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-        🔍 Kết quả tìm kiếm cho: <span class="text-red-600">"{{ searchStore.searchQuery }}"</span>
-      </h2>
+<!-- KẾT QUẢ TÌM KIẾM TỪ SEARCH BAR -->
+<div id="search-results" v-if="searchStore.searchQuery && searchStore.searchQuery.trim() !== ''" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm scroll-mt-24">
+  <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+    🔍 Kết quả tìm kiếm cho: <span class="text-red-600">"{{ searchStore.searchQuery }}"</span>
+  </h2>
+  
+  <div v-if="filteredProducts.length === 0" class="text-center py-12">
+    <p class="text-slate-400 font-semibold uppercase tracking-wider text-xs">Không tìm thấy sản phẩm nào phù hợp</p>
+  </div>
+
+  <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div v-for="p in filteredProducts" :key="p.id" 
+         class="group bg-white border border-slate-200 rounded-2xl p-3 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all duration-300 relative">
       
-      <div v-if="filteredProducts.length === 0" class="text-center py-12">
-        <p class="text-slate-400 font-semibold uppercase tracking-wider text-xs">Không tìm thấy sản phẩm nào phù hợp</p>
-      </div>
-
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div v-for="p in filteredProducts" :key="p.id" 
-             class="group bg-white border border-slate-200 rounded-2xl p-3 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all duration-300 relative">
-          
-          <div>
-            <div v-if="getDiscountPercent(p) > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
-              Giảm {{ getDiscountPercent(p) }}%
-            </div>
-            <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/30 transition-colors">
-              <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
-            </div>
-            <div>
-              <!-- UPDATE MỚI: Tag quy cách bán hàng -->
-              <div class="flex items-center justify-between gap-1 mb-0.5">
-                <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
-                <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
-                <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
-                <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
-              </div>
-              <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
-                {{ p[`name_${locale}`] || p.name }}
-              </h3>
-            </div>
+      <div>
+        <div v-if="getDiscountPercent(p) > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
+          Giảm {{ getDiscountPercent(p) }}%
+        </div>
+        <div class="h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/30 transition-colors">
+          <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+        </div>
+        <div>
+          <!-- UPDATE MỚI: Tag quy cách bán hàng -->
+          <div class="flex items-center justify-between gap-1 mb-0.5">
+            <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+            <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+            <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+            <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
           </div>
-
-          <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+          <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
+            {{ p[`name_${locale}`] || p.name }}
+          </h3>
         </div>
       </div>
+
+      <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
     </div>
+  </div>
+</div>
 
     <!-- MÀN HÌNH CHÍNH (Cột Filter Trái và Cột Content Phải) -->
     <div v-else class="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">

@@ -16,7 +16,7 @@ const toast = ref({ show: false, message: '', type: 'success' })
 // State Quản lý Chế độ Sửa (Editing)
 const editingPromoId = ref(null)
 
-// Form Dữ liệu Khuyến mãi
+// Form Dữ liệu Khuyến mãi (Đã bổ sung 3 field Quà tặng)
 const promoForm = ref({
   title: '',
   apply_to: 'specific_products', // 'all' hoặc 'specific_products'
@@ -26,7 +26,11 @@ const promoForm = ref({
   is_active: true,
   tiers: [
     { quantity: 1, discount_type: 'percentage', discount_value: 0 }
-  ]
+  ],
+  // 🎁 1. Cấu hình Quà tặng kèm (Cách 1)
+  gift_enabled: false,
+  gift_target: 10,
+  gift_name: 'cán dao'
 })
 
 // Các hàm xử lý mốc số lượng (Tiers)
@@ -154,7 +158,11 @@ const resetForm = () => {
     start_date: '',
     end_date: '',
     is_active: true,
-    tiers: [{ quantity: 1, discount_type: 'percentage', discount_value: 0 }]
+    tiers: [{ quantity: 1, discount_type: 'percentage', discount_value: 0 }],
+    // 🎁 Reset lại giá trị quà tặng
+    gift_enabled: false,
+    gift_target: 10,
+    gift_name: 'cán dao'
   }
   adminSearchQuery.value = ''
 }
@@ -171,7 +179,11 @@ const startEditPromo = (promo) => {
     is_active: promo.is_active ?? true,
     tiers: promo.tiers && promo.tiers.length > 0 
       ? JSON.parse(JSON.stringify(promo.tiers))
-      : [{ quantity: 1, discount_type: promo.discount_type || 'percentage', discount_value: promo.discount_value || 0 }]
+      : [{ quantity: 1, discount_type: promo.discount_type || 'percentage', discount_value: promo.discount_value || 0 }],
+    // 🎁 Load dữ liệu Quà tặng cũ lên Form
+    gift_enabled: promo.gift_enabled || false,
+    gift_target: promo.gift_target || 10,
+    gift_name: promo.gift_name || 'cán dao'
   }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -213,6 +225,10 @@ const handleSavePromo = async () => {
       end_date: promoForm.value.end_date,
       is_active: promoForm.value.is_active,
       tiers: sortedTiers,
+      // 🎁 Đẩy 3 trường Quà tặng lên Firestore
+      gift_enabled: Boolean(promoForm.value.gift_enabled),
+      gift_target: Number(promoForm.value.gift_target) || 10,
+      gift_name: promoForm.value.gift_name ? promoForm.value.gift_name.trim() : 'cán dao',
       updated_at: new Date().toISOString()
     }
 
@@ -374,6 +390,41 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- 🎁 KHU VỰC CẤU HÌNH QUÀ TẶNG KÈM -->
+          <div class="space-y-2 pt-2 border-t border-slate-50">
+            <label class="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+              <input 
+                type="checkbox" 
+                v-model="promoForm.gift_enabled" 
+                class="w-4 h-4 text-red-600 rounded accent-red-600 cursor-pointer"
+              >
+              <span class="text-xs font-black text-slate-800 uppercase tracking-tight">🎁 Kích hoạt Quà tặng theo số lượng</span>
+            </label>
+
+            <!-- Ô nhập thông số khi tích chọn Quà tặng -->
+            <div v-if="promoForm.gift_enabled" class="grid grid-cols-2 gap-2 p-3 bg-amber-50/40 border border-amber-200/60 rounded-xl">
+              <div class="space-y-1">
+                <label class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">Mốc SL mua</label>
+                <input 
+                  v-model.number="promoForm.gift_target" 
+                  type="number" 
+                  min="1" 
+                  placeholder="VD: 10" 
+                  class="admin-input mt-0 py-1.5 px-2 text-xs h-8 bg-white"
+                >
+              </div>
+              <div class="space-y-1">
+                <label class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">Tên quà tặng</label>
+                <input 
+                  v-model="promoForm.gift_name" 
+                  type="text" 
+                  placeholder="VD: cán dao" 
+                  class="admin-input mt-0 py-1.5 px-2 text-xs h-8 bg-white"
+                >
+              </div>
+            </div>
+          </div>
+
           <!-- Phạm vi áp dụng -->
           <div class="space-y-2 pt-2 border-t border-slate-50">
             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phạm vi áp dụng</label>
@@ -487,6 +538,13 @@ onMounted(() => {
                   {{ promo.apply_to === 'all' ? 'Toàn bộ danh mục' : `${promo.applied_ids?.length || 0} dụng cụ kỹ thuật` }}
                 </span>
               </div>
+            </div>
+
+            <!-- 🎁 Đèn báo chương trình quà tặng kèm trong thẻ Card -->
+            <div v-if="promo.gift_enabled" class="pt-1">
+              <span class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-flex items-center gap-1 shadow-2xs">
+                🎁 Tặng 1 {{ promo.gift_name || 'cán dao' }} khi mua từ {{ promo.gift_target || 10 }} SP
+              </span>
             </div>
             
             <div v-if="promo.start_date" class="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-200/50 mt-2">

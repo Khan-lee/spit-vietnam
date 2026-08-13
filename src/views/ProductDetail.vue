@@ -1,340 +1,3 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore'
-import { db } from '../firebase'
-
-const { locale } = useI18n()
-const route = useRoute()
-const product = ref(null)
-const loading = ref(true)
-const isAdding = ref(false)
-const showToast = ref(false)
-const toastMessage = ref('')
-
-// --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
-const selectedUnit = ref('piece') // 'piece' hoặc 'box'
-const quantity = ref(1)
-
-// --- TAB MÔ TẢ VÀ ĐẶC TÍNH ---
-const activeTab = ref('description')
-
-// --- CHIẾN DỊCH KHUYẾN MÃI & HÌNH ẢNH ---
-const activePromotions = ref([])
-const activeImage = ref('')
-const isZoomed = ref(false)
-const relatedProducts = ref([])
-
-// --- SO SÁNH SẢN PHẨM ---
-const isCompareOpen = ref(false)
-const selectedCompareId = ref('')
-
-const compareProduct = computed(() => {
-  if (!selectedCompareId.value) return null
-  return relatedProducts.value.find(p => p.id === selectedCompareId.value) || null
-})
-
-const openCompareModal = () => {
-  isCompareOpen.value = true
-  if (relatedProducts.value.length > 0 && !selectedCompareId.value) {
-    selectedCompareId.value = relatedProducts.value[0].id
-  }
-}
-
-// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT ---
-const getParsedSpecs = (item) => {
-  if (!item) return {}
-  if (item.specs && typeof item.specs === 'object' && !Array.isArray(item.specs)) {
-    return item.specs
-  }
-
-  const rawText = item[`specifications_${locale.value}`] || item.specifications || item[`features_${locale.value}`] || item.features || ''
-  if (!rawText) return {}
-
-  let cleaned = rawText
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-
-  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean)
-  const result = {}
-  lines.forEach(line => {
-    if (line.includes(':')) {
-      const colonIndex = line.indexOf(':')
-      const key = line.substring(0, colonIndex).trim()
-      const val = line.substring(colonIndex + 1).trim()
-      if (key && val && key.length < 40) {
-        result[key] = val
-      }
-    }
-  })
-  return result
-}
-
-const getSpecValue = (specs, targetKey) => {
-  if (!specs) return '-'
-  if (specs[targetKey]) return specs[targetKey]
-  const normalizedTarget = targetKey.toLowerCase().trim()
-  const foundKey = Object.keys(specs).find(k => k.toLowerCase().trim() === normalizedTarget)
-  return foundKey ? specs[foundKey] : '-'
-}
-
-const allSpecKeys = computed(() => {
-  if (!product.value || !compareProduct.value) return []
-  const specs1 = getParsedSpecs(product.value)
-  const specs2 = getParsedSpecs(compareProduct.value)
-  const rawKeys = [...Object.keys(specs1), ...Object.keys(specs2)]
-  const uniqueKeys = []
-  rawKeys.forEach(k => {
-    const trimmed = k.trim()
-    if (trimmed && !uniqueKeys.some(uk => uk.toLowerCase() === trimmed.toLowerCase())) {
-      uniqueKeys.push(trimmed)
-    }
-  })
-  return uniqueKeys
-})
-
-const cleanNumber = (val) => {
-  if (val === undefined || val === null || val === '') return 0
-  const cleaned = String(val).replace(/[^0-9.]/g, '')
-  return parseFloat(cleaned) || 0
-}
-
-// --- LOGIC BẮT DỮ LIỆU TỪ ADMIN ---
-// 1. Số lượng mảnh/hộp
-const boxSize = computed(() => {
-  return cleanNumber(product.value?.box_qty || product.value?.box_size || product.value?.items_per_box) || 1
-})
-
-// 2. Tự động đọc Chế Độ Bán từ AdminView
-const normalizedSellingMode = computed(() => {
-  const mode = String(
-    product.value?.sales_type || 
-    product.value?.selling_mode || 
-    product.value?.sale_type || 
-    product.value?.sale_mode || 
-    ''
-  ).toLowerCase().trim()
-
-  if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
-  if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
-  if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
-
-  // Smart Fallback
-  const unitVi = String(product.value?.unit_vi || '').toLowerCase()
-  if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
-
-  if (boxSize.value > 1) return 'flexible'
-  return 'piece_only'
-})
-
-const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
-const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
-const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
-
-// 3. Tên đơn vị Lẻ & Hộp
-const unitPieceName = computed(() => {
-  if (product.value?.unit_piece) return product.value.unit_piece
-  return locale.value === 'vi' ? 'Mảnh' : 'Pc'
-})
-
-const unitBoxName = computed(() => {
-  if (product.value?.unit_box) return product.value.unit_box
-  if (locale.value === 'vi' && product.value?.unit_vi) return product.value.unit_vi
-  if (locale.value === 'en' && product.value?.unit_en) return product.value.unit_en
-  return locale.value === 'vi' ? 'Hộp' : 'Box'
-})
-
-// 4. Chuỗi Quy Cách Bán hiển thị trên Header Chi Tiết
-const displayUnitLabel = computed(() => {
-  if (isBoxOnlyMode.value) {
-    const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
-    return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${unitPieceName.value})` : mainUnit
-  }
-  if (isPieceOnlyMode.value) {
-    return unitPieceName.value
-  }
-  if (selectedUnit.value === 'box') {
-    return `${unitBoxName.value} (${boxSize.value} ${unitPieceName.value})`
-  }
-  return unitPieceName.value
-})
-
-const boxDiscountPercent = computed(() => cleanNumber(product.value?.box_discount || product.value?.box_discount_percent) || 0)
-
-// --- CHIẾN DỊCH KHUYẾN MÃI ---
-const fetchActivePromotions = async () => {
-  try {
-    const q = query(collection(db, "promotions"), where("is_active", "==", true))
-    const snap = await getDocs(q)
-    activePromotions.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  } catch (e) {
-    console.error("Lỗi lấy khuyến mãi:", e)
-  }
-}
-
-const effectivePromo = computed(() => {
-  if (!product.value) return null
-  const campaign = activePromotions.value.find(p => p.applied_ids?.includes(route.params.id))
-  if (campaign) {
-    return { type: campaign.discount_type, value: cleanNumber(campaign.discount_value), label: 'CAMPAIGN' }
-  }
-  const val = cleanNumber(product.value.promotionValue)
-  const type = product.value.promotionType
-  if (val > 0 && (type === 'percentage' || type === 'fixed')) {
-    return { type, value: val, label: 'SALE' }
-  }
-  return null
-})
-
-const hasPromo = () => !!effectivePromo.value
-
-// --- 🔥 TÍNH GIÁ CHUẨN XÁC THEO HỘP / MẢNH & ÁP DỤNG KHUYẾN MÃI ĐÚNG QUY TẮC ---
-const basePrice = computed(() => cleanNumber(product.value?.price))
-const directBoxPrice = computed(() => cleanNumber(product.value?.price_box))
-const directPiecePrice = computed(() => cleanNumber(product.value?.price_piece || product.value?.price))
-
-// Đơn giá niêm yết (Chưa giảm) của quy cách đang chọn
-const originalUnitPrice = computed(() => {
-  if (isBoxOnlyMode.value || selectedUnit.value === 'box') {
-    return directBoxPrice.value > 0 ? directBoxPrice.value : (basePrice.value * boxSize.value)
-  }
-  // Nếu chọn bán Mảnh
-  return directPiecePrice.value
-})
-
-// Đơn giá thực tế sau khi tính Khuyến Mãi
-const currentUnitPrice = computed(() => {
-  if (!product.value) return 0
-  let price = originalUnitPrice.value
-
-  const isBuyingBox = isBoxOnlyMode.value || selectedUnit.value === 'box'
-
-  // ⚡ CHỈ TÍNH KHUYẾN MÃI NẾU KHÁCH CHỌN MUA HỘP
-  if (isBuyingBox) {
-    // 1. Áp dụng Chiết khấu % Hộp (Nếu không có Giá Hộp nhập tay độc lập)
-    if (isFlexibleMode.value && directBoxPrice.value === 0 && boxDiscountPercent.value > 0) {
-      price = price * (1 - boxDiscountPercent.value / 100)
-    }
-
-    // 2. Áp dụng Khuyến mãi Chiến dịch / Sale lẻ
-    const promo = effectivePromo.value
-    if (promo) {
-      if (promo.type === 'percentage') {
-        price = price * (1 - promo.value / 100)
-      } else if (promo.type === 'fixed') {
-        price = Math.max(0, price - promo.value)
-      }
-    }
-  } 
-  // ⚡ NẾU MUA MẢNH -> KỆ MẸ KHUYẾN MÃI: Giữ nguyên originalUnitPrice (không trừ tiền)
-
-  return Math.round(price)
-})
-
-// Tổng tiền
-const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
-
-// Số tiền tiết kiệm được
-const savingsAmount = computed(() => Math.max(0, originalUnitPrice.value - currentUnitPrice.value))
-
-const changeQuantity = (delta) => {
-  const newQty = quantity.value + delta
-  if (newQty >= 1) quantity.value = newQty
-}
-
-// --- THÊM VÀO GIỎ HÀNG ---
-const addToCart = (item) => {
-  if (item.stock <= 0) return
-  isAdding.value = true
-
-  setTimeout(() => {
-    const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
-    const pName = item[`name_${locale.value}`] || item.name
-    
-    const currentUnitKey = isBoxOnlyMode.value ? 'box' : selectedUnit.value
-    const currentUnitLabel = isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)
-    
-    const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
-
-    if (existingIndex > -1) {
-      cart[existingIndex].quantity += quantity.value
-      cart[existingIndex].price = currentUnitPrice.value
-    } else {
-      cart.push({
-        id: route.params.id,
-        name: pName,
-        price: currentUnitPrice.value,
-        original_price: originalUnitPrice.value,
-        image: item.image,
-        quantity: quantity.value,
-        unit: currentUnitKey,
-        unit_name: currentUnitLabel,
-        box_size: boxSize.value,
-        sku: item.sku || ''
-      })
-    }
-    
-    localStorage.setItem('spit_cart', JSON.stringify(cart))
-    window.dispatchEvent(new Event('cart-updated'))
-    
-    isAdding.value = false
-    toastMessage.value = locale.value === 'vi' 
-      ? `Đã thêm ${quantity.value} ${currentUnitLabel} vào giỏ hàng!` 
-      : `Added ${quantity.value} ${currentUnitLabel} to cart!`
-    showToast.value = true
-    setTimeout(() => { showToast.value = false }, 3000)
-  }, 200)
-}
-
-const fetchRelatedProducts = async (categoryStr) => {
-  if (!categoryStr) return
-  try {
-    let q = query(collection(db, "products"), where("category", "==", categoryStr), limit(6))
-    let snap = await getDocs(q)
-    let items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-
-    if (items.length <= 1) { 
-      q = query(collection(db, "products"), where("category_vi", "==", categoryStr), limit(6))
-      snap = await getDocs(q)
-      items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    }
-
-    relatedProducts.value = items.filter(item => item.id !== route.params.id).slice(0, 5)
-  } catch (e) {
-    console.error("Lỗi lấy sp liên quan:", e)
-  }
-}
-
-onMounted(async () => {
-  try {
-    await fetchActivePromotions()
-    const docRef = doc(db, "products", route.params.id)
-    const docSnap = await getDoc(docRef)
-    if (docSnap.exists()) {
-      product.value = { id: docSnap.id, ...docSnap.data() }
-      
-      if (isBoxOnlyMode.value) {
-        selectedUnit.value = 'box'
-      } else {
-        selectedUnit.value = 'piece'
-      }
-
-      if (product.value.image) activeImage.value = product.value.image
-      const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
-      if (targetCategory) await fetchRelatedProducts(targetCategory)
-    }
-  } catch (error) {
-    console.error("Lỗi kết nối:", error)
-  } finally {
-    loading.value = false
-  }
-})
-</script>
-
 <template>
   <div v-if="loading" class="min-h-screen bg-slate-50 flex items-center justify-center">
     <div class="flex flex-col items-center gap-3">
@@ -516,9 +179,13 @@ onMounted(async () => {
         <!-- Cột hình ảnh -->
         <div class="lg:sticky lg:top-24 space-y-5 w-full">
           <div class="relative bg-[#f8fafc] p-8 md:p-12 rounded-4xl border border-slate-100 flex items-center justify-center aspect-square shadow-inner overflow-hidden group">
-            <div v-if="hasPromo()" class="absolute top-5 left-5 z-10 text-white font-black text-[10px] tracking-wider px-3 py-1.5 rounded-xl shadow-md uppercase" :class="effectivePromo.label === 'CAMPAIGN' ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-red-600 to-red-500'">
-              🔥 {{ effectivePromo.label }} {{ effectivePromo.type === 'percentage' ? `-${effectivePromo.value}%` : 'OFF' }}
+            
+            <!-- CHỈ HIỂN THỊ BADGE HOT SALE KHI MUA HỘP CÓ KHUYẾN MÃI -->
+            <div v-if="hasPromo()" class="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-linear-to-r from-red-600 via-rose-600 to-amber-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 border border-white/20 animate-pulse">
+              <span>🔥</span>
+              <span>HOT SALE {{ boxDiscountPercent > 0 ? `-${boxDiscountPercent}%` : (effectivePromo?.type === 'percentage' ? `-${effectivePromo?.value}%` : 'SỐC') }}</span>
             </div>
+
             <img :src="activeImage" @click="isZoomed = true" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" title="Bấm để phóng to ảnh" />
           </div>
 
@@ -567,7 +234,7 @@ onMounted(async () => {
               <button 
                 type="button"
                 @click="selectedUnit = 'piece'"
-                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between"
+                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
                 :class="selectedUnit === 'piece' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
               >
                 <div class="flex items-center justify-between w-full mb-1">
@@ -581,7 +248,7 @@ onMounted(async () => {
               <button 
                 type="button"
                 @click="selectedUnit = 'box'"
-                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between"
+                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
                 :class="selectedUnit === 'box' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
               >
                 <div class="flex items-center justify-between w-full mb-1">
@@ -603,37 +270,126 @@ onMounted(async () => {
             <span class="text-slate-900 font-black uppercase tracking-wide text-xs">{{ displayUnitLabel }}</span>
           </div>
 
-          <!-- KHỐI TÍNH GIÁ ĐỒNG BỘ THEO "HỘP" & MẢNH -->
-          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10">
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  ĐƠN GIÁ THEO {{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }}:
-                </span>
-                <span v-if="savingsAmount > 0" class="text-[10px] bg-red-600 text-white font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
-                </span>
-              </div>
-
-              <!-- Giá hiển thị -->
-              <div class="flex items-baseline gap-3">
-                <div class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5 text-white">
-                  {{ currentUnitPrice.toLocaleString('vi-VN') }} 
-                  <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">
-                    VNĐ/{{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }}
+          <!-- BANNER ĐẾM NGƯỢC FLASH SALE (CHỈ HIỂN THỊ KHI MUA HỘP VÀ CÓ KM) -->
+          <div v-if="hasPromo() && countdown" class="bg-linear-to-r from-red-600 via-rose-600 to-amber-600 rounded-3xl p-4 sm:p-5 text-white shadow-xl shadow-red-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl sm:text-3xl animate-bounce">🔥</span>
+              <div>
+                <div class="font-black text-xs uppercase tracking-wider flex items-center gap-2">
+                  <span>{{ effectivePromo?.title || 'FLASH SALE HOT' }}</span>
+                  <span class="bg-white text-red-600 text-[10px] px-2 py-0.5 rounded-full font-black shadow-sm">
+                    {{ effectivePromo?.type === 'percentage' ? `-${effectivePromo?.value}%` : 'GIẢM GIÁ SỐC' }}
                   </span>
                 </div>
-                <div v-if="originalUnitPrice > currentUnitPrice" class="text-slate-400 font-bold text-xs sm:text-sm line-through opacity-70">
-                  {{ originalUnitPrice.toLocaleString('vi-VN') }} VNĐ
+                <p class="text-[10px] text-red-100 font-medium">Số lượng ưu đãi có hạn, nhanh tay sở hữu!</p>
+              </div>
+            </div>
+
+            <!-- BỘ ĐẾM NGƯỢC REAL-TIME -->
+            <div class="flex items-center gap-1.5 font-mono text-xs font-black shrink-0">
+              <div v-if="countdown.days > 0" class="flex items-center gap-1">
+                <div class="bg-black/30 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-center min-w-9 border border-white/10">
+                  <span class="block text-sm leading-none">{{ String(countdown.days).padStart(2, '0') }}</span>
+                  <span class="text-[8px] font-sans text-red-200 block mt-0.5">NGÀY</span>
                 </div>
+                <span class="text-white/80 font-bold">:</span>
               </div>
 
-              <!-- Tổng tiền Real-time -->
-              <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TỔNG TIỀN THÀNH TIỀN:</span>
-                <span class="text-xl sm:text-2xl font-black text-red-500">
-                  {{ totalPrice.toLocaleString('vi-VN') }} <span class="text-xs font-bold">VNĐ</span>
+              <div class="bg-black/30 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-center min-w-9 border border-white/10">
+                <span class="block text-sm leading-none">{{ String(countdown.hours || 0).padStart(2, '0') }}</span>
+                <span class="text-[8px] font-sans text-red-200 block mt-0.5">GIỜ</span>
+              </div>
+              <span class="text-white/80 font-bold">:</span>
+
+              <div class="bg-black/30 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-center min-w-9 border border-white/10">
+                <span class="block text-sm leading-none">{{ String(countdown.minutes || 0).padStart(2, '0') }}</span>
+                <span class="text-[8px] font-sans text-red-200 block mt-0.5">PHÚT</span>
+              </div>
+              <span class="text-white/80 font-bold">:</span>
+
+              <div class="bg-white/20 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-center min-w-9 border border-white/40 shadow-inner">
+                <span class="block text-sm leading-none text-yellow-300 animate-pulse">{{ String(countdown.seconds || 0).padStart(2, '0') }}</span>
+                <span class="text-[8px] font-sans text-yellow-100 block mt-0.5">GIÂY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- KHỐI GIÁ SẢN PHẨM -->
+          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                ĐƠN GIÁ THEO {{ displayUnitLabel }}:
+              </span>
+              <span v-if="savingsAmount > 0" class="text-[10px] bg-red-600 text-white font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-md shadow-red-600/30 flex items-center gap-1">
+                <span>🏷️</span> TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
+              </span>
+            </div>
+
+            <!-- Giá hiển thị nổi bật -->
+            <div class="flex flex-wrap items-baseline gap-3">
+              <div class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5 text-white">
+                {{ currentUnitPrice.toLocaleString('vi-VN') }} 
+                <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">
+                  VNĐ / {{ displayUnitLabel }}
                 </span>
+              </div>
+              <div v-if="isBuyingBox && originalUnitPrice > currentUnitPrice" class="text-slate-400 font-extrabold text-base sm:text-lg line-through opacity-60">
+                {{ originalUnitPrice.toLocaleString('vi-VN') }} VNĐ
+              </div>
+              <span v-if="isBuyingBox && boxDiscountPercent > 0" class="text-xs font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
+                -{{ boxDiscountPercent }}%
+              </span>
+            </div>
+
+            <!-- Tổng tiền Real-time -->
+            <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TỔNG THÀNH TIỀN:</span>
+              <span class="text-xl sm:text-2xl font-black text-red-500">
+                {{ totalPrice.toLocaleString('vi-VN') }} <span class="text-xs font-bold text-slate-300">VNĐ</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- BOX "ƯU ĐÃI ĐẶC BIỆT" & THANH TIẾN ĐỘ THÔNG MINH (CHỈ HIỂN THỊ KHI MUA HỘP) -->
+          <div v-if="activeGiftInfo" class="p-5 sm:p-6 rounded-3xl bg-amber-50/70 border-2 border-amber-200/80 shadow-sm space-y-3.5 relative overflow-hidden">
+            <div class="absolute -right-3 -bottom-3 text-5xl opacity-10 pointer-events-none select-none">🎁</div>
+
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-base font-bold shrink-0 shadow-md shadow-amber-500/20">
+                🎁
+              </div>
+              <div>
+                <h4 class="font-black text-slate-900 text-xs sm:text-sm uppercase tracking-wide">
+                  Ưu Đãi Tặng {{ activeGiftInfo.name }}
+                </h4>
+                <p class="text-xs font-bold text-amber-900 mt-0.5">
+                  Mua <span class="text-red-600 font-black">{{ giftTarget }} {{ displayUnitLabel }}</span> bất kỳ ➔ Tặng ngay <span class="text-red-600 font-black">1 {{ activeGiftInfo.name }}</span>.
+                </p>
+              </div>
+            </div>
+
+            <!-- THANH TIẾN ĐỘ THÔNG MINH -->
+            <div class="space-y-2 bg-white p-3 rounded-2xl border border-amber-200/60 shadow-inner">
+              <div class="flex items-center justify-between text-[11px] font-bold">
+                <span :class="comboRemaining <= 0 ? 'text-green-600 font-black' : 'text-slate-700'">
+                  <template v-if="comboRemaining > 0">
+                    ⚡ Mua thêm <span class="text-red-600 font-black text-xs">{{ comboRemaining }}</span> {{ displayUnitLabel }} nữa để nhận <b>1 {{ activeGiftInfo.name }} miễn phí!</b>
+                  </template>
+                  <template v-else>
+                    🎉 <b>ĐÃ ĐẠT ĐIỀU KIỆN!</b> Tặng kèm 1 {{ activeGiftInfo.name }}.
+                  </template>
+                </span>
+                <span class="text-slate-400 font-mono text-[10px]">{{ quantity }}/{{ giftTarget }} {{ displayUnitLabel }}</span>
+              </div>
+
+              <!-- Track Tiến Độ -->
+              <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                <div 
+                  class="h-full rounded-full transition-all duration-500 ease-out flex items-center justify-end pr-1"
+                  :class="comboRemaining <= 0 ? 'bg-linear-to-r from-emerald-500 to-green-500' : 'bg-linear-to-r from-amber-500 to-red-600 animate-pulse'"
+                  :style="{ width: `${comboProgress}%` }"
+                >
+                </div>
               </div>
             </div>
           </div>
@@ -643,16 +399,16 @@ onMounted(async () => {
             <div class="flex items-center gap-3">
               <span class="text-xs font-black text-slate-700 uppercase tracking-wider shrink-0">SỐ LƯỢNG:</span>
               <div class="flex items-center border-2 border-slate-200 rounded-2xl bg-white overflow-hidden shrink-0">
-                <button @click="changeQuantity(-1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200">-</button>
+                <button @click="changeQuantity(-1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200 cursor-pointer">-</button>
                 <input type="number" v-model.number="quantity" min="1" class="w-14 text-center font-black text-sm text-slate-900 focus:outline-none" />
-                <button @click="changeQuantity(1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200">+</button>
+                <button @click="changeQuantity(1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200 cursor-pointer">+</button>
               </div>
               <span class="text-xs font-extrabold text-slate-500 uppercase">
                 ({{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }})
               </span>
             </div>
 
-            <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]" :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10 hover:bg-red-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'">
+            <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98] cursor-pointer" :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10 hover:bg-red-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'">
               <span class="relative z-10 tracking-[0.2em] flex items-center justify-center gap-2">
                 {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? `Thêm ${quantity} ${isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName)} vào giỏ` : 'Add to cart') : 'Hết hàng tạm thời') }}
               </span>
@@ -663,7 +419,7 @@ onMounted(async () => {
             </a>
 
             <!-- NÚT SO SÁNH -->
-            <button @click="openCompareModal" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black uppercase text-xs transition-all border-2 border-slate-900 bg-slate-900 text-white hover:bg-red-600 hover:border-red-600 active:scale-[0.98] shadow-md shadow-slate-900/10">
+            <button @click="openCompareModal" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black uppercase text-xs transition-all border-2 border-slate-900 bg-slate-900 text-white hover:bg-red-600 hover:border-red-600 active:scale-[0.98] shadow-md shadow-slate-900/10 cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
               <span class="tracking-[0.2em]">{{ locale === 'vi' ? 'So sánh thông số kỹ thuật' : 'Compare Specifications' }}</span>
             </button>
@@ -693,22 +449,492 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
-.slide-fade-enter-active { transition: all 0.3s ease-out; }
-.slide-fade-leave-active { transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1); }
-.slide-fade-enter-from, .slide-fade-leave-to { transform: translateX(20px); opacity: 0; }
+<script setup>
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { doc, getDoc, getDocs, collection, query, where, limit, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase'
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease-in-out; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+const { locale } = useI18n()
+const route = useRoute()
+const product = ref(null)
+const loading = ref(true)
+const isAdding = ref(false)
+const showToast = ref(false)
+const toastMessage = ref('')
 
-.raw-html-content :deep(p) { margin-bottom: 0.5rem; }
-.raw-html-content :deep(ul) { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
-.raw-html-content :deep(table) { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; }
-.raw-html-content :deep(td), .raw-html-content :deep(th) { border: 1px solid #e2e8f0; padding: 6px 8px; font-size: 11px; }
+// --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
+const selectedUnit = ref('piece') // 'piece' hoặc 'box'
+const quantity = ref(1)
 
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+// --- TAB MÔ TẢ VÀ ĐẶC TÍNH ---
+const activeTab = ref('description')
+
+// --- CHIẾN DỊCH KHUYẾN MÃI & HÌNH ẢNH ---
+const activePromotions = ref([])
+let unsubscribePromo = null
+const activeImage = ref('')
+const isZoomed = ref(false)
+const relatedProducts = ref([])
+
+// --- LẮNG NGHE KHUYẾN MÃI REALTIME TỪ ADMIN ---
+const listenActivePromotions = () => {
+  const q = query(collection(db, "promotions"), where("is_active", "==", true))
+  
+  unsubscribePromo = onSnapshot(q, (snap) => {
+    activePromotions.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  }, (e) => {
+    console.error("Lỗi lắng nghe khuyến mãi:", e)
+  })
 }
-</style>
+
+// --- XÁC ĐỊNH SẢN PHẨM CÓ ĐANG MUA THEO HỘP HAY KHÔNG ---
+const isBuyingBox = computed(() => {
+  if (isBoxOnlyMode.value) return true
+  if (isPieceOnlyMode.value) return false
+  return selectedUnit.value === 'box'
+})
+
+// --- 1. LỌC CHIẾN DỊCH HỢP LỆ (CHỈ ÁP DỤNG KHI MUA HỘP) ---
+const matchedCampaign = computed(() => {
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT CHIẾN DỊCH KM
+  if (!product.value || activePromotions.value.length === 0) return null
+  const productId = route.params.id
+  const now = new Date()
+
+  return activePromotions.value.find(p => {
+    if (!p.is_active) return false
+
+    if (p.start_date && now < new Date(p.start_date)) return false
+    if (p.end_date && now > new Date(p.end_date)) return false
+
+    if (p.apply_to === 'all') return true
+    if (p.apply_to === 'specific_products' && p.applied_ids?.includes(productId)) return true
+
+    return false
+  }) || null
+})
+
+// --- 2. QUÀ TẶNG KÈM (CHỈ ÁP DỤNG KHI MUA HỘP) ---
+const activeGiftInfo = computed(() => {
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT QUÀ TẶNG
+  if (!matchedCampaign.value || !matchedCampaign.value.gift_enabled) return null
+
+  const target = Number(matchedCampaign.value.gift_target) || 10
+  const name = matchedCampaign.value.gift_name || 'quà tặng'
+  const remaining = Math.max(0, target - quantity.value)
+  const progress = Math.min(100, Math.round((quantity.value / target) * 100))
+
+  return {
+    enabled: true,
+    target,
+    name,
+    remaining,
+    progress,
+    isReached: quantity.value >= target
+  }
+})
+
+// --- BỔ SUNG CÁC BIẾN HELPER CHO TEMPLATE ---
+const giftTarget = computed(() => activeGiftInfo.value?.target || 10)
+const comboRemaining = computed(() => activeGiftInfo.value ? activeGiftInfo.value.remaining : 0)
+const comboProgress = computed(() => activeGiftInfo.value ? activeGiftInfo.value.progress : 0)
+
+// --- 3. TÍNH TOÁN CHIẾN DỊCH HỢP LỆ VÀ MỐC GIẢM GIÁ (TIER) ---
+const effectivePromo = computed(() => {
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT KHUYẾN MÃI
+  if (!product.value) return null
+
+  if (matchedCampaign.value) {
+    const campaign = matchedCampaign.value
+    let matchedTier = null
+
+    if (campaign.tiers && Array.isArray(campaign.tiers) && campaign.tiers.length > 0) {
+      const sortedTiers = [...campaign.tiers].sort((a, b) => b.quantity - a.quantity)
+      matchedTier = sortedTiers.find(t => quantity.value >= t.quantity)
+    }
+
+    if (matchedTier) {
+      return {
+        id: campaign.id,
+        title: campaign.title,
+        type: matchedTier.discount_type,
+        value: cleanNumber(matchedTier.discount_value),
+        min_qty: matchedTier.quantity,
+        label: 'CAMPAIGN',
+        end_date: campaign.end_date,
+        all_tiers: campaign.tiers,
+        hasReachedTier: true
+      }
+    }
+
+    if (campaign.tiers && campaign.tiers.length > 0) {
+      return {
+        id: campaign.id,
+        title: campaign.title,
+        type: campaign.tiers[0].discount_type,
+        value: 0,
+        min_qty: campaign.tiers[0].quantity,
+        label: 'CAMPAIGN',
+        end_date: campaign.end_date,
+        all_tiers: campaign.tiers,
+        hasReachedTier: false
+      }
+    }
+
+    if (campaign.discount_value) {
+      return {
+        id: campaign.id,
+        title: campaign.title,
+        type: campaign.discount_type || 'percentage',
+        value: cleanNumber(campaign.discount_value),
+        min_qty: 1,
+        label: 'CAMPAIGN',
+        end_date: campaign.end_date,
+        all_tiers: [],
+        hasReachedTier: true
+      }
+    }
+  }
+
+  const val = cleanNumber(product.value.promotionValue)
+  const type = product.value.promotionType
+  if (val > 0 && (type === 'percentage' || type === 'fixed' || type === 'fixed_amount')) {
+    return {
+      id: 'product-local',
+      title: 'Khuyến mãi sản phẩm',
+      type: type,
+      value: val,
+      min_qty: 1,
+      label: 'SALE',
+      end_date: null,
+      all_tiers: [],
+      hasReachedTier: true
+    }
+  }
+
+  return null
+})
+
+const hasPromo = () => isBuyingBox.value && !!effectivePromo.value
+
+// --- BỘ ĐẾM NGƯỢC FLASH SALE ---
+const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+let countdownTimer = null
+
+const updateCountdown = () => {
+  const now = new Date()
+  let targetDate = new Date()
+
+  if (effectivePromo.value && effectivePromo.value.end_date) {
+    targetDate = new Date(effectivePromo.value.end_date)
+  } else {
+    targetDate.setHours(23, 59, 59, 999)
+  }
+
+  const diff = targetDate - now
+
+  if (diff <= 0) {
+    countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    return
+  }
+
+  countdown.value = {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60)
+  }
+}
+
+// --- SO SÁNH SẢN PHẨM ---
+const isCompareOpen = ref(false)
+const selectedCompareId = ref('')
+
+const compareProduct = computed(() => {
+  if (!selectedCompareId.value) return null
+  return relatedProducts.value.find(p => p.id === selectedCompareId.value) || null
+})
+
+const openCompareModal = () => {
+  isCompareOpen.value = true
+  if (relatedProducts.value.length > 0 && !selectedCompareId.value) {
+    selectedCompareId.value = relatedProducts.value[0].id
+  }
+}
+
+// --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT ---
+const getParsedSpecs = (item) => {
+  if (!item) return {}
+  if (item.specs && typeof item.specs === 'object' && !Array.isArray(item.specs)) {
+    return item.specs
+  }
+
+  const rawText = item[`specifications_${locale.value}`] || item.specifications || item[`features_${locale.value}`] || item.features || ''
+  if (!rawText) return {}
+
+  let cleaned = rawText
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean)
+  const result = {}
+  lines.forEach(line => {
+    if (line.includes(':')) {
+      const colonIndex = line.indexOf(':')
+      const key = line.substring(0, colonIndex).trim()
+      const val = line.substring(colonIndex + 1).trim()
+      if (key && val && key.length < 40) {
+        result[key] = val
+      }
+    }
+  })
+  return result
+}
+
+const getSpecValue = (specs, targetKey) => {
+  if (!specs) return '-'
+  if (specs[targetKey]) return specs[targetKey]
+  const normalizedTarget = targetKey.toLowerCase().trim()
+  const foundKey = Object.keys(specs).find(k => k.toLowerCase().trim() === normalizedTarget)
+  return foundKey ? specs[foundKey] : '-'
+}
+
+const allSpecKeys = computed(() => {
+  if (!product.value || !compareProduct.value) return []
+  const specs1 = getParsedSpecs(product.value)
+  const specs2 = getParsedSpecs(compareProduct.value)
+  const rawKeys = [...Object.keys(specs1), ...Object.keys(specs2)]
+  const uniqueKeys = []
+  rawKeys.forEach(k => {
+    const trimmed = k.trim()
+    if (trimmed && !uniqueKeys.some(uk => uk.toLowerCase() === trimmed.toLowerCase())) {
+      uniqueKeys.push(trimmed)
+    }
+  })
+  return uniqueKeys
+})
+
+const cleanNumber = (val) => {
+  if (val === undefined || val === null || val === '') return 0
+  const cleaned = String(val).replace(/[^0-9.]/g, '')
+  return parseFloat(cleaned) || 0
+}
+
+// --- LOGIC BẮT DỮ LIỆU TỪ ADMIN ---
+const boxSize = computed(() => {
+  return cleanNumber(product.value?.box_qty || product.value?.box_size || product.value?.items_per_box) || 1
+})
+
+const normalizedSellingMode = computed(() => {
+  const mode = String(
+    product.value?.sales_type || 
+    product.value?.selling_mode || 
+    product.value?.sale_type || 
+    product.value?.sale_mode || 
+    ''
+  ).toLowerCase().trim()
+
+  if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
+  if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
+  if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
+
+  const unitVi = String(product.value?.unit_vi || '').toLowerCase()
+  if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
+
+  if (boxSize.value > 1) return 'flexible'
+  return 'piece_only'
+})
+
+const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
+const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
+const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
+
+const unitPieceName = computed(() => {
+  if (product.value?.unit_piece) return product.value.unit_piece
+  return locale.value === 'vi' ? 'Mảnh' : 'Pc'
+})
+
+const unitBoxName = computed(() => {
+  if (product.value?.unit_box) return product.value.unit_box
+  if (locale.value === 'vi' && product.value?.unit_vi) return product.value.unit_vi
+  if (locale.value === 'en' && product.value?.unit_en) return product.value.unit_en
+  return locale.value === 'vi' ? 'Hộp' : 'Box'
+})
+
+const displayUnitLabel = computed(() => {
+  if (isBoxOnlyMode.value) {
+    const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
+    return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${unitPieceName.value})` : mainUnit
+  }
+  if (isPieceOnlyMode.value) {
+    return unitPieceName.value
+  }
+  if (selectedUnit.value === 'box') {
+    return `${unitBoxName.value} (${boxSize.value} ${unitPieceName.value})`
+  }
+  return unitPieceName.value
+})
+
+const boxDiscountPercent = computed(() => cleanNumber(product.value?.box_discount || product.value?.box_discount_percent) || 0)
+
+// --- TÍNH GIÁ DỰA TRÊN ĐƠN VỊ VÀ KHUYẾN MÃI CHIẾN DỊCH ---
+const basePrice = computed(() => cleanNumber(product.value?.price))
+const directBoxPrice = computed(() => cleanNumber(product.value?.price_box))
+const directPiecePrice = computed(() => cleanNumber(product.value?.price_piece || product.value?.price))
+
+const originalUnitPrice = computed(() => {
+  if (isBoxOnlyMode.value || selectedUnit.value === 'box') {
+    return directBoxPrice.value > 0 ? directBoxPrice.value : (basePrice.value * boxSize.value)
+  }
+  return directPiecePrice.value
+})
+
+const currentUnitPrice = computed(() => {
+  if (!product.value) return 0
+  let price = originalUnitPrice.value
+
+  // NẾU MUA MẢNH -> NGUYÊN GIÁ CỦA MẢNH, KHÔNG ÁP DỤNG BẤT KỲ MỐC GIẢM GIÁ NÀO
+  if (!isBuyingBox.value) {
+    return Math.round(price)
+  }
+
+  // NẾU MUA HỘP -> MỚI TÍNH CHIẾT KHẤU
+  if (isFlexibleMode.value && directBoxPrice.value === 0 && boxDiscountPercent.value > 0) {
+    price = price * (1 - boxDiscountPercent.value / 100)
+  }
+
+  const promo = effectivePromo.value
+  if (promo && promo.hasReachedTier && promo.value > 0) {
+    if (promo.type === 'percentage') {
+      price = price * (1 - promo.value / 100)
+    } else if (promo.type === 'fixed_amount' || promo.type === 'fixed') {
+      price = Math.max(0, price - promo.value)
+    }
+  }
+
+  return Math.round(price)
+})
+
+const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
+
+// TIẾT KIỆM CHỈ TÍNH KHI MUA HỘP
+const savingsAmount = computed(() => {
+  if (!isBuyingBox.value) return 0
+  return Math.max(0, originalUnitPrice.value - currentUnitPrice.value)
+})
+
+const changeQuantity = (delta) => {
+  const newQty = quantity.value + delta
+  if (newQty >= 1) quantity.value = newQty
+}
+
+// --- THÊM VÀO GIỎ HÀNG ---
+const addToCart = (item) => {
+  if (item.stock <= 0) return
+  isAdding.value = true
+
+  setTimeout(() => {
+    const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
+    const pName = item[`name_${locale.value}`] || item.name
+    
+    const currentUnitKey = isBoxOnlyMode.value ? 'box' : selectedUnit.value
+    const currentUnitLabel = isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)
+    
+    const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
+
+    const giftData = (activeGiftInfo.value && activeGiftInfo.value.isReached) ? {
+      name: activeGiftInfo.value.name,
+      target: activeGiftInfo.value.target
+    } : null
+
+    if (existingIndex > -1) {
+      cart[existingIndex].quantity += quantity.value
+      cart[existingIndex].price = currentUnitPrice.value
+      if (giftData) cart[existingIndex].applied_gift = giftData
+    } else {
+      cart.push({
+        id: route.params.id,
+        name: pName,
+        price: currentUnitPrice.value,
+        original_price: originalUnitPrice.value,
+        image: item.image,
+        quantity: quantity.value,
+        unit: currentUnitKey,
+        unit_name: currentUnitLabel,
+        box_size: boxSize.value,
+        sku: item.sku || '',
+        applied_gift: giftData
+      })
+    }
+    
+    localStorage.setItem('spit_cart', JSON.stringify(cart))
+    window.dispatchEvent(new Event('cart-updated'))
+    
+    isAdding.value = false
+    toastMessage.value = locale.value === 'vi' 
+      ? `Đã thêm ${quantity.value} ${currentUnitLabel} vào giỏ hàng!` 
+      : `Added ${quantity.value} ${currentUnitLabel} to cart!`
+    showToast.value = true
+    setTimeout(() => { showToast.value = false }, 3000)
+  }, 200)
+}
+
+const fetchRelatedProducts = async (categoryStr) => {
+  if (!categoryStr) return
+  try {
+    let q = query(collection(db, "products"), where("category", "==", categoryStr), limit(6))
+    let snap = await getDocs(q)
+    let items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    if (items.length <= 1) { 
+      q = query(collection(db, "products"), where("category_vi", "==", categoryStr), limit(6))
+      snap = await getDocs(q)
+      items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    }
+
+    relatedProducts.value = items.filter(item => item.id !== route.params.id).slice(0, 5)
+  } catch (e) {
+    console.error("Lỗi lấy sp liên quan:", e)
+  }
+}
+
+onMounted(async () => {
+  try {
+    listenActivePromotions()
+
+    updateCountdown()
+    countdownTimer = setInterval(updateCountdown, 1000)
+
+    const docRef = doc(db, "products", route.params.id)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      product.value = { id: docSnap.id, ...docSnap.data() }
+      
+      // Mặc định chọn Hộp nếu chỉ bán hộp, ngược lại chọn Mảnh
+      if (isBoxOnlyMode.value) {
+        selectedUnit.value = 'box'
+      } else {
+        selectedUnit.value = 'piece'
+      }
+
+      if (product.value.image) activeImage.value = product.value.image
+      const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
+      if (targetCategory) await fetchRelatedProducts(targetCategory)
+    }
+  } catch (error) {
+    console.error("Lỗi kết nối:", error)
+  } finally {
+    loading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (unsubscribePromo) unsubscribePromo()
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+</script>

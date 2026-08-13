@@ -17,9 +17,24 @@ const router = createRouter({
       component: BrandAdminView,
     },
     { path: '/', name: 'home', component: HomeView },
+    { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
     { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
-    { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
+    
+    // --- KHU VỰC ĐĂNG NHẬP (ĐÃ TÁCH BIỆT) ---
+    // 1. Đăng nhập dành cho Khách hàng / Người dùng
+    { 
+      path: '/login', 
+      name: 'login', 
+      component: () => import('../views/UserLoginView.vue') 
+    },
+    // 2. Đăng nhập dành riêng cho Admin
+    { 
+      path: '/admin/login', 
+      name: 'admin-login', 
+      component: () => import('../views/AdminLoginView.vue') 
+    },
+
     { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     {
@@ -33,10 +48,10 @@ const router = createRouter({
     // ROUTE GIỚI THIỆU (ABOUT) CHO NGƯỜI DÙNG
     { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
 
-    // ROUTE CHI TIẾT NHÃN HÀNG (MỚI CẬP NHẬT)
+    // ROUTE CHI TIẾT NHÃN HÀNG
     { path: '/brand/:id', name: 'brand-detail', component: () => import('../views/BrandDetailView.vue'), props: true },
 
-    // ROUTE TRỢ LÝ AI TƯ VẤN KỸ THUẬT SẢN PHẨM (CẬP NHẬT MỚI)
+    // ROUTE TRỢ LÝ AI TƯ VẤN KỸ THUẬT SẢN PHẨM
     { 
       path: '/ai-consultant', 
       name: 'AIConsultant', 
@@ -68,39 +83,39 @@ const router = createRouter({
       component: () => import('../views/admin/PromotionsAdmin.vue'),
       meta: { requiresAuth: true } 
     },
-    // MỤC MỚI CẬP NHẬT: QUẢN LÝ NHÃN HÀNG
+    // QUẢN LÝ NHÃN HÀNG
     { 
       path: '/spit-system-manager/brands', 
       name: 'AdminBrands', 
       component: () => import('../views/admin/BrandManager.vue'),
       meta: { requiresAuth: true } 
     },
-{
-  path: '/spit-system-manager/logos',
-  name: 'AdminLogos',
-  component: () => import('../views/admin/LogoManager.vue') // Kiểm tra kĩ lại tên folder (views, components, v.v.)
-},
+    {
+      path: '/spit-system-manager/logos',
+      name: 'AdminLogos',
+      component: () => import('../views/admin/LogoManager.vue')
+    },
     { 
       path: '/spit-system-manager/settings', 
       name: 'AdminSettings', 
       component: () => import('../views/AdminSettingsView.vue'),
       meta: { requiresAuth: true } 
     },
-    // MỤC MỚI CẬP NHẬT: QUẢN LÝ SLIDESHOW BANNER TRANG CHỦ
+    // QUẢN LÝ SLIDESHOW BANNER TRANG CHỦ
     {
       path: '/spit-system-manager/banners',
       name: 'AdminBanners',
       component: () => import('../views/AdminBannerView.vue'),
       meta: { requiresAuth: true }
     },
-    // --- ROUTE MỚI: QUẢN LÝ DANH MỤC (FIX LỖI TRẮNG TRANG) ---
+    // QUẢN LÝ DANH MỤC
     {
       path: '/spit-system-manager/categories',
       name: 'AdminCategories',
       component: () => import('../views/admin/AdminCategoriesView.vue'),
       meta: { requiresAuth: true }
     },
-    // ROUTE QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
+    // QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
     { 
       path: '/spit-system-manager/about', 
       name: 'AdminAbout',
@@ -134,7 +149,9 @@ router.beforeEach(async (to, from, next) => {
     if (user) {
       next();
     } else {
-      next({ name: 'login' });
+      // Khi cố gắng truy cập trang Admin mà chưa đăng nhập,
+      // sẽ chuyển hướng chính xác đến trang Đăng nhập Admin
+      next({ name: 'admin-login' });
     }
   } else {
     next();
