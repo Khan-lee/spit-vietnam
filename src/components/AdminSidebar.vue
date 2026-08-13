@@ -22,6 +22,11 @@
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý bài viết</span>
       </router-link>
 
+      <!-- Mục Quản lý chính sách mới được thêm vào -->
+      <router-link to="/spit-system-manager/policies" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
+        <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý chính sách</span>
+      </router-link>
+
       <router-link to="/spit-system-manager/promotions" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý khuyến mãi</span>
       </router-link>

@@ -1,30 +1,33 @@
 <template>
   <footer class="bg-primary text-black py-16 px-6 md:px-12 border-t border-slate-800/50">
-    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
+    <!-- Đổi từ grid-cols-3 thành grid-cols-1 md:grid-cols-2 lg:grid-cols-4 để thành 4 cột -->
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
       
+      <!-- CỘT 1: THÔNG TIN THƯƠNG HIỆU & MẠNG XÃ HỘI -->
       <div class="space-y-6">
-        <div class="flex items-center gap-3">
-          <div class="h-8 flex items-center">
-            <!-- LOGO ĐỘNG: Lấy trực tiếp từ settings/logo (LogoManager), fallback sang config hoặc logo local -->
-            <img 
-              v-if="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
-              :src="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
-              alt="SPIT Logo" 
-              class="h-full w-auto object-contain" 
-            />
-            <img 
-              v-else 
-              src="../assets/noBG_logo.png" 
-              alt="SPIT Logo" 
-              class="h-full w-auto brightness-0 invert object-contain" 
-            />
-          </div>
+        <div class="flex items-center gap-4 flex-wrap">
+          
+          <!-- LOGO TO RÕ RÀNG VÀ CÓ BO GÓC TRỰC TIẾP TRÊN BỨC ẢNH (rounded-2xl) -->
+          <img 
+            v-if="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
+            :src="dynamicLogoUrl || config.logoUrl || config.logo || config.url" 
+            alt="SPIT Logo" 
+            class="h-16 md:h-20 w-auto object-contain rounded-2xl shadow-md transition-transform duration-300 hover:scale-105" 
+          />
+          <img 
+            v-else 
+            src="../assets/noBG_logo.png" 
+            alt="SPIT Logo" 
+            class="h-16 md:h-20 w-auto object-contain rounded-2xl shadow-md transition-transform duration-300 hover:scale-105" 
+          />
+
           <!-- TÊN THƯƠNG HIỆU ĐỘNG: Lấy từ config Firestore -->
-          <span class="font-bold text-lg uppercase tracking-tight">
+          <span class="font-black text-xl md:text-2xl uppercase tracking-tight text-slate-900">
             {{ config.siteName || config.brandName || config.site_name || 'Vietnam' }}
           </span>
         </div>
-        <p class="text-black text-sm leading-relaxed max-w-xs">
+
+        <p class="text-black text-sm leading-relaxed max-w-xs font-medium">
           {{ $t('footer.about_text') }}
         </p>
 
@@ -41,23 +44,56 @@
         </div>
       </div>
 
+      <!-- CỘT 2: CHÍNH SÁCH BÁN HÀNG -->
       <div class="space-y-6">
-        <h3 class="text-black font-black text-[10px] uppercase tracking-[0.3em]">{{ $t('footer.policies') }}</h3>
-        <ul class="space-y-4 text-sm font-bold text-black">
-          <li>
-            <RouterLink to="/contact?reason=support" class="hover:text-slate-700 transition-colors duration-200">{{ $t('footer.tech_support') }}</RouterLink>
-          </li>
-          <li>
-            <RouterLink to="/contact?reason=policy" class="hover:text-slate-700 transition-colors duration-200">{{ $t('footer.return_policy') }}</RouterLink>
-          </li>
-          <li v-if="config.shippingFee" class="text-[11px] text-black italic">
+        <h3 class="text-black font-black text-xs uppercase tracking-[0.2em]">CHÍNH SÁCH BÁN HÀNG</h3>
+        <ul class="space-y-3 text-sm font-bold text-black">
+          <!-- Nếu đã lấy dữ liệu từ Firebase thành công -->
+          <template v-if="isLoaded">
+            <li v-for="policy in chinhSachList" :key="policy.id">
+              <RouterLink :to="`/chinh-sach/${policy.slug || policy.id}`" class="hover:underline hover:text-slate-700 transition-colors duration-200">
+                {{ policy.title }}
+              </RouterLink>
+            </li>
+          </template>
+          
+          <!-- Chỉ hiện danh sách mặc định nếu chưa kết nối dữ liệu/chưa load lần nào -->
+          <template v-else>
+            <li><RouterLink to="/chinh-sach/bao-mat" class="hover:underline hover:text-slate-700 transition-colors">Chính sách bảo mật</RouterLink></li>
+            <li><RouterLink to="/chinh-sach/van-chuyen" class="hover:underline hover:text-slate-700 transition-colors">Chính sách vận chuyển</RouterLink></li>
+            <li><RouterLink to="/chinh-sach/quy-trinh-giao-hang" class="hover:underline hover:text-slate-700 transition-colors">Quy trình giao hàng</RouterLink></li>
+            <li><RouterLink to="/chinh-sach/doi-tra" class="hover:underline hover:text-slate-700 transition-colors">Chính sách đổi trả hàng</RouterLink></li>
+          </template>
+          
+          <li v-if="config.shippingFee" class="text-[11px] text-black italic pt-1">
             {{ $t('footer.shipping_fee') }}: {{ Number(config.shippingFee).toLocaleString() }} VNĐ
           </li>
         </ul>
       </div>
 
+      <!-- CỘT 3: HỖ TRỢ KHÁCH HÀNG -->
       <div class="space-y-6">
-        <h3 class="text-black font-black text-[10px] uppercase tracking-[0.3em]">{{ $t('nav.contact') }}</h3>
+        <h3 class="text-black font-black text-xs uppercase tracking-[0.2em]">HỖ TRỢ KHÁCH HÀNG</h3>
+        <ul class="space-y-3 text-sm font-bold text-black">
+          <template v-if="isLoaded">
+            <li v-for="policy in hoTroList" :key="policy.id">
+              <RouterLink :to="`/chinh-sach/${policy.slug || policy.id}`" class="hover:underline hover:text-slate-700 transition-colors duration-200">
+                {{ policy.title }}
+              </RouterLink>
+            </li>
+          </template>
+          <template v-else>
+            <li><RouterLink to="/ho-tro/huong-dan-mua-hang" class="hover:underline hover:text-slate-700 transition-colors">Hướng dẫn mua hàng</RouterLink></li>
+            <li><RouterLink to="/ho-tro/huong-dan-thanh-toan" class="hover:underline hover:text-slate-700 transition-colors">Hướng dẫn thanh toán</RouterLink></li>
+            <li><RouterLink to="/ho-tro/hinh-thuc-mua-hang" class="hover:underline hover:text-slate-700 transition-colors">Các hình thức mua hàng</RouterLink></li>
+            <li><RouterLink to="/ho-tro/so-do-duong-di" class="hover:underline hover:text-slate-700 transition-colors">Sơ đồ đường đi</RouterLink></li>
+          </template>
+        </ul>
+      </div>
+
+      <!-- CỘT 4: LIÊN HỆ -->
+      <div class="space-y-6">
+        <h3 class="text-black font-black text-xs uppercase tracking-[0.2em]">{{ $t('nav.contact') }}</h3>
         <ul class="space-y-4 text-sm text-black">
           <li class="flex items-start gap-3 group">
             <span class="text-black">📍</span>
@@ -77,8 +113,10 @@
           </li>
         </ul>
       </div>
+
     </div>
 
+    <!-- HÀNG BẢN QUYỀN -->
     <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-black">
       <p class="italic">© 2026 VTCNVC VIETNAM. All rights reserved.</p>
       <p>Designed by Khang Le</p>
@@ -87,11 +125,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { db } from '../firebase'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, collection, onSnapshot } from 'firebase/firestore'
 
 const { locale } = useI18n()
 
@@ -103,18 +141,48 @@ const props = defineProps({
 })
 
 const dynamicLogoUrl = ref('')
+const policiesList = ref([])
+const isLoaded = ref(false) // Đánh dấu khi đã tải xong dữ liệu từ Firebase
+
 let unsubLogo = null
+let unsubPolicies = null
+
+// Chỉ lấy những bài có is_active !== false
+const chinhSachList = computed(() => {
+  return policiesList.value
+    .filter(p => p.category === 'chinh-sach' && p.is_active !== false)
+    .sort((a, b) => (a.stt || 0) - (b.stt || 0))
+})
+
+const hoTroList = computed(() => {
+  return policiesList.value
+    .filter(p => p.category === 'ho-tro' && p.is_active !== false)
+    .sort((a, b) => (a.stt || 0) - (b.stt || 0))
+})
 
 onMounted(() => {
-  // Lắng nghe real-time trực tiếp từ settings/logo (nơi LogoManager.vue lưu dữ liệu)
+  // 1. Lắng nghe Logo
   unsubLogo = onSnapshot(doc(db, 'settings', 'logo'), (docSnap) => {
     if (docSnap.exists() && docSnap.data().url) {
       dynamicLogoUrl.value = docSnap.data().url
     }
   })
+
+  // 2. Lắng nghe Collection policies từ Firestore
+  unsubPolicies = onSnapshot(collection(db, 'policies'), (snapshot) => {
+    const items = []
+    snapshot.forEach((docSnap) => {
+      items.push({ id: docSnap.id, ...docSnap.data() })
+    })
+    policiesList.value = items
+    isLoaded.value = true // Đã đồng bộ xong dữ liệu Firebase
+  }, (err) => {
+    console.error('Lỗi khi tải chính sách:', err)
+  })
 })
 
 onUnmounted(() => {
   if (unsubLogo) unsubLogo()
+  if (unsubPolicies) unsubPolicies()
 })
 </script>

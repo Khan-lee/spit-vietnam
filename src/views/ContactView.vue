@@ -137,8 +137,8 @@
           </div>
 
           <div class="rounded-4xl overflow-hidden grayscale hover:grayscale-0 transition-all duration-1000 shadow-xl border-4 border-white aspect-4/3 lg:h-95 bg-slate-100 relative group">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.0456440814123!2d106.61659617355241!3d10.807816158616978!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x317529305fff8f83%3A0x53158444d87263b!2zQ8O0bmcgdHkgUGjDumMgVGjhu4tuaA!5e0!3m2!1svi!2s!4v1779957824543!5m2!1svi!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-          </div>
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.0495117245405!2d106.61659707355233!3d10.807519958622452!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752be5a154ed35%3A0x295a896ffe3d6d52!2zMzYxIEzDqiBUcuG7jW5nIFThuqVuLCBUw6JuIFPGoW4gTmjDrCwgSOG7kyBDaMOtIE1pbmggNzAwMDAwLCBWaeG7h3QgTmFt!5e0!3m2!1svi!2s!4v1786606275508!5m2!1svi!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
 
         </div>
       </div>

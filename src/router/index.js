@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import { getAuth, onAuthStateChanged } from "firebase/auth"
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import PolicyDetail from '../views/PolicyDetail.vue'
 
 // Cấu hình NProgress
 NProgress.configure({ showSpinner: false, speed: 500 });
@@ -20,7 +21,17 @@ const router = createRouter({
     { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
     { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
-    
+    {
+  path: '/spit-system-manager/policies',
+  name: 'AdminPolicies',
+  component: () => import('../views/admin/AdminPolicies.vue') // Trỏ tới file view quản lý chính sách
+},
+// THÊM ROUTE NÀY VÀO:
+  {
+    path: '/chinh-sach/:slug',
+    name: 'PolicyDetail',
+    component: PolicyDetail
+  },
     // --- KHU VỰC ĐĂNG NHẬP (ĐÃ TÁCH BIỆT) ---
     // 1. Đăng nhập dành cho Khách hàng / Người dùng
     { 
