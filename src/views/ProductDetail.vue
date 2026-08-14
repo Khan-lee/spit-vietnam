@@ -176,28 +176,29 @@
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
         
-        <!-- Cột hình ảnh -->
-        <div class="lg:sticky lg:top-24 space-y-5 w-full">
-          <div class="relative bg-[#f8fafc] p-8 md:p-12 rounded-4xl border border-slate-100 flex items-center justify-center aspect-square shadow-inner overflow-hidden group">
-            
-            <!-- CHỈ HIỂN THỊ BADGE HOT SALE KHI MUA HỘP CÓ KHUYẾN MÃI -->
-            <div v-if="hasPromo()" class="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-linear-to-r from-red-600 via-rose-600 to-amber-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 border border-white/20 animate-pulse">
-              <span>🔥</span>
-              <span>HOT SALE {{ boxDiscountPercent > 0 ? `-${boxDiscountPercent}%` : (effectivePromo?.type === 'percentage' ? `-${effectivePromo?.value}%` : 'SỐC') }}</span>
-            </div>
+<!-- Cột hình ảnh -->
+<div class="lg:sticky lg:top-24 space-y-5 w-full">
+  <!-- Bỏ bg-[#f8fafc], border, p-8/p-12, shadow-inner và chuyển rounded-4xl vào đây -->
+  <div class="relative rounded-4xl flex items-center justify-center aspect-square overflow-hidden group">
+    
+    <!-- Cập nhật img: w-full h-full object-cover để ảnh phủ kín khung và bo góc theo div cha -->
+    <img 
+      :src="activeImage" 
+      @click="isZoomed = true" 
+      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" 
+      title="Bấm để phóng to ảnh" 
+    />
+  </div>
 
-            <img :src="activeImage" @click="isZoomed = true" class="max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" title="Bấm để phóng to ảnh" />
-          </div>
-
-          <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
-            <div @click="activeImage = product.image" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
-              <img :src="product.image" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
-            </div>
-            <div v-for="(subImg, index) in product.sub_images" :key="index" @click="activeImage = subImg" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
-              <img :src="subImg" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
-            </div>
-          </div>
-        </div>
+  <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
+    <div @click="activeImage = product.image" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+      <img :src="product.image" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
+    </div>
+    <div v-for="(subImg, index) in product.sub_images" :key="index" @click="activeImage = subImg" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+      <img :src="subImg" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
+    </div>
+  </div>
+</div>
         
         <!-- Cột thông tin sản phẩm -->
         <div class="space-y-6">
