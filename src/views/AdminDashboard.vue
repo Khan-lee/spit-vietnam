@@ -200,8 +200,8 @@ const exportToExcel = (data, fileName) => {
     // UPDATE: XỬ LÝ CỘT LẤY DỮ LIỆU TỪ OBJECT CUSTOMER VÀ VAT MỚI
     const cName = item.customerName || item.customer?.name || item.name || '';
     const cPhone = item.phone || item.customer?.phone || '';
-    const cEmail = item.email || item.customer?.email || item.contractEmail || '';
-    const cAddress = item.companyAddress || item.address || item.customer?.address || item.shippingAddress?.address || item.diaChi || 'Chưa cập nhật';
+const cEmail = item.vatInfo?.email || item.vatInfo?.vatEmail || item.vatInfo?.companyEmail || item.customer?.email || item.email || item.contractEmail || '';
+const cAddress = item.shippingAddress?.fullAddress || item.customer?.fullAddress || item.companyAddress || item.address || item.customer?.address || item.shippingAddress?.address || item.diaChi || 'Chưa cập nhật';
     const cCompany = item.companyName || item.vatInfo?.companyName || item.company || '';
 
     return {

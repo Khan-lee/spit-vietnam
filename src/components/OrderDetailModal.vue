@@ -80,7 +80,7 @@
 
 <!-- EMAIL LIÊN HỆ / HÓA ĐƠN VAT -->
 <div class="pt-2 border-t border-slate-200/60">
-  <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Email liên hệ / Hóa đơn</p>
+  <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Email liên hệ / Xuất Hóa đơn</p>
   <p class="text-[11px] font-black text-slate-700 break-all select-all decoration-blue-500 underline underline-offset-2 italic">
     {{ 
       order.vatInfo?.email || 
