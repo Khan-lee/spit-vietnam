@@ -8,8 +8,9 @@
 
   <div class="min-h-screen bg-[#f8fafc] font-sans antialiased text-slate-900 selection:bg-red-100" v-else-if="product">
     
+    <!-- TOAST NOTIFICATION -->
     <transition name="slide-fade">
-      <div v-if="showToast" class="fixed top-24 right-6 z-100 max-w-sm bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-800">
+      <div v-if="showToast" class="fixed top-24 right-6 z-50 max-w-sm bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-800">
         <div class="shrink-0 w-8 h-8 bg-red-600 rounded-xl flex items-center justify-center text-sm font-bold shadow-md shadow-red-900/30">✓</div>
         <p class="text-xs font-bold grow tracking-wide">{{ toastMessage }}</p>
       </div>
@@ -17,16 +18,16 @@
 
     <!-- MODAL PHÓNG TO ẢNH -->
     <transition name="fade">
-      <div v-if="isZoomed" class="fixed inset-0 z-999 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-8" @click.self="isZoomed = false">
+      <div v-if="isZoomed" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-8" @click.self="isZoomed = false">
         <button @click="isZoomed = false" class="absolute top-6 right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl transition-colors backdrop-blur-lg">✕</button>
-        <img :src="activeImage" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl pointer-events-none select-none" />
+        <img :src="activeImage" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl pointer-events-none select-none" alt="Product Image Zoomed" />
       </div>
     </transition>
 
     <!-- MODAL SO SÁNH SẢN PHẨM -->
     <Teleport to="body">
       <transition name="fade">
-        <div v-if="isCompareOpen" class="fixed inset-0 z-999 flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
+        <div v-if="isCompareOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
           <div class="bg-white rounded-4xl sm:rounded-[2.5rem] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
             
             <div class="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
@@ -51,7 +52,7 @@
                   <span class="text-[9px] font-black uppercase bg-red-600 text-white px-3 py-1 rounded-full mb-3 tracking-widest">
                     ĐANG XEM
                   </span>
-                  <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" />
+                  <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="product.name" />
                   <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
                   <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">{{ product[`name_${locale}`] || product.name }}</h4>
                   <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
@@ -73,7 +74,7 @@
                   </select>
 
                   <template v-if="compareProduct">
-                    <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" />
+                    <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="compareProduct.name" />
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ compareProduct.brand || 'SPIT' }}</p>
                     <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
                     <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
@@ -94,9 +95,9 @@
                 <table class="w-full text-xs text-left border-collapse">
                   <thead>
                     <tr class="bg-slate-100 text-slate-900 font-black text-[11px] uppercase tracking-wider border-b border-slate-200">
-                      <th class="p-3.5 w-1/3 bg-slate-200/60">Thông số kỹ thuật</th>
-                      <th class="p-3.5 w-1/3 border-l border-slate-200">{{ product.brand || 'SPIT' }}</th>
-                      <th class="p-3.5 w-1/3 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</th>
+                      <th scope="col" class="p-3.5 w-1/3 bg-slate-200/60">Thông số kỹ thuật</th>
+                      <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ product.brand || 'SPIT' }}</th>
+                      <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100">
@@ -176,29 +177,27 @@
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
         
-<!-- Cột hình ảnh -->
-<div class="lg:sticky lg:top-24 space-y-5 w-full">
-  <!-- Bỏ bg-[#f8fafc], border, p-8/p-12, shadow-inner và chuyển rounded-4xl vào đây -->
-  <div class="relative rounded-4xl flex items-center justify-center aspect-square overflow-hidden group">
-    
-    <!-- Cập nhật img: w-full h-full object-cover để ảnh phủ kín khung và bo góc theo div cha -->
-    <img 
-      :src="activeImage" 
-      @click="isZoomed = true" 
-      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" 
-      title="Bấm để phóng to ảnh" 
-    />
-  </div>
+        <!-- Cột hình ảnh -->
+        <div class="lg:sticky lg:top-24 space-y-5 w-full">
+          <div class="relative rounded-4xl flex items-center justify-center aspect-square overflow-hidden group">
+            <img 
+              :src="activeImage" 
+              @click="isZoomed = true" 
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out cursor-zoom-in" 
+              title="Bấm để phóng to ảnh"
+              :alt="product.name" 
+            />
+          </div>
 
-  <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
-    <div @click="activeImage = product.image" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
-      <img :src="product.image" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
-    </div>
-    <div v-for="(subImg, index) in product.sub_images" :key="index" @click="activeImage = subImg" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
-      <img :src="subImg" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" />
-    </div>
-  </div>
-</div>
+          <div v-if="product.sub_images && product.sub_images.length > 0" class="flex flex-wrap gap-3 px-1 justify-center lg:justify-start">
+            <div @click="activeImage = product.image" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === product.image ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="product.image" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" :alt="product.name" />
+            </div>
+            <div v-for="(subImg, index) in product.sub_images" :key="index" @click="activeImage = subImg" :class="['w-16 h-16 p-1.5 rounded-xl bg-white border-2 cursor-pointer transition-all flex items-center justify-center', activeImage === subImg ? 'border-red-600 shadow-md shadow-red-500/5 bg-slate-50' : 'border-slate-100 hover:border-slate-300']">
+              <img :src="subImg" class="max-h-full max-w-full object-contain mix-blend-multiply rounded-lg" :alt="`Sub image ${index + 1}`" />
+            </div>
+          </div>
+        </div>
         
         <!-- Cột thông tin sản phẩm -->
         <div class="space-y-6">

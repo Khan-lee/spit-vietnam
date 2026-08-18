@@ -9,7 +9,7 @@
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg shadow-inner animate-pulse">🤖</div>
             <div>
-              <h3 class="text-xs sm:text-sm font-bold tracking-wide">Trợ lý Kỹ thuật VTCNVC AI</h3>
+              <h3 class="text-xs sm:text-sm font-bold tracking-wide">Trợ lý Kỹ thuật AI</h3>
               <p class="text-[10px] text-orange-200 flex items-center mt-0.5">
                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full inline-block mr-1.5 animate-pulse"></span>
                 Trực tuyến • Phản hồi tức thì
@@ -100,20 +100,23 @@
           </button>
         </div>
 
-        <div class="flex items-center relative group">
-          <div class="absolute right-15.5 bg-blue-600 text-white text-[11px] font-medium px-3 py-1.5 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
-            Chat Kỹ thuật qua Zalo 💬
-          </div>
-          <a 
-            href="https://zalo.me/0333324361" 
-            target="_blank"
-            class="w-13 h-13 bg-[#0068ff] rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group/zalo cursor-pointer"
-          >
-            <svg class="w-7 h-7 text-white fill-current transition-transform duration-300 group-hover/zalo:rotate-12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.27 10.3c0-4.63 4.38-8.4 9.73-8.4s9.73 3.77 9.73 8.4c0 4.63-4.38 8.4-9.73 8.4a11.23 11.23 0 0 1-2.43-.27c-.45.38-1.57 1.22-2.33 1.77-.32.23-.62.08-.55-.32l.27-1.63c-3-.93-4.72-3.41-4.72-6.35zM12 15a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4z"/>
-            </svg>
-          </a>
-        </div>
+<div class="flex items-center relative group">
+  <div class="absolute right-15.5 bg-blue-600 text-white text-[11px] font-medium px-3 py-1.5 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
+    Chat Kỹ thuật qua Zalo 💬
+  </div>
+  <a 
+    href="https://zalo.me/0333324361" 
+    target="_blank"
+    class="w-13 h-13 bg-[#0068ff] rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group/zalo cursor-pointer"
+  >
+    <!-- Logo Zalo chuẩn vector qua CDN -->
+    <img 
+      src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" 
+      alt="Zalo" 
+      class="w-7 h-7 object-contain transition-transform duration-300 group-hover/zalo:rotate-12"
+    />
+  </a>
+</div>
       </div>
     </transition>
   </div>

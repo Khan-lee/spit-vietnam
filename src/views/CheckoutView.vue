@@ -5,11 +5,44 @@ import { db, auth } from '../firebase'
 import { collection, addDoc, doc, getDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import PaymentQR from '../components/PaymentQR.vue'
 
+// Bảng tra cứu phí vận chuyển dựa trên bảng giá 34 tỉnh thành
+const SHIPPING_RATES = {
+  // Nhóm D1 (Nội thành TP.HCM)
+  'Hồ Chí Minh': 32076,
+
+  // Nhóm D3
+  'Đồng Nai': 81972,
+  'Đồng Tháp': 81972,
+  'Tây Ninh': 81972,
+  'Vĩnh Long': 81972,
+
+  // Nhóm Hà Nội
+  'Hà Nội': 90526,
+
+  // Nhóm D4 (Mặc định cho tất cả các tỉnh thành còn lại)
+  DEFAULT_D4: 97654
+}
 const router = useRouter()
 
 const rawCartItems = ref([])
 const promotions = ref([]) 
-const baseShippingFee = ref(0)
+// 1. Tự động lấy tên Tỉnh/Thành phố đang chọn (Khách hàng chính hoặc Địa chỉ khác)
+const activeProvince = computed(() => {
+  return shipToOtherAddress.value ? otherAddress.value.province : customer.value.province
+})
+
+// 2. Tra cứu cước phí tương ứng theo tỉnh thành
+const baseShippingFee = computed(() => {
+  if (!activeProvince.value) return 0
+
+  // Tìm tên tỉnh khớp trong SHIPPING_RATES
+  const matchedProvince = Object.keys(SHIPPING_RATES).find(key => 
+    activeProvince.value.includes(key)
+  )
+
+  // Nếu tìm thấy trả về giá tương ứng, nếu không tìm thấy trả về cước D4 mặc định
+  return matchedProvince ? SHIPPING_RATES[matchedProvince] : SHIPPING_RATES.DEFAULT_D4
+})
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
@@ -208,18 +241,7 @@ onMounted(async () => {
   rawCartItems.value = JSON.parse(localStorage.getItem('spit_cart')) || []
   await fetchActivePromotions()
   await fetchProvinces()
-
-  try {
-    const settingsRef = doc(db, "settings", "website")
-    const settingsSnap = await getDoc(settingsRef)
-    if (settingsSnap.exists()) {
-      baseShippingFee.value = settingsSnap.data().shippingFee || 0
-    }
-  } catch (e) {
-    console.error("Lỗi khi tải phí vận chuyển:", e)
-  } finally {
-    isLoadingSettings.value = false
-  }
+  isLoadingSettings.value = false
 })
 
 const handleCheckout = async () => {
@@ -352,46 +374,45 @@ const handleCheckout = async () => {
               </svg>
             </div>
 
-            <!-- Form Địa chỉ khác -->
-            <div v-if="shipToOtherAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div class="md:col-span-2">
-                <input v-model="otherAddress.name" placeholder="Họ và tên *" class="v-input" />
-              </div>
-              <div class="md:col-span-2">
-                <input v-model="otherAddress.phone" placeholder="Điện thoại *" class="v-input" />
-              </div>
-              <div class="md:col-span-2">
-                <input v-model="otherAddress.address" placeholder="Địa chỉ *" class="v-input" />
-              </div>
-              
-              <!-- Select Tỉnh / Thành phố Khác -->
-              <div>
-                <select 
-                  v-model="otherAddress.province" 
-                  @change="onOtherProvinceChange" 
-                  class="v-input cursor-pointer"
-                >
-                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
-                  <option v-for="p in provinces" :key="p.code" :value="p.name">
-                    {{ p.name }}
-                  </option>
-                </select>
-              </div>
-              
-              <!-- Select Quận / Huyện Khác -->
-              <div>
-                <select 
-                  v-model="otherAddress.district" 
-                  class="v-input cursor-pointer"
-                  :disabled="!otherAddress.province"
-                >
-                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
-                  <option v-for="d in otherDistricts" :key="d.code" :value="d.name">
-                    {{ d.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
+<!-- Form Địa chỉ khác -->
+<div v-if="shipToOtherAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+  <div class="md:col-span-2">
+    <input v-model="otherAddress.name" placeholder="Họ và tên *" class="v-input" />
+  </div>
+  <div class="md:col-span-2">
+    <input v-model="otherAddress.phone" placeholder="Điện thoại *" class="v-input" />
+  </div>
+  <div class="md:col-span-2">
+    <input v-model="otherAddress.address" placeholder="Địa chỉ *" class="v-input" />
+  </div>
+  
+  <!-- Select Tỉnh / Thành phố Khác -->
+  <div>
+    <select 
+      v-model="otherAddress.provinceCode" 
+      class="v-input cursor-pointer"
+    >
+      <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+      <option v-for="p in provinces" :key="p.code" :value="p.code">
+        {{ p.name }}
+      </option>
+    </select>
+  </div>
+  
+  <!-- Select Quận / Huyện Khác -->
+  <div>
+    <select 
+      v-model="otherAddress.districtCode" 
+      class="v-input cursor-pointer"
+      :disabled="!otherAddress.provinceCode"
+    >
+      <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+      <option v-for="d in otherDistricts" :key="d.code" :value="d.code">
+        {{ d.name }}
+      </option>
+    </select>
+  </div>
+</div>
 
             <!-- Toggle Xuất VAT -->
             <div class="bg-gray-50 border border-gray-200 rounded px-4 py-3 flex items-center gap-3 cursor-pointer" @click="requestVAT = !requestVAT">
@@ -423,7 +444,7 @@ const handleCheckout = async () => {
               <input type="radio" v-model="shippingMethod" value="standard" class="mt-1 text-yellow-500 focus:ring-yellow-400">
               <div>
                 <span class="block text-sm font-bold">Giao hàng tiêu chuẩn</span>
-                <span class="block text-xs text-gray-500 mt-1">Theo chính sách giao hàng của công ty.<br/>Xem chính sách vận chuyển</span>
+                <span class="block text-xs text-gray-500 mt-1">Theo chính sách giao hàng của công ty.<br/></span>
               </div>
             </label>
             <!-- GIAO HÀNG NHANH CÓ HIỂN THỊ +100.000đ -->
