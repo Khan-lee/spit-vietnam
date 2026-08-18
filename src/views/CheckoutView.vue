@@ -262,20 +262,47 @@ const handleCheckout = async () => {
   try {
     isProcessing.value = true
 
-    const orderData = {
-      userId: auth.currentUser ? auth.currentUser.uid : null,
-      customer: customer.value,
-      shippingAddress: shipToOtherAddress.value ? otherAddress.value : null,
-      vatInfo: requestVAT.value ? vatInfo.value : null,
-      shippingMethod: shippingMethod.value,
-      paymentMethod: paymentMethod.value,
-      items: cartItems.value,
-      subtotal: cartSubtotal.value,
-      shippingFee: shippingFee.value,  
-      totalPrice: finalTotal.value,  
-      status: 'pending',
-      createdAt: serverTimestamp()
-    }
+// Chuẩn hóa địa chỉ đầy đủ cho khách hàng
+const fullCustomerAddress = [
+  customer.value.address,
+  customer.value.district,
+  customer.value.province
+].filter(Boolean).join(', ')
+
+// Chuẩn hóa địa chỉ đầy đủ cho người nhận khác (nếu có)
+const fullShippingAddress = shipToOtherAddress.value ? {
+  ...otherAddress.value,
+  fullAddress: [
+    otherAddress.value.address,
+    otherAddress.value.district,
+    otherAddress.value.province
+  ].filter(Boolean).join(', ')
+} : null
+
+const orderData = {
+  userId: auth.currentUser ? auth.currentUser.uid : null,
+  customer: {
+    ...customer.value,
+    fullAddress: fullCustomerAddress // Thêm địa chỉ ghép đầy đủ
+  },
+  shippingAddress: fullShippingAddress,
+  vatInfo: requestVAT.value ? {
+    companyName: vatInfo.value.companyName,
+    companyAddress: vatInfo.value.companyAddress,
+    taxCode: vatInfo.value.taxCode,
+    email: vatInfo.value.email,     // Lưu email VAT
+    vatEmail: vatInfo.value.email  // Backup thêm key vatEmail
+  } : null,
+  note: customer.value.note || '', // Đảm bảo lưu ghi chú đơn hàng
+  shippingMethod: shippingMethod.value,
+  paymentMethod: paymentMethod.value,
+  items: cartItems.value,
+  subtotal: cartSubtotal.value,
+  shippingFee: shippingFee.value,  
+  totalPrice: finalTotal.value,  
+  status: 'pending',
+  createdAt: serverTimestamp()
+}
     
     const docRef = await addDoc(collection(db, "orders"), orderData)
     newOrderId.value = docRef.id
