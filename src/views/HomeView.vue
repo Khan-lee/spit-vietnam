@@ -563,7 +563,7 @@ const getCategoryBanner = (catName) => {
   </Transition>
 
   <div class="bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
-    <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline Tư Vấn Kỹ Thuật</p>
+    <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline MUA HÀNG GIAO GẤP</p>
     <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
       0347527093
