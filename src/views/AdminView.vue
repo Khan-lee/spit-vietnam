@@ -156,7 +156,8 @@ const categoryTagsMap = {
     'Phay góc R / Bo góc',
     'Phay rãnh / Hốc',
     'Gia công nhôm / Đồng / Nhựa',
-    'Gia công thép cứng / Inox / Titan'
+    'Gia công thép cứng / Inox / Titan',
+    'Cán dao / Đài dao'
   ],
   'DAO TIỆN': [
     'Tiện ngoài',
@@ -182,6 +183,26 @@ const categoryTagsMap = {
     'Mài bén dao cụ',
     'Đá mài kim cương / CBN',
     'Mũi mài hợp kim'
+  ],
+  'CHỔI ĐÁNH BÓNG': [
+    'Đánh gỉ sét / Làm sạch bề mặt',
+    'Đánh bavia / Bo mép cạnh',
+    'Đánh bóng tinh / Bóng gương',
+    'Chổi chén / Chổi bánh xe',
+    'Chổi cước thép / Inox',
+    'Chổi cước đồng',
+    'Chổi nỉ / Vải / Lông cừu',
+    'Sáp / Lơ đánh bóng'
+  ],
+  'LƯỠI CƯA': [
+    'Lưỡi cưa đĩa / Hợp kim',
+    'Lưỡi cưa vòng (Band saw)',
+    'Cắt thép / Thép cứng',
+    'Cắt Inox / Titan',
+    'Cắt nhôm / Đồng / Nhựa',
+    'Cắt gỗ / Vật liệu composite',
+    'Răng thưa (Cắt thô / Nhanh)',
+    'Răng dày (Cắt tinh / Mịn)'
   ]
 }
 
@@ -194,6 +215,8 @@ const availableTags = computed(() => {
   if (upperCat.includes('DAO TIỆN')) return categoryTagsMap['DAO TIỆN']
   if (upperCat.includes('KHOAN') || upperCat.includes('TARO')) return categoryTagsMap['MŨI KHOAN & MŨI TARO']
   if (upperCat.includes('ĐÁ MÀI') || upperCat.includes('ĐÁ DOANH')) return categoryTagsMap['ĐÁ MÀI']
+  if (upperCat.includes('CHỔI ĐÁNH BÓNG')) return categoryTagsMap['CHỔI ĐÁNH BÓNG']
+  if (upperCat.includes('LƯỠI CƯA')) return categoryTagsMap['LƯỠI CƯA']
   
   return []
 })
