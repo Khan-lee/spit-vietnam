@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
@@ -18,8 +18,25 @@ import 'swiper/css/pagination'
 import 'swiper/css/navigation'
 import 'swiper/css/effect-fade'
 
+// 1. Khai báo state lưu cấu hình website
+const websiteSettings = ref({
+  hotline: '0347527093',
+  zalo: '0347527093'
+})
+
+// 2. Tạo hàm lắng nghe realtime dữ liệu settings/website
+const listenToWebsiteSettings = () => {
+  const unsub = onSnapshot(doc(db, 'settings', 'website'), (docSnap) => {
+    if (docSnap.exists()) {
+      websiteSettings.value = { ...websiteSettings.value, ...docSnap.data() }
+    }
+  }, (e) => console.error("Lỗi realtime settings/website:", e))
+  unsubscribers.push(unsub)
+}
+
 const { locale, t } = useI18n()
 const searchStore = useSearchStore()
+
 // Biến lưu thương hiệu đang được chọn tạm thời trong Mega Menu
 const activeFlyoutBrand = ref(null)
 
@@ -32,15 +49,19 @@ const currentTime = ref(new Date())
 
 const dynamicHotSaleBanner = ref('https://via.placeholder.com/300x500/dc2626/ffffff?text=HOT+SALE')
 
-const fetchSettings = async () => {
-  try {
-    const docSnap = await getDoc(doc(db, 'settings', 'home_config'))
+// Mảng lưu các hàm hủy lắng nghe realtime từ Firestore
+const unsubscribers = []
+
+// Lắng nghe cấu hình trang chủ realtime
+const listenToSettings = () => {
+  const unsub = onSnapshot(doc(db, 'settings', 'home_config'), (docSnap) => {
     if (docSnap.exists() && docSnap.data().hotSaleBanner) {
       dynamicHotSaleBanner.value = docSnap.data().hotSaleBanner
     }
-  } catch (e) {
-    console.error("Lỗi lấy config trang chủ:", e)
-  }
+  }, (e) => {
+    console.error("Lỗi lấy config trang chủ realtime:", e)
+  })
+  unsubscribers.push(unsub)
 }
 
 const filteredHomeProducts = ref([])
@@ -138,31 +159,38 @@ const fallbackMainBanners = [
 ]
 
 let timer
-onMounted(() => {
-  timer = setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
-  fetchData()
-  fetchSettings()
-})
 
-onUnmounted(() => clearInterval(timer))
+// Lắng nghe dữ liệu các collection thời gian thực (Realtime)
+const listenToData = () => {
+  let loadedCollections = 0
+  const checkLoading = () => {
+    loadedCollections++
+    if (loadedCollections >= 4) {
+      isLoading.value = false
+    }
+  }
 
-const fetchData = async () => {
-  try {
-    const [prodSnap, promoSnap, bannerSnap, catSnap] = await Promise.all([
-      getDocs(collection(db, "products")),
-      getDocs(collection(db, "promotions")),
-      getDocs(collection(db, "banners")),
-      getDocs(collection(db, "categories"))
-    ])
-    
-    products.value = prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  // 1. Sản phẩm (Realtime)
+  const unsubProducts = onSnapshot(collection(db, "products"), (snapshot) => {
+    products.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    checkLoading()
+  }, (e) => console.error("Lỗi realtime products:", e))
 
-    const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    
+  // 2. Khuyến mãi (Realtime)
+  const unsubPromos = onSnapshot(collection(db, "promotions"), (snapshot) => {
+    promotions.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    checkLoading()
+  }, (e) => console.error("Lỗi realtime promotions:", e))
+
+  // 3. Danh mục (Realtime)
+  const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
+    categoryDocs.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    checkLoading()
+  }, (e) => console.error("Lỗi realtime categories:", e))
+
+  // 4. Banners (Realtime)
+  const unsubBanners = onSnapshot(collection(db, "banners"), (snapshot) => {
+    const fetchedBanners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     if (fetchedBanners.length > 0) {
       fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       const main = fetchedBanners.filter(b => b.position === 'main' || !b.position)
@@ -170,12 +198,26 @@ const fetchData = async () => {
     } else {
       mainBanners.value = fallbackMainBanners
     }
-  } catch (e) { 
-    console.error("Lỗi đồng bộ Firestore:", e) 
-  } finally { 
-    isLoading.value = false 
-  }
+    checkLoading()
+  }, (e) => console.error("Lỗi realtime banners:", e))
+
+  unsubscribers.push(unsubProducts, unsubPromos, unsubCats, unsubBanners)
 }
+
+onMounted(() => {
+  timer = setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+  listenToData()
+  listenToSettings()
+  listenToWebsiteSettings() // <-- Thêm dòng này vào đây
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  // Hủy tất cả kết nối realtime khi component bị gỡ bỏ
+  unsubscribers.forEach(unsub => unsub())
+})
 
 const getActivePromo = (product) => {
   return promotions.value.find(p => {
@@ -562,13 +604,18 @@ const getCategoryBanner = (catName) => {
     </div>
   </Transition>
 
-  <div class="bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors">
-    <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline MUA HÀNG GIAO GẤP</p>
-    <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
-      0347527093
-    </p>
-  </div>
+<a 
+  :href="'tel:' + (websiteSettings?.hotline ? String(websiteSettings.hotline).replace(/[^0-9+]/g, '') : '0347527093')"
+  class="block bg-linear-to-br from-red-50 to-red-100/50 border border-red-100 rounded-xl p-3 text-center mt-2 group cursor-pointer hover:border-red-300 transition-colors"
+>
+  <p class="text-[10px] text-primary font-bold uppercase tracking-wide">Hotline MUA HÀNG GIAO GẤP</p>
+  <p class="text-sm font-black text-primary mt-1 flex items-center justify-center gap-1.5 group-hover:scale-105 transition-transform">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+    </svg>
+    {{ websiteSettings?.hotline || '0347527093' }}
+  </p>
+</a>
 </aside>
 
         <!-- Banner Swiper chính -->
