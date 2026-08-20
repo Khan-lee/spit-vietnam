@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router' 
 import { auth, googleProvider, db } from '../firebase' 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth' 
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot, collection } from 'firebase/firestore'
 import { useSearchStore } from '../stores/search' 
 
 import logoImg from '../assets/noBG_logo.png'
@@ -12,15 +12,18 @@ import logoImg from '../assets/noBG_logo.png'
 const props = defineProps(['cartCount', 'searchQuery', 'products']) 
 const emit = defineEmits(['update:searchQuery', 'openCart'])
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const router = useRouter()
 const searchStore = useSearchStore()
+
 const isMobileMenuOpen = ref(false)
+const isMobileCategoryOpen = ref(false) // Trạng thái đóng/mở danh mục sản phẩm ở Mobile
 const isSearchFocused = ref(false)
 const user = ref(null) 
 
 const selectedIndex = ref(-1)
 const dynamicLogo = ref(logoImg)
+const categoryDocs = ref([]) // Lưu danh mục từ Firestore
 const defaultAvatar = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/anonymous.png'
 
 // State lưu cấu hình website từ Firestore (Realtime)
@@ -70,12 +73,36 @@ const listenToWebsiteSettings = () => {
   })
 }
 
+// Lắng nghe danh mục sản phẩm thời gian thực (Realtime)
+const listenToCategories = () => {
+  const colRef = collection(db, 'categories')
+  onSnapshot(colRef, (snapshot) => {
+    categoryDocs.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  }, (error) => {
+    console.error("Lỗi khi kết nối tới categories:", error)
+  })
+}
+
+// Danh mục hiển thị (được sắp xếp và lọc active)
+const activeCategories = computed(() => {
+  return categoryDocs.value
+    .filter(c => c.isActive !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+})
+
+const getCategoryName = (cat) => {
+  if (!cat) return ''
+  const catField = locale.value === 'vi' ? 'name_vi' : 'name_en'
+  return cat[catField] || cat.name || cat.category || cat.id
+}
+
 onMounted(() => {
   onAuthStateChanged(auth, (currentUser) => {
     user.value = currentUser
   })
   fetchLogo()
   listenToWebsiteSettings()
+  listenToCategories()
   searchStore.fetchProducts()
 })
 
@@ -91,21 +118,18 @@ const removeAccents = (str) => {
     .trim()
 }
 
-// 2. HÀM LẤY TÊN SẢN PHẨM THEO ĐÚNG NGUÔN NGỮ (Y HỆT HOMEVIEW)
+// 2. HÀM LẤY TÊN SẢN PHẨM THEO ĐÚNG NGUÔN NGỮ
 const getProductName = (p) => {
   if (!p) return ''
   const langKey = `name_${locale.value}`
   return p[langKey] || p.name || p.title || p.code || 'Sản phẩm'
 }
 
-// 3. LOGIC GỢI Ý TÌM KIẾM (ĐÃ ĐỒNG BỘ HOÀN TOÀN VỚI MAIN)
+// 3. LOGIC GỢI Ý TÌM KIẾM
 const suggestions = computed(() => {
   const rawQuery = (props.searchQuery || searchStore.searchQuery || '').trim()
-  console.log('1. Từ khóa đang gõ:', rawQuery)
-  console.log('2. Dữ liệu sản phẩm Header nhận được:', props.products || searchStore.products)
   if (!rawQuery) return []
   
-  // Tự động lấy nguồn dữ liệu từ props hoặc searchStore
   const productList = (Array.isArray(props.products) && props.products.length > 0)
     ? props.products
     : (searchStore.products || [])
@@ -218,6 +242,11 @@ const changeLanguage = (event) => {
   locale.value = newLang
   localStorage.setItem('user-lang', newLang)
 }
+
+const navigateMobile = (path) => {
+  isMobileMenuOpen.value = false
+  router.push(path)
+}
 </script>
 
 <template>
@@ -300,7 +329,7 @@ const changeLanguage = (event) => {
       <!-- TIỆN ÍCH PHẢI (RIGHT ACTION BUTTONS) -->
       <div class="flex items-center gap-1.5 lg:gap-2 shrink-0">
 
-        <!-- HOTLINE / TƯ VẤN (HIDDEN MOBILE) - ĐỒNG BỘ REALTIME TỪ FIRESTORE -->
+        <!-- HOTLINE / TƯ VẤN (HIDDEN MOBILE) -->
         <a 
           :href="'tel:' + formatPhoneLink(websiteSettings.hotline)" 
           class="hidden xl:flex items-center gap-2 bg-red-700/50 hover:bg-red-800 text-white px-2.5 py-1.5 rounded-xl text-left transition-colors border border-white/10"
@@ -376,44 +405,130 @@ const changeLanguage = (event) => {
 
     </div>
 
-    <!-- MOBILE DRAWER MENU -->
+    <!-- MOBILE DRAWER MENU (ĐÃ NÂNG CẤP ĐẦY ĐỦ ĐIỀU HƯỚNG) -->
     <div v-if="isMobileMenuOpen" class="fixed inset-0 z-200 md:hidden">
       <div @click="isMobileMenuOpen = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
-      <div class="absolute top-0 right-0 h-full w-80 bg-white text-slate-800 shadow-2xl flex flex-col p-6 animate-slide-in overflow-y-auto">
-        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
-          <span class="text-xs font-black uppercase tracking-wider text-slate-400">Menu chức năng</span>
-          <button @click="isMobileMenuOpen = false" class="p-2 text-slate-400 hover:text-red-600">
+      
+      <div class="absolute top-0 right-0 h-full w-80 bg-white text-slate-800 shadow-2xl flex flex-col p-5 animate-slide-in overflow-y-auto">
+        
+        <!-- DRAWER HEADER -->
+        <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <img :src="dynamicLogo" class="h-7 w-auto object-contain" />
+            <span class="text-xs font-black uppercase tracking-wider text-slate-400">Menu chức năng</span>
+          </div>
+          <button @click="isMobileMenuOpen = false" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
         <!-- USER MOBILE CARD -->
-        <div v-if="user" class="mb-6 p-4 bg-slate-50 rounded-2xl flex flex-col gap-3 border border-slate-100">
-          <div class="flex items-center gap-3">
-            <img :src="user.photoURL || defaultAvatar" class="w-10 h-10 rounded-full border border-white shadow-sm object-cover" />
-            <div class="overflow-hidden">
-              <p class="text-xs font-black uppercase truncate text-slate-800">{{ userDisplayName }}</p>
-              <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
+        <div class="my-4">
+          <div v-if="user" class="p-3 bg-slate-50 rounded-2xl flex flex-col gap-2.5 border border-slate-100">
+            <div class="flex items-center gap-3">
+              <img :src="user.photoURL || defaultAvatar" class="w-10 h-10 rounded-full border border-white shadow-sm object-cover" />
+              <div class="overflow-hidden">
+                <p class="text-xs font-black uppercase truncate text-slate-800">{{ userDisplayName }}</p>
+                <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
+              </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t border-slate-200/60">
+              <button @click="navigateMobile('/orders')" class="flex-1 text-center text-[10px] font-black uppercase text-white bg-red-600 py-2 rounded-xl shadow-sm">Đơn hàng của tôi</button>
+              <button @click="handleLogout" class="px-3 text-[10px] text-red-600 font-bold uppercase hover:bg-red-50 rounded-xl">Đăng xuất</button>
             </div>
           </div>
-          <div class="flex gap-2 pt-2 border-t border-slate-200/60">
-            <RouterLink to="/orders" @click="isMobileMenuOpen = false" class="flex-1 text-center text-[10px] font-black uppercase text-white bg-red-600 py-2 rounded-xl">Đơn hàng</RouterLink>
-            <button @click="handleLogout" class="px-3 text-[10px] text-red-600 font-bold uppercase hover:bg-red-50 rounded-xl">Đăng xuất</button>
-          </div>
+          <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Đăng nhập bằng Google
+          </button>
         </div>
-        <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="mb-6 w-full py-3.5 bg-red-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg">Đăng nhập bằng Google</button>
 
-        <!-- NAVIGATION LINKS -->
-        <nav class="flex flex-col gap-2">
-          <RouterLink v-for="item in ['home', 'contact']" 
-                      :key="item" :to="item === 'home' ? '/' : '/' + item"
-                      @click="isMobileMenuOpen = false"
-                      class="text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex justify-between items-center" 
-                      active-class="text-red-600 bg-red-50">
-            {{ $t('nav.' + item) !== 'nav.' + item ? $t('nav.' + item) : (item === 'about' ? 'Giới thiệu' : item) }}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
-          </RouterLink>
+        <!-- MOBILE NAVIGATION LINKS -->
+        <nav class="flex flex-col gap-1 flex-1">
+          
+          <!-- TRANG CHỦ -->
+          <button @click="navigateMobile('/')" class="w-full text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              {{ locale === 'vi' ? 'Trang chủ' : 'Home' }}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-300"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <!-- DANH MỤC SẢN PHẨM (ACCORDION) -->
+          <div class="rounded-xl overflow-hidden border border-slate-100 bg-slate-50/50">
+            <button @click="isMobileCategoryOpen = !isMobileCategoryOpen" class="w-full text-xs font-black uppercase tracking-wider text-slate-800 p-3 flex items-center justify-between hover:bg-slate-100">
+              <span class="flex items-center gap-2.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-red-600"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                {{ locale === 'vi' ? 'Danh mục sản phẩm' : 'Categories' }}
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" :class="['text-slate-400 transition-transform duration-200', isMobileCategoryOpen ? 'rotate-90' : '']"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <!-- SUB CATEGORIES LIST -->
+            <div v-if="isMobileCategoryOpen" class="bg-white px-3 py-1 border-t border-slate-100 flex flex-col gap-0.5">
+              <button 
+                v-for="cat in activeCategories" 
+                :key="cat.id"
+                @click="navigateMobile('/')"
+                class="w-full text-left py-2 px-2 text-[11px] font-bold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-between"
+              >
+                <span>{{ getCategoryName(cat) }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-300"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- TIN TỨC & BÀI VIẾT -->
+          <button @click="navigateMobile('/news')" class="w-full text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M18 18h-8"/><path d="M18 10h-8"/></svg>
+              {{ locale === 'vi' ? 'Tin tức & Giải pháp' : 'News' }}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-300"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <!-- GIỚI THIỆU -->
+          <button @click="navigateMobile('/about')" class="w-full text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              {{ locale === 'vi' ? 'Giới thiệu' : 'About Us' }}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-300"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <!-- LIÊN HỆ -->
+          <button @click="navigateMobile('/contact')" class="w-full text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              {{ locale === 'vi' ? 'Liên hệ' : 'Contact' }}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-300"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <!-- ĐƠN HÀNG CỦA TÔI -->
+          <button @click="navigateMobile('/orders')" class="w-full text-xs font-black uppercase tracking-wider text-slate-700 hover:text-red-600 p-3 rounded-xl hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              {{ locale === 'vi' ? 'Đơn hàng của tôi' : 'My Orders' }}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-300"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
         </nav>
+
+        <!-- DRAWER FOOTER: HOTLINE & ZALO BUTTONS -->
+        <div class="mt-auto pt-4 border-t border-slate-100 flex flex-col gap-2">
+          <a :href="'tel:' + formatPhoneLink(websiteSettings.hotline)" class="w-full py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Hotline: {{ websiteSettings.hotline || '0347527093' }}
+          </a>
+          <a :href="'https://zalo.me/' + formatPhoneLink(websiteSettings.zalo)" target="_blank" class="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-colors">
+            <span class="font-black text-[10px] bg-blue-600 text-white px-1 rounded">ZALO</span>
+            Chat Zalo: {{ websiteSettings.zalo || '0347527093' }}
+          </a>
+        </div>
+
       </div>
     </div>
   </header>

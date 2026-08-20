@@ -50,7 +50,7 @@
           <div class="lg:col-span-7 space-y-6 lg:pl-4">
             <div class="space-y-2">
               <h2 class="text-xs font-black tracking-widest text-red-600 uppercase">Giới thiệu tổng quan</h2>
-              <h3 class="text-2xl md:text-3xl font-black text-slate-900 uppercase italic">Về chúng tôi — <span class="text-red-600">SPIT</span></h3>
+              <h3 class="text-2xl md:text-3xl font-black text-slate-900 uppercase italic">Về chúng tôi — <span class="text-red-600">VATTUVOCUC</span></h3>
             </div>
             
             <div class="prose prose-slate max-w-none">
@@ -96,7 +96,7 @@
               <div class="p-3.5 bg-red-50 text-red-600 rounded-2xl text-2xl">⚙️</div>
               <h4 class="text-md font-black uppercase text-slate-900 tracking-tight">Chất Lượng Tuyệt Đối</h4>
               <p class="text-xs text-slate-500 leading-relaxed font-medium">
-                Mỗi sản phẩm mảnh cắt insert, cán dao tiện hay dụng cụ phụ trợ do SPIT cung ứng đều cam kết đạt chuẩn kiểm định khắt khe nhất của quốc tế.
+                Mỗi sản phẩm mảnh cắt insert, cán dao tiện hay dụng cụ phụ trợ do chúng tôi cung ứng đều cam kết đạt chuẩn kiểm định khắt khe nhất của quốc tế.
               </p>
             </div>
             <div class="bg-white p-8 rounded-[2.5rem] shadow-md border border-slate-100 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-start space-y-4">
@@ -123,7 +123,7 @@
               <h3 class="text-xl md:text-2xl font-black text-slate-900 uppercase">Thông tin thực thể doanh nghiệp</h3>
             </div>
             <p class="text-xs md:text-sm text-slate-500 leading-relaxed font-medium">
-              Sài Gòn Precision Industrial Tool (SPIT) hoạt động chính thức dưới hệ thống pháp lý minh bạch, cung cấp đầy đủ hóa đơn chứng từ và cam kết nguồn gốc thiết bị rõ ràng cho mọi doanh nghiệp, nhà xưởng đối tác.
+              CỬA HÀNG VẬT TƯ CÔNG NGHIỆP VÔ CỰC hoạt động chính thức dưới hệ thống pháp lý minh bạch, cung cấp đầy đủ hóa đơn chứng từ và cam kết nguồn gốc thiết bị rõ ràng cho mọi doanh nghiệp, nhà xưởng đối tác.
             </p>
             <div class="flex flex-wrap gap-3 pt-2">
               <a 
