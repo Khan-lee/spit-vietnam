@@ -99,6 +99,14 @@ const categoryTagsMap = {
     'Cắt gỗ / Vật liệu composite',
     'Răng thưa (Cắt thô / Nhanh)',
     'Răng dày (Cắt tinh / Mịn)'
+  ],
+  'DAO PHAY NGÓN': [
+    'Phay sau nhiệt',
+    'Phay trước nhiệt'
+  ],
+  'PHÔI': [
+    'Phôi Carbide',
+    'Phôi Ceramic'
   ]
 }
 
@@ -136,6 +144,8 @@ const needsOptions = computed(() => {
   if (upperCat.includes('ĐÁ MÀI') || upperCat.includes('ĐÁ DOANH')) return categoryTagsMap['ĐÁ MÀI']
   if (upperCat.includes('CHỔI ĐÁNH BÓNG')) return categoryTagsMap['CHỔI ĐÁNH BÓNG']
   if (upperCat.includes('LƯỠI CƯA')) return categoryTagsMap['LƯỠI CƯA']
+  if (upperCat.includes('DAO PHAY NGÓN') || upperCat.includes('DAO PHAY NGÓN')) return categoryTagsMap['DAO PHAY NGÓN']
+  if (upperCat.includes('PHÔI')) return categoryTagsMap['PHÔI']
 
   const relevantProducts = props.products.filter(p => p.category_vi === activeCategory);
   const allTags = relevantProducts.reduce((acc, product) => {
