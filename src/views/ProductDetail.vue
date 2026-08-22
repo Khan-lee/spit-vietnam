@@ -314,14 +314,15 @@
             </div>
           </div>
 
-          <!-- KHỐI GIÁ SẢN PHẨM -->
+          <!-- KHỐI GIÁ SẢN PHẨM (ĐÃ CẬP NHẬT GHÉP BIẾN GIÁ ẢO DYNAMIC) -->
           <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10 space-y-3">
             <div class="flex items-center justify-between gap-2">
               <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 ĐƠN GIÁ THEO {{ displayUnitLabel }}:
               </span>
-              <span v-if="savingsAmount > 0" class="text-[10px] bg-red-600 text-white font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-md shadow-red-600/30 flex items-center gap-1">
-                <span>🏷️</span> TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
+              <!-- NẾU CÓ GIÁ NIÊM YẾT ẢO CAO HƠN GIÁ BÁN -> HIỂN THỊ BADGE TIẾT KIỆM -->
+              <span v-if="hasVirtualDiscount" class="text-[10px] bg-red-600 text-white font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-md shadow-red-600/30 flex items-center gap-1">
+                <span></span> TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
               </span>
             </div>
 
@@ -333,11 +334,15 @@
                   VNĐ / {{ displayUnitLabel }}
                 </span>
               </div>
-              <div v-if="isBuyingBox && originalUnitPrice > currentUnitPrice" class="text-slate-400 font-extrabold text-base sm:text-lg line-through opacity-60">
-                {{ originalUnitPrice.toLocaleString('vi-VN') }} VNĐ
+              
+              <!-- GIÁ ẢO GẠCH ĐI (HIỂN THỊ KHI CÓ GIÁ BÁN RẺ HƠN GIÁ NIÊM YẾT ẢO) -->
+              <div v-if="hasVirtualDiscount" class="text-slate-400 font-extrabold text-base sm:text-lg line-through opacity-60">
+                {{ displayOriginalPrice.toLocaleString('vi-VN') }} VNĐ
               </div>
-              <span v-if="isBuyingBox && boxDiscountPercent > 0" class="text-xs font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
-                -{{ boxDiscountPercent }}%
+
+              <!-- BADGE TỰ ĐỘNG TÍNH % GIẢM GIÁ TỪ GIÁ ẢO -->
+              <span v-if="hasVirtualDiscount && displayOriginalPrice > 0" class="text-xs font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
+                -{{ Math.round(((displayOriginalPrice - currentUnitPrice) / displayOriginalPrice) * 100) }}%
               </span>
             </div>
 
@@ -794,6 +799,20 @@ const originalUnitPrice = computed(() => {
   return directPiecePrice.value
 })
 
+// 🆕 [CẬP NHẬT MỚI] GIÁ NIÊM YẾT ẢO GẠCH ĐI (LẤY TỪ ADMIN)
+const displayOriginalPrice = computed(() => {
+  if (!product.value) return 0
+  if (isBuyingBox.value) {
+    const virtualBox = cleanNumber(product.value.original_price_box)
+    if (virtualBox > 0) return virtualBox
+    return cleanNumber(product.value.original_price) || originalUnitPrice.value
+  } else {
+    const virtualPiece = cleanNumber(product.value.original_price_piece || product.value.original_price || product.value.originalPrice)
+    return virtualPiece > 0 ? virtualPiece : 0
+  }
+})
+
+// 🆕 [CẬP NHẬT MỚI] TÍNH TOÁN GIÁ BÁN THỰC TẾ
 const currentUnitPrice = computed(() => {
   if (!product.value) return 0
   let price = originalUnitPrice.value
@@ -820,12 +839,17 @@ const currentUnitPrice = computed(() => {
   return Math.round(price)
 })
 
+// 🆕 [CẬP NHẬT MỚI] KIỂM TRA CÓ HIỂN THỊ GIÁ GẠCH ĐI HAY KHÔNG
+const hasVirtualDiscount = computed(() => {
+  return displayOriginalPrice.value > currentUnitPrice.value
+})
+
 const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
 
-// TIẾT KIỆM CHỈ TÍNH KHI MUA HỘP
+// 🆕 [CẬP NHẬT MỚI] TIẾT KIỆM TÍNH DỰA TRÊN GIÁ ẢO HOẶC GIÁ GỐC
 const savingsAmount = computed(() => {
-  if (!isBuyingBox.value) return 0
-  return Math.max(0, originalUnitPrice.value - currentUnitPrice.value)
+  const refPrice = displayOriginalPrice.value > 0 ? displayOriginalPrice.value : originalUnitPrice.value
+  return Math.max(0, refPrice - currentUnitPrice.value)
 })
 
 const changeQuantity = (delta) => {
@@ -861,7 +885,7 @@ const addToCart = (item) => {
         id: route.params.id,
         name: pName,
         price: currentUnitPrice.value,
-        original_price: originalUnitPrice.value,
+        original_price: displayOriginalPrice.value > 0 ? displayOriginalPrice.value : originalUnitPrice.value,
         image: item.image,
         quantity: quantity.value,
         unit: currentUnitKey,

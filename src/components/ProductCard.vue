@@ -20,8 +20,15 @@
       
       <div class="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
         <div>
-          <span class="text-xs text-gray-400 line-through mr-2">{{ formatPrice(product.originalPrice) }}</span>
-          <span class="text-lg font-black text-red-600">{{ formatPrice(product.price) }}</span>
+          <!-- 🆕 [CẬP NHẬT MỚI] Giá niêm yết ảo gạch đi (Chỉ hiện khi Giá ảo > Giá bán thực) -->
+          <span v-if="hasDiscount" class="text-xs text-gray-400 line-through mr-2">
+            {{ formatPrice(displayOriginalPrice) }}
+          </span>
+
+          <!-- 🆕 [CẬP NHẬT MỚI] Giá bán thực tế khách trả -->
+          <span class="text-lg font-black text-red-600">
+            {{ formatPrice(displayRealPrice) }}
+          </span>
         </div>
         
         <button 
@@ -36,14 +43,38 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 const { locale } = useI18n()
 
-defineProps({
+const props = defineProps({
   product: Object,
   formatPrice: Function
 });
+
 defineEmits(['add-to-cart']);
+
+//  1. Tính toán Giá bán thực tế dựa theo loại hình bán (Hộp hay Mảnh)
+const displayRealPrice = computed(() => {
+  if (props.product?.sales_type === 'box') {
+    return props.product.price_box || props.product.price || 0
+  }
+  return props.product?.price_piece || props.product?.price || 0
+})
+
+//  2. Tính toán Giá gạch đi ảo tương ứng
+const displayOriginalPrice = computed(() => {
+  if (props.product?.sales_type === 'box') {
+    return props.product.original_price_box || 0
+  }
+  return props.product?.original_price_piece || props.product?.original_price || 0
+})
+
+// 3. Kiểm tra xem có điều kiện để hiển thị giá gạch đi không
+const hasDiscount = computed(() => {
+  return Number(displayOriginalPrice.value) > Number(displayRealPrice.value)
+})
 </script>
 
 <style scoped>

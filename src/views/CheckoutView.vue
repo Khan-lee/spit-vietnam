@@ -26,6 +26,7 @@ const router = useRouter()
 
 const rawCartItems = ref([])
 const promotions = ref([]) 
+
 // 1. Tự động lấy tên Tỉnh/Thành phố đang chọn (Khách hàng chính hoặc Địa chỉ khác)
 const activeProvince = computed(() => {
   return shipToOtherAddress.value ? otherAddress.value.province : customer.value.province
@@ -191,49 +192,89 @@ const fetchActivePromotions = async () => {
     promotions.value = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(p => {
-        const start = new Date(p.start_date).getTime()
-        const end = new Date(p.end_date).getTime()
-        return now >= start && now <= end
+        const start = p.start_date?.toDate ? p.start_date.toDate().getTime() : new Date(p.start_date).getTime()
+        const end = p.end_date?.toDate ? p.end_date.toDate().getTime() : new Date(p.end_date).getTime()
+        return !isNaN(start) && !isNaN(end) && now >= start && now <= end
       })
   } catch (e) {
     console.error("Lỗi lấy khuyến mãi:", e)
   }
 }
 
+// ⚡ UPDATE: TÍNH TOÁN GIÁ BÁN, GIÁ NIÊM YẾT ẢO VÀ MỐC CHIẾT KHẤU ĐỒNG BỘ
 const cartItems = computed(() => {
   return rawCartItems.value.map(item => {
-    let finalPrice = item.price
-    let appliedPromoTitle = null
-
-    const matchedPromo = promotions.value.find(p => 
-      p.apply_to === 'all' || (p.applied_ids && p.applied_ids.includes(item.id))
+    const qty = Number(item.quantity) || 1
+    const basePrice = Number(item.price) || 0
+    const isBox = item.unit === 'box'
+    
+    // Ưu tiên đọc các key giá ảo
+    const virtualOriginalPrice = Number(
+      item.virtual_original_price || item.displayOriginalPrice || item.original_price || item.virtual_price || 0
     )
 
-    if (matchedPromo && matchedPromo.tiers) {
-      const sortedTiers = [...matchedPromo.tiers].sort((a, b) => b.quantity - a.quantity)
-      const matchedTier = sortedTiers.find(t => item.quantity >= t.quantity)
+    let finalPrice = basePrice
+    let appliedPromoTitle = null
+    let promoDiscountAmount = 0
 
-      if (matchedTier) {
-        appliedPromoTitle = matchedPromo.title
-        let discountAmount = 0
-        if (matchedTier.discount_type === 'percentage') {
-          discountAmount = item.price * (matchedTier.discount_value / 100)
-        } else if (matchedTier.discount_type === 'fixed_amount') {
-          discountAmount = matchedTier.discount_value
+    // Kiểm tra KM nếu mua theo Hộp hoặc không phân biệt đơn vị
+    if (!item.unit || isBox) {
+      const matchedPromo = promotions.value.find(p => 
+        p.apply_to === 'all' || (p.applied_ids && (p.applied_ids.includes(item.id) || p.applied_ids.includes(item.productId)))
+      )
+
+      if (matchedPromo && Array.isArray(matchedPromo.tiers)) {
+        const sortedTiers = [...matchedPromo.tiers].sort((a, b) => Number(b.quantity) - Number(a.quantity))
+        const matchedTier = sortedTiers.find(t => qty >= Number(t.quantity || 0))
+
+        if (matchedTier) {
+          appliedPromoTitle = matchedPromo.title || matchedPromo.name || 'Khuyến mãi đại lý'
+          const type = matchedTier.discount_type || 'percentage'
+          const val = Number(matchedTier.discount_value) || 0
+
+          if (type === 'percentage') {
+            promoDiscountAmount = basePrice * (val / 100)
+          } else if (type === 'fixed_amount' || type === 'amount' || type === 'fixed_discount') {
+            promoDiscountAmount = val
+          }
+          finalPrice = Math.max(0, basePrice - promoDiscountAmount)
         }
-        finalPrice = Math.max(0, item.price - discountAmount)
       }
     }
 
+    // Xác định Giá gạch đi hiển thị
+    let displayOriginalPrice = virtualOriginalPrice
+    if (displayOriginalPrice <= finalPrice && promoDiscountAmount > 0) {
+      displayOriginalPrice = basePrice
+    }
+
+    const hasDiscount = displayOriginalPrice > finalPrice
+    const discountPercent = hasDiscount && displayOriginalPrice > 0 
+      ? Math.round(((displayOriginalPrice - finalPrice) / displayOriginalPrice) * 100) 
+      : 0
+
+    const itemTotal = finalPrice * qty
+    const itemOriginalTotal = (hasDiscount ? displayOriginalPrice : finalPrice) * qty
+    const itemSavings = itemOriginalTotal - itemTotal
+
     return {
       ...item,
+      basePrice,
+      originalPrice: displayOriginalPrice,
       finalPrice,
+      hasDiscount,
+      discountPercent,
       appliedPromoTitle,
-      itemTotal: finalPrice * item.quantity
+      itemTotal,
+      itemOriginalTotal,
+      itemSavings
     }
   })
 })
 
+// ⚡ UPDATE: Bổ sung các chỉ số tổng tiền
+const cartOriginalSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemOriginalTotal, 0))
+const totalDiscountAmount = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemSavings, 0))
 const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
 const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
 
@@ -262,47 +303,49 @@ const handleCheckout = async () => {
   try {
     isProcessing.value = true
 
-// Chuẩn hóa địa chỉ đầy đủ cho khách hàng
-const fullCustomerAddress = [
-  customer.value.address,
-  customer.value.district,
-  customer.value.province
-].filter(Boolean).join(', ')
+    // Chuẩn hóa địa chỉ đầy đủ cho khách hàng
+    const fullCustomerAddress = [
+      customer.value.address,
+      customer.value.district,
+      customer.value.province
+    ].filter(Boolean).join(', ')
 
-// Chuẩn hóa địa chỉ đầy đủ cho người nhận khác (nếu có)
-const fullShippingAddress = shipToOtherAddress.value ? {
-  ...otherAddress.value,
-  fullAddress: [
-    otherAddress.value.address,
-    otherAddress.value.district,
-    otherAddress.value.province
-  ].filter(Boolean).join(', ')
-} : null
+    // Chuẩn hóa địa chỉ đầy đủ cho người nhận khác (nếu có)
+    const fullShippingAddress = shipToOtherAddress.value ? {
+      ...otherAddress.value,
+      fullAddress: [
+        otherAddress.value.address,
+        otherAddress.value.district,
+        otherAddress.value.province
+      ].filter(Boolean).join(', ')
+    } : null
 
-const orderData = {
-  userId: auth.currentUser ? auth.currentUser.uid : null,
-  customer: {
-    ...customer.value,
-    fullAddress: fullCustomerAddress // Thêm địa chỉ ghép đầy đủ
-  },
-  shippingAddress: fullShippingAddress,
-  vatInfo: requestVAT.value ? {
-    companyName: vatInfo.value.companyName,
-    companyAddress: vatInfo.value.companyAddress,
-    taxCode: vatInfo.value.taxCode,
-    email: vatInfo.value.email,     // Lưu email VAT
-    vatEmail: vatInfo.value.email  // Backup thêm key vatEmail
-  } : null,
-  note: customer.value.note || '', // Đảm bảo lưu ghi chú đơn hàng
-  shippingMethod: shippingMethod.value,
-  paymentMethod: paymentMethod.value,
-  items: cartItems.value,
-  subtotal: cartSubtotal.value,
-  shippingFee: shippingFee.value,  
-  totalPrice: finalTotal.value,  
-  status: 'pending',
-  createdAt: serverTimestamp()
-}
+    const orderData = {
+      userId: auth.currentUser ? auth.currentUser.uid : null,
+      customer: {
+        ...customer.value,
+        fullAddress: fullCustomerAddress // Thêm địa chỉ ghép đầy đủ
+      },
+      shippingAddress: fullShippingAddress,
+      vatInfo: requestVAT.value ? {
+        companyName: vatInfo.value.companyName,
+        companyAddress: vatInfo.value.companyAddress,
+        taxCode: vatInfo.value.taxCode,
+        email: vatInfo.value.email,     // Lưu email VAT
+        vatEmail: vatInfo.value.email  // Backup thêm key vatEmail
+      } : null,
+      note: customer.value.note || '', // Đảm bảo lưu ghi chú đơn hàng
+      shippingMethod: shippingMethod.value,
+      paymentMethod: paymentMethod.value,
+      items: cartItems.value,
+      originalSubtotal: cartOriginalSubtotal.value, // ⚡ UPDATE: Lưu tổng tiền gốc chưa giảm
+      totalDiscount: totalDiscountAmount.value,     // ⚡ UPDATE: Lưu tổng số tiền đã giảm giá
+      subtotal: cartSubtotal.value,
+      shippingFee: shippingFee.value,  
+      totalPrice: finalTotal.value,  
+      status: 'pending',
+      createdAt: serverTimestamp()
+    }
     
     const docRef = await addDoc(collection(db, "orders"), orderData)
     newOrderId.value = docRef.id
@@ -363,29 +406,29 @@ const orderData = {
                 <input v-model="customer.address" placeholder="Địa chỉ *" class="v-input" />
               </div>
               
-<!-- Select Tỉnh / Thành phố Khách hàng -->
-<div>
-  <select v-model="customer.provinceCode" class="v-input cursor-pointer">
-    <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
-    <option v-for="p in provinces" :key="p.code" :value="p.code">
-      {{ p.name }}
-    </option>
-  </select>
-</div>
+              <!-- Select Tỉnh / Thành phố Khách hàng -->
+              <div>
+                <select v-model="customer.provinceCode" class="v-input cursor-pointer">
+                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+                  <option v-for="p in provinces" :key="p.code" :value="p.code">
+                    {{ p.name }}
+                  </option>
+                </select>
+              </div>
 
-<!-- Select Quận / Huyện Khách hàng -->
-<div>
-  <select 
-    v-model="customer.districtCode" 
-    class="v-input cursor-pointer"
-    :disabled="!customer.provinceCode"
-  >
-    <option value="" disabled selected>Chọn Quận/ Huyện *</option>
-    <option v-for="d in customerDistricts" :key="d.code" :value="d.code">
-      {{ d.name }}
-    </option>
-  </select>
-</div>
+              <!-- Select Quận / Huyện Khách hàng -->
+              <div>
+                <select 
+                  v-model="customer.districtCode" 
+                  class="v-input cursor-pointer"
+                  :disabled="!customer.provinceCode"
+                >
+                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+                  <option v-for="d in customerDistricts" :key="d.code" :value="d.code">
+                    {{ d.name }}
+                  </option>
+                </select>
+              </div>
 
               <div class="md:col-span-2">
                 <textarea v-model="customer.note" placeholder="Ghi chú cho hóa đơn" rows="2" class="v-input resize-none"></textarea>
@@ -401,45 +444,45 @@ const orderData = {
               </svg>
             </div>
 
-<!-- Form Địa chỉ khác -->
-<div v-if="shipToOtherAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-  <div class="md:col-span-2">
-    <input v-model="otherAddress.name" placeholder="Họ và tên *" class="v-input" />
-  </div>
-  <div class="md:col-span-2">
-    <input v-model="otherAddress.phone" placeholder="Điện thoại *" class="v-input" />
-  </div>
-  <div class="md:col-span-2">
-    <input v-model="otherAddress.address" placeholder="Địa chỉ *" class="v-input" />
-  </div>
-  
-  <!-- Select Tỉnh / Thành phố Khác -->
-  <div>
-    <select 
-      v-model="otherAddress.provinceCode" 
-      class="v-input cursor-pointer"
-    >
-      <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
-      <option v-for="p in provinces" :key="p.code" :value="p.code">
-        {{ p.name }}
-      </option>
-    </select>
-  </div>
-  
-  <!-- Select Quận / Huyện Khác -->
-  <div>
-    <select 
-      v-model="otherAddress.districtCode" 
-      class="v-input cursor-pointer"
-      :disabled="!otherAddress.provinceCode"
-    >
-      <option value="" disabled selected>Chọn Quận/ Huyện *</option>
-      <option v-for="d in otherDistricts" :key="d.code" :value="d.code">
-        {{ d.name }}
-      </option>
-    </select>
-  </div>
-</div>
+            <!-- Form Địa chỉ khác -->
+            <div v-if="shipToOtherAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.name" placeholder="Họ và tên *" class="v-input" />
+              </div>
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.phone" placeholder="Điện thoại *" class="v-input" />
+              </div>
+              <div class="md:col-span-2">
+                <input v-model="otherAddress.address" placeholder="Địa chỉ *" class="v-input" />
+              </div>
+              
+              <!-- Select Tỉnh / Thành phố Khác -->
+              <div>
+                <select 
+                  v-model="otherAddress.provinceCode" 
+                  class="v-input cursor-pointer"
+                >
+                  <option value="" disabled selected>Chọn Tỉnh/ Thành phố *</option>
+                  <option v-for="p in provinces" :key="p.code" :value="p.code">
+                    {{ p.name }}
+                  </option>
+                </select>
+              </div>
+              
+              <!-- Select Quận / Huyện Khác -->
+              <div>
+                <select 
+                  v-model="otherAddress.districtCode" 
+                  class="v-input cursor-pointer"
+                  :disabled="!otherAddress.provinceCode"
+                >
+                  <option value="" disabled selected>Chọn Quận/ Huyện *</option>
+                  <option v-for="d in otherDistricts" :key="d.code" :value="d.code">
+                    {{ d.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
 
             <!-- Toggle Xuất VAT -->
             <div class="bg-gray-50 border border-gray-200 rounded px-4 py-3 flex items-center gap-3 cursor-pointer" @click="requestVAT = !requestVAT">
@@ -518,45 +561,83 @@ const orderData = {
           </div>
           
           <div class="p-5">
+            <!-- Danh sách SP -->
             <div class="space-y-4 mb-4 max-h-72 overflow-y-auto custom-scrollbar pr-2">
               <div v-for="item in cartItems" :key="item.id" class="flex gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                <img :src="item.image" class="w-16 h-16 object-contain border border-gray-200 rounded bg-white p-1" />
-                <div class="flex-1">
-                  <h4 class="text-xs text-blue-600 font-medium leading-tight mb-1">{{ item.name }}</h4>
-                  <p v-if="item.appliedPromoTitle" class="text-[10px] text-gray-500 italic mb-1">Item #{{ item.id.slice(0,8) }}</p>
-                  <div class="flex items-center gap-2 text-xs">
-                    <span class="font-bold text-gray-800">{{ item.quantity }}</span>
-                    <span class="text-gray-400">x</span>
-                    <span class="font-bold text-red-600">{{ item.finalPrice.toLocaleString() }} đ</span>
+                <img :src="item.image" class="w-16 h-16 object-contain border border-gray-200 rounded bg-white p-1 shrink-0" />
+                <div class="flex-1 min-w-0">
+                  
+                  <!-- ⚡ UPDATE: Hiển thị Brand & Quy cách mua -->
+                  <div class="flex items-center gap-1 mb-1">
+                    <span v-if="item.brand" class="inline-block text-[9px] font-bold uppercase text-red-600 bg-red-50 border border-red-100 px-1 py-0.5 rounded">
+                      {{ item.brand }}
+                    </span>
+                    <span class="inline-block text-[9px] font-bold uppercase text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                      {{ item.unit === 'box' ? (item.unitBoxName || 'Hộp') : (item.unitPieceName || 'Lẻ') }}
+                    </span>
+                  </div>
+
+                  <h4 class="text-xs text-blue-600 font-medium leading-tight mb-1 line-clamp-2">{{ item.name }}</h4>
+                  
+                  <!-- ⚡ UPDATE: Hiển thị tên Promo nếu có -->
+                  <p v-if="item.appliedPromoTitle" class="text-[10px] text-emerald-600 font-bold italic mb-1 flex items-center gap-1">
+                    {{ item.appliedPromoTitle }}
+                  </p>
+
+                  <div class="flex items-center justify-between text-xs mt-1">
+                    <div class="flex items-center gap-1 text-gray-600">
+                      <span class="font-bold text-gray-800">{{ item.quantity }}</span>
+                      <span>x</span>
+                    </div>
+                    
+                    <div class="text-right">
+                      <!-- ⚡ UPDATE: Hiển thị giá gạch & % giảm giá -->
+                      <div v-if="item.hasDiscount" class="flex items-center justify-end gap-1">
+                        <span class="text-[10px] text-gray-400 line-through">{{ item.originalPrice.toLocaleString('vi-VN') }} đ</span>
+                        <span class="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded">-{{ item.discountPercent }}%</span>
+                      </div>
+                      <span class="font-bold text-red-600">{{ item.finalPrice.toLocaleString('vi-VN') }} đ</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="space-y-3 pt-4 border-t border-gray-100 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-600">Thành tiền</span>
-                <span class="font-medium">{{ cartSubtotal.toLocaleString() }} đ</span>
+            <!-- Bảng Tính Tổng Chi Phí & Giảm Giá -->
+            <div class="space-y-2.5 pt-4 border-t border-gray-100 text-sm">
+              
+              <!-- ⚡ UPDATE: Tổng giá niêm yết ban đầu (nếu có giảm giá) -->
+              <div v-if="totalDiscountAmount > 0" class="flex justify-between text-gray-500 text-xs">
+                <span>Tổng giá niêm yết:</span>
+                <span class="line-through">{{ cartOriginalSubtotal.toLocaleString('vi-VN') }} đ</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">Giảm giá coupon</span>
-                <span class="font-medium">0 đ</span>
+
+              <!-- ⚡ UPDATE: Tổng số tiền giảm giá / tiết kiệm được -->
+              <div v-if="totalDiscountAmount > 0" class="flex justify-between text-emerald-700 font-bold text-xs bg-emerald-50 px-2.5 py-2 rounded border border-emerald-200/60">
+                <span class="flex items-center gap-1">Tổng giảm giá:</span>
+                <span>-{{ totalDiscountAmount.toLocaleString('vi-VN') }} đ</span>
               </div>
+
               <div class="flex justify-between">
-                <span class="text-gray-600">Giá vận chuyển:</span>
-                <span class="font-medium">{{ shippingFee === 0 ? '0 đ' : `${shippingFee.toLocaleString()} đ` }}</span>
+                <span class="text-gray-600">Thành tiền sản phẩm:</span>
+                <span class="font-bold text-gray-900">{{ cartSubtotal.toLocaleString('vi-VN') }} đ</span>
+              </div>
+
+              <div class="flex justify-between">
+                <span class="text-gray-600">Phí vận chuyển:</span>
+                <span class="font-medium text-gray-800">{{ shippingFee === 0 ? '0 đ' : `${shippingFee.toLocaleString('vi-VN')} đ` }}</span>
               </div>
               
               <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-                <span class="font-bold uppercase">Tổng cộng</span>
-                <span class="text-lg font-bold text-red-600">{{ finalTotal.toLocaleString() }} đ</span>
+                <span class="font-bold uppercase text-gray-900">Tổng cộng:</span>
+                <span class="text-lg font-bold text-red-600">{{ finalTotal.toLocaleString('vi-VN') }} đ</span>
               </div>
             </div>
 
             <button 
               @click="handleCheckout" 
               :disabled="isProcessing"
-              class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 cursor-pointer"
             >
               <span v-if="isProcessing" class="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></span>
               {{ isProcessing ? 'ĐANG XỬ LÝ...' : 'THANH TOÁN' }}
@@ -571,7 +652,7 @@ const orderData = {
     <div v-if="showPaymentQR" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div class="relative w-full max-w-md bg-white rounded-xl shadow-2xl p-6 text-center">
         <PaymentQR :amount="finalTotal" :orderId="newOrderId" />
-        <button @click="router.push('/')" class="w-full mt-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded font-bold uppercase text-sm">
+        <button @click="router.push('/')" class="w-full mt-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded font-bold uppercase text-sm cursor-pointer">
           Tôi đã hoàn tất chuyển khoản
         </button>
       </div>
@@ -586,7 +667,7 @@ const orderData = {
         </div>
         <h3 class="text-lg font-bold uppercase text-gray-900">Đặt hàng thành công!</h3>
         <p class="text-sm text-gray-600 mt-2">Mã đơn hàng: <span class="font-bold text-gray-900">{{ newOrderId.slice(0,8).toUpperCase() }}</span></p>
-        <button @click="router.push('/')" class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm">
+        <button @click="router.push('/')" class="w-full mt-6 py-3 bg-[#ffc107] hover:bg-yellow-500 text-gray-900 rounded font-bold uppercase text-sm cursor-pointer">
           Tiếp tục mua sắm
         </button>
       </div>

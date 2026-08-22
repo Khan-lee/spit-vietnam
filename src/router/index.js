@@ -22,24 +22,21 @@ const router = createRouter({
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
     { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
     {
-  path: '/spit-system-manager/policies',
-  name: 'AdminPolicies',
-  component: () => import('../views/admin/AdminPolicies.vue') // Trỏ tới file view quản lý chính sách
-},
-// THÊM ROUTE NÀY VÀO:
-  {
-    path: '/chinh-sach/:slug',
-    name: 'PolicyDetail',
-    component: PolicyDetail
-  },
-    // --- KHU VỰC ĐĂNG NHẬP (ĐÃ TÁCH BIỆT) ---
-    // 1. Đăng nhập dành cho Khách hàng / Người dùng
+      path: '/spit-system-manager/policies',
+      name: 'AdminPolicies',
+      component: () => import('../views/admin/AdminPolicies.vue')
+    },
+    {
+      path: '/chinh-sach/:slug',
+      name: 'PolicyDetail',
+      component: PolicyDetail
+    },
+    // --- KHU VỰC ĐĂNG NHẬP ---
     { 
       path: '/login', 
       name: 'login', 
       component: () => import('../views/UserLoginView.vue') 
     },
-    // 2. Đăng nhập dành riêng cho Admin
     { 
       path: '/admin/login', 
       name: 'admin-login', 
@@ -56,13 +53,8 @@ const router = createRouter({
     { path: '/tin-tuc', name: 'posts-list', component: () => import('../views/PostsView.vue') },
     { path: '/post/:id', name: 'post-detail', component: () => import('../views/PostDetailView.vue') },
 
-    // ROUTE GIỚI THIỆU (ABOUT) CHO NGƯỜI DÙNG
     { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
-
-    // ROUTE CHI TIẾT NHÃN HÀNG
     { path: '/brand/:id', name: 'brand-detail', component: () => import('../views/BrandDetailView.vue'), props: true },
-
-    // ROUTE TRỢ LÝ AI TƯ VẤN KỸ THUẬT SẢN PHẨM
     { 
       path: '/ai-consultant', 
       name: 'AIConsultant', 
@@ -94,7 +86,6 @@ const router = createRouter({
       component: () => import('../views/admin/PromotionsAdmin.vue'),
       meta: { requiresAuth: true } 
     },
-    // QUẢN LÝ NHÃN HÀNG
     { 
       path: '/spit-system-manager/brands', 
       name: 'AdminBrands', 
@@ -112,21 +103,18 @@ const router = createRouter({
       component: () => import('../views/AdminSettingsView.vue'),
       meta: { requiresAuth: true } 
     },
-    // QUẢN LÝ SLIDESHOW BANNER TRANG CHỦ
     {
       path: '/spit-system-manager/banners',
       name: 'AdminBanners',
       component: () => import('../views/AdminBannerView.vue'),
       meta: { requiresAuth: true }
     },
-    // QUẢN LÝ DANH MỤC
     {
       path: '/spit-system-manager/categories',
       name: 'AdminCategories',
       component: () => import('../views/admin/AdminCategoriesView.vue'),
       meta: { requiresAuth: true }
     },
-    // QUẢN LÝ GIỚI THIỆU (ABOUT) CHO ADMIN
     { 
       path: '/spit-system-manager/about', 
       name: 'AdminAbout',
@@ -151,25 +139,20 @@ const getCurrentUser = () => {
   });
 };
 
-// 1. Khai báo danh sách Email có quyền Admin ở đây (Thay bằng email admin thực tế của bạn)
 const ADMIN_EMAILS = [
   'spitsaigon@gmail.com',
-  'p.tri@spit.vn', // Thêm các email admin khác nếu có
+  'p.tri@spit.vn',
 ];
 
-// Guard bảo vệ các trang Admin và Hiệu ứng Loading
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
 
-  // Kiểm tra nếu route yêu cầu quyền Auth (Các trang Admin)
   if (to.meta.requiresAuth) {
     const user = await getCurrentUser();
     
-    // ĐIỀU KIỆN MỚI: Phải ĐÃ ĐĂNG NHẬP + Email phải thuộc DANH SÁCH ADMIN
     if (user && ADMIN_EMAILS.includes(user.email)) {
-      next(); // Cho phép vào trang Admin
+      next();
     } else {
-      // Nếu là User thường hoặc Chưa đăng nhập -> Đá về trang Login Admin
       next({ name: 'admin-login' });
     }
   } else {

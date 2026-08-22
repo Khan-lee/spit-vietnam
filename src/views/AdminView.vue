@@ -98,6 +98,16 @@ const price_piece = ref(0) // Giá bán theo Mảnh
 const price_box = ref(0)   // Giá bán theo Hộp
 const price = ref(0)       // Đồng bộ với price_piece để tương thích ngược dữ liệu cũ
 
+// --- BIẾN QUẢN LÝ GIÁ HIỂN THỊ ẢO (GIÁ GẠCH ĐI TẠO KÍCH THÍCH) ---
+const display_discount_type_box = ref('percentage') // 'percentage' (%) hoặc 'fixed' (VNĐ) cho Hộp
+const display_discount_value_box = ref(0)           // Giá trị giảm % hoặc số tiền cho Hộp
+const original_price_box = ref(0)                  // Giá hiển thị niêm yết (gạch đi) của Hộp
+
+const display_discount_type_piece = ref('percentage') // 'percentage' (%) hoặc 'fixed' (VNĐ) cho Mảnh
+const display_discount_value_piece = ref(0)           // Giá trị giảm % hoặc số tiền cho Mảnh
+const original_price_piece = ref(0)                  // Giá hiển thị niêm yết (gạch đi) của Mảnh
+const original_price = ref(0)                        // Đồng bộ với original_price_piece tương thích ngược
+
 const stock = ref(0)
 const image = ref('')
 const imageFile = ref(null)
@@ -114,6 +124,53 @@ const setSalesType = (type) => {
   sales_type.value = type
 }
 
+// 1.1. Hàm tự động tính Giá hiển thị ảo (Gạch đi) cho Hộp
+const calculateOriginalPriceBox = () => {
+  const pBox = Number(price_box.value) || 0
+  const val = Number(display_discount_value_box.value) || 0
+
+  if (pBox <= 0 || val <= 0) {
+    original_price_box.value = pBox
+    return
+  }
+
+  if (display_discount_type_box.value === 'percentage') {
+    // Nếu giảm %, tính ngược lại giá niêm yết ban đầu
+    original_price_box.value = val < 100 ? Math.round(pBox / (1 - val / 100)) : pBox
+  } else {
+    // Nếu giảm theo số tiền VNĐ -> Giá niêm yết = Giá bán + Số tiền giảm
+    original_price_box.value = pBox + val
+  }
+}
+
+// 1.2. Hàm tự động tính Giá hiển thị ảo (Gạch đi) cho Mảnh
+const calculateOriginalPricePiece = () => {
+  const pPiece = Number(price_piece.value) || 0
+  const val = Number(display_discount_value_piece.value) || 0
+
+  if (pPiece <= 0 || val <= 0) {
+    original_price_piece.value = pPiece
+    original_price.value = pPiece
+    return
+  }
+
+  if (display_discount_type_piece.value === 'percentage') {
+    const calculated = val < 100 ? Math.round(pPiece / (1 - val / 100)) : pPiece
+    original_price_piece.value = calculated
+    original_price.value = calculated
+  } else {
+    const calculated = pPiece + val
+    original_price_piece.value = calculated
+    original_price.value = calculated
+  }
+}
+
+// 1.3. Hàm tổng hợp cập nhật lại toàn bộ Giá hiển thị ảo
+const updateAllDisplayPrices = () => {
+  calculateOriginalPriceBox()
+  calculateOriginalPricePiece()
+}
+
 // 2. Tự động gợi ý Giá Mảnh khi nhập Giá Hộp
 const onPriceBoxInput = () => {
   const bQty = Number(box_qty.value) || 1
@@ -124,6 +181,8 @@ const onPriceBoxInput = () => {
     price_piece.value = calculatedPiecePrice
     price.value = calculatedPiecePrice
   }
+  // Cập nhật lại giá hiển thị ảo khi giá thực tế thay đổi
+  updateAllDisplayPrices()
 }
 
 // 3. Tự động gợi ý lại Giá Mảnh khi thay đổi Số Mảnh / Hộp
@@ -136,11 +195,15 @@ const onBoxQtyInput = () => {
     price_piece.value = calculatedPiecePrice
     price.value = calculatedPiecePrice
   }
+  // Cập nhật lại giá hiển thị ảo khi số lượng thay đổi
+  updateAllDisplayPrices()
 }
 
 // 4. Đồng bộ biến `price` khi người dùng tự tay sửa `price_piece`
 const onPricePieceInput = () => {
   price.value = Number(price_piece.value) || 0
+  // Cập nhật lại giá hiển thị ảo của mảnh
+  calculateOriginalPricePiece()
 }
 
 // =========================================================================
@@ -420,6 +483,15 @@ const handleSubmit = async () => {
       price_piece: Number(price_piece.value) || 0,
       price_box: Number(price_box.value) || 0,
       price: Number(price_piece.value) || Number(price.value) || 0,
+      //  Lưu dữ liệu Giá hiển thị ảo (gạch đi) vào Firebase
+      display_discount_type_box: display_discount_type_box.value,
+      display_discount_value_box: Number(display_discount_value_box.value) || 0,
+      original_price_box: Number(original_price_box.value) || Number(price_box.value) || 0,
+
+      display_discount_type_piece: display_discount_type_piece.value,
+      display_discount_value_piece: Number(display_discount_value_piece.value) || 0,
+      original_price_piece: Number(original_price_piece.value) || Number(price_piece.value) || 0,
+      original_price: Number(original_price_piece.value) || Number(price_piece.value) || 0,
 
       stock: Number(stock.value),
       image: finalImageUrl || 'https://via.placeholder.com/200',
@@ -532,6 +604,16 @@ const startEdit = (p) => {
   price_box.value = p.price_box || 0
   price.value = p.price || 0
 
+  // Nạp lại dữ liệu Giá hiển thị ảo khi nhấn "Chỉnh sửa"
+  display_discount_type_box.value = p.display_discount_type_box || 'percentage'
+  display_discount_value_box.value = p.display_discount_value_box || 0
+  original_price_box.value = p.original_price_box || p.price_box || 0
+
+  display_discount_type_piece.value = p.display_discount_type_piece || 'percentage'
+  display_discount_value_piece.value = p.display_discount_value_piece || 0
+  original_price_piece.value = p.original_price_piece || p.price_piece || p.price || 0
+  original_price.value = p.original_price || p.price_piece || p.price || 0
+
   stock.value = p.stock || 0
   image.value = p.image || ''
   imageFile.value = null
@@ -605,6 +687,16 @@ const resetForm = () => {
   price_piece.value = 0
   price_box.value = 0
   price.value = 0
+
+  // Reset các biến giá hiển thị ảo
+  display_discount_type_box.value = 'percentage'
+  display_discount_value_box.value = 0
+  original_price_box.value = 0
+
+  display_discount_type_piece.value = 'percentage'
+  display_discount_value_piece.value = 0
+  original_price_piece.value = 0
+  original_price.value = 0
 
   stock.value = 0
   image.value = ''
@@ -816,6 +908,7 @@ const resetBrandForm = () => {
 
 <!-- 2. KHỐI NHẬP GIÁ SẢN PHẨM (NẰM NGAY DƯỚI KHỐI CẤU HÌNH) -->
 <div class="grid grid-cols-2 gap-2 pt-2">
+
   <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh') -->
   <div v-if="sales_type !== 'piece'" class="space-y-1">
     <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Hộp (VNĐ)</label>
@@ -827,6 +920,40 @@ const resetBrandForm = () => {
       placeholder="0" 
       class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
     />
+
+    <!-- 🆕 [CẬP NHẬT MỚI] Khối Cấu hình Giá Hiển Thị Ảo cho Hộp -->
+    <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
+      <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo (Hộp):</span>
+      
+      <div class="flex gap-1.5">
+        <!-- Chọn kiểu giảm % hoặc VNĐ -->
+        <select 
+          v-model="display_discount_type_box" 
+          @change="calculateOriginalPriceBox" 
+          class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+        >
+          <option value="percentage">% Giảm</option>
+          <option value="fixed">Số tiền (VNĐ)</option>
+        </select>
+
+        <!-- Nhập giá trị giảm -->
+        <input 
+          v-model.number="display_discount_value_box" 
+          @input="calculateOriginalPriceBox"
+          type="number" 
+          :placeholder="display_discount_type_box === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
+          class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+        />
+      </div>
+
+      <!-- Preview Giá Gạch Đi trực tiếp cho Admin xem -->
+      <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
+        <span>Giá niêm yết ảo:</span>
+        <del class="text-red-500 font-bold">
+          {{ original_price_box ? original_price_box.toLocaleString() : 0 }} đ
+        </del>
+      </div>
+    </div>
   </div>
 
   <!-- Ô Nhập Giá Mảnh (Hiện khi không phải 'Chỉ bán hộp') -->
@@ -840,7 +967,42 @@ const resetBrandForm = () => {
       placeholder="0" 
       class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
     />
+
+    <!-- 🆕 [CẬP NHẬT MỚI] Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh -->
+    <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
+      <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo (Mảnh):</span>
+      
+      <div class="flex gap-1.5">
+        <!-- Chọn kiểu giảm % hoặc VNĐ -->
+        <select 
+          v-model="display_discount_type_piece" 
+          @change="calculateOriginalPricePiece" 
+          class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+        >
+          <option value="percentage">% Giảm</option>
+          <option value="fixed">Số tiền (VNĐ)</option>
+        </select>
+
+        <!-- Nhập giá trị giảm -->
+        <input 
+          v-model.number="display_discount_value_piece" 
+          @input="calculateOriginalPricePiece"
+          type="number" 
+          :placeholder="display_discount_type_piece === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
+          class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+        />
+      </div>
+
+      <!-- Preview Giá Gạch Đi trực tiếp cho Admin xem -->
+      <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
+        <span>Giá niêm yết ảo:</span>
+        <del class="text-blue-600 font-bold">
+          {{ original_price_piece ? original_price_piece.toLocaleString() : 0 }} đ
+        </del>
+      </div>
+    </div>
   </div>
+
 </div>
 
                   <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
