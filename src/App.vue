@@ -9,6 +9,7 @@ import { db } from './firebase'
 import { doc, onSnapshot, collection, getDocs, query, where } from 'firebase/firestore'
 import { useSearchStore } from './stores/search'
 import AIChatWidget from './components/AIChatWidget.vue'
+import { trackDailyVisit } from './utils/trackVisit' // UPDATE MỚI: Import hàm ghi nhận lượt truy cập
 
 const route = useRoute()
 const { locale } = useI18n()
@@ -135,6 +136,7 @@ const cartWithDiscounts = computed(() => {
 onMounted(() => {
   updateCart()
   fetchActivePromotions() // Gọi lấy CTKM khi vào web
+  trackDailyVisit() // ⚡ UPDATE MỚI: Tự động đếm lượt truy cập theo ngày
   
   window.addEventListener('storage', updateCart)
   window.addEventListener('cart-updated', updateCart)
@@ -190,6 +192,7 @@ onUnmounted(() => {
     <AIChatWidget v-if="!isHideLayout" />
   </div>
 </template>
+
 <style scoped>
 @keyframes marquee {
   0% { transform: translateX(100%); }

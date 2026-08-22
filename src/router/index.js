@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth"
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import PolicyDetail from '../views/PolicyDetail.vue'
+import StatsView from '../views/admin/StatsView.vue' // Import trang Thống kê
 
 // Cấu hình NProgress
 NProgress.configure({ showSpinner: false, speed: 500 });
@@ -62,6 +63,13 @@ const router = createRouter({
     },
 
     // --- ADMIN ROUTES ---
+    // ⚡ UPDATE MỚI: ROUTE CHO BẢNG THỐNG KÊ TRUY CẬP
+    { 
+      path: '/spit-system-manager/stats', 
+      name: 'AdminStats', 
+      component: StatsView,
+      meta: { requiresAuth: true } 
+    },
     { 
       path: '/spit-system-manager', 
       name: 'admin', 
