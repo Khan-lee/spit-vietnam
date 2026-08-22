@@ -137,14 +137,13 @@ const needsOptions = computed(() => {
   if (!activeCategory) return [];
 
   const upperCat = String(activeCategory).toUpperCase()
-  
+  if (upperCat.includes('DAO PHAY NGÓN')) return categoryTagsMap['DAO PHAY NGÓN']
   if (upperCat.includes('DAO PHAY')) return categoryTagsMap['DAO PHAY']
   if (upperCat.includes('DAO TIỆN')) return categoryTagsMap['DAO TIỆN']
   if (upperCat.includes('KHOAN') || upperCat.includes('TARO')) return categoryTagsMap['MŨI KHOAN & MŨI TARO']
   if (upperCat.includes('ĐÁ MÀI') || upperCat.includes('ĐÁ DOANH')) return categoryTagsMap['ĐÁ MÀI']
   if (upperCat.includes('CHỔI ĐÁNH BÓNG')) return categoryTagsMap['CHỔI ĐÁNH BÓNG']
   if (upperCat.includes('LƯỠI CƯA')) return categoryTagsMap['LƯỠI CƯA']
-  if (upperCat.includes('DAO PHAY NGÓN') || upperCat.includes('DAO PHAY NGÓN')) return categoryTagsMap['DAO PHAY NGÓN']
   if (upperCat.includes('PHÔI')) return categoryTagsMap['PHÔI']
 
   const relevantProducts = props.products.filter(p => p.category_vi === activeCategory);
