@@ -59,7 +59,7 @@ const sales_type = ref('flexible')
 const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh
 
 // --- BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
-const subImages = ref([])       // Lưu các chuỗi URL
+const subImages = ref([])       // Lưu các chuỗi URL (bao gồm cả link nhập tay và Cloudinary)
 const subImageFiles = ref([])   // Lưu các file tạm chọn từ máy
 
 // --- BIẾN QUẢN LÝ NHÃN HÀNG (BRANDS) ---
@@ -116,6 +116,47 @@ const custom_url = ref('')
 const catalog_link = ref('')
 
 // =========================================================================
+// ⚡ UPDATE MỚI: BIẾN & HÀM XỬ LÝ NHẬP LINK (URL) ẢNH TRỰC TIẾP
+// =========================================================================
+const mainImageUrlInput = ref('')  // Lưu chuỗi link URL ảnh chính nhập từ input
+const subImageUrlInput = ref('')   // Lưu chuỗi link URL ảnh phụ nhập từ input
+const brandLogoUrlInput = ref('') // Lưu chuỗi link URL logo thương hiệu nhập từ input
+
+// 1. Áp dụng URL link trực tiếp cho Ảnh Chính
+const applyMainImageUrl = () => {
+  if (mainImageUrlInput.value && mainImageUrlInput.value.trim()) {
+    image.value = mainImageUrlInput.value.trim()
+    imageFile.value = null // Reset file chọn từ máy nếu chuyển sang dùng link
+    mainImageUrlInput.value = ''
+  }
+}
+
+// Xóa ảnh chính hiện tại
+const removeMainImage = () => {
+  image.value = ''
+  imageFile.value = null
+  mainImageUrlInput.value = ''
+}
+
+// 2. Thêm URL link trực tiếp vào Thư viện Ảnh Phụ
+const addSubImageUrl = () => {
+  if (subImageUrlInput.value && subImageUrlInput.value.trim()) {
+    subImages.value.push(subImageUrlInput.value.trim())
+    subImageFiles.value.push(null) // Không có file chọn từ máy tương ứng
+    subImageUrlInput.value = ''
+  }
+}
+
+// 3. Áp dụng URL link trực tiếp cho Logo Thương Hiệu
+const applyBrandLogoUrl = () => {
+  if (brandLogoUrlInput.value && brandLogoUrlInput.value.trim()) {
+    brandLogoUrl.value = brandLogoUrlInput.value.trim()
+    brandLogoFile.value = null // Reset file chọn từ máy nếu chuyển sang dùng link
+    brandLogoUrlInput.value = ''
+  }
+}
+
+// =========================================================================
 // ⚡ LOGIC TÍNH TOÁN GIÁ TỰ ĐỘNG & ĐIỀU CHỈNH HÌNH THỨC BÁN (THÊM MỚI CHUẨN)
 // =========================================================================
 
@@ -135,10 +176,8 @@ const calculateOriginalPriceBox = () => {
   }
 
   if (display_discount_type_box.value === 'percentage') {
-    // Nếu giảm %, tính ngược lại giá niêm yết ban đầu
     original_price_box.value = val < 100 ? Math.round(pBox / (1 - val / 100)) : pBox
   } else {
-    // Nếu giảm theo số tiền VNĐ -> Giá niêm yết = Giá bán + Số tiền giảm
     original_price_box.value = pBox + val
   }
 }
@@ -181,7 +220,6 @@ const onPriceBoxInput = () => {
     price_piece.value = calculatedPiecePrice
     price.value = calculatedPiecePrice
   }
-  // Cập nhật lại giá hiển thị ảo khi giá thực tế thay đổi
   updateAllDisplayPrices()
 }
 
@@ -195,14 +233,12 @@ const onBoxQtyInput = () => {
     price_piece.value = calculatedPiecePrice
     price.value = calculatedPiecePrice
   }
-  // Cập nhật lại giá hiển thị ảo khi số lượng thay đổi
   updateAllDisplayPrices()
 }
 
 // 4. Đồng bộ biến `price` khi người dùng tự tay sửa `price_piece`
 const onPricePieceInput = () => {
   price.value = Number(price_piece.value) || 0
-  // Cập nhật lại giá hiển thị ảo của mảnh
   calculateOriginalPricePiece()
 }
 
@@ -407,11 +443,13 @@ const filteredBrands = computed(() => {
   )
 })
 
+// UPDATE MỚI: Chọn file từ máy sẽ làm mới ô nhập link
 const onFileChange = (e) => {
   const file = e.target.files[0]
   if (file) {
     imageFile.value = file
     image.value = URL.createObjectURL(file)
+    mainImageUrlInput.value = ''
   }
 }
 
@@ -443,6 +481,7 @@ const uploadSubImages = async () => {
       const downloadUrl = await uploadToCloudinary(currentFile)
       uploadedUrls.push(downloadUrl)
     } else if (currentUrl && !currentUrl.startsWith('blob:')) {
+      // Nhận trực tiếp chuỗi URL nếu chọn nhập link trực tiếp
       uploadedUrls.push(currentUrl)
     }
   }
@@ -452,6 +491,89 @@ const uploadSubImages = async () => {
 const fetchProducts = async () => {
   const querySnapshot = await getDocs(collection(db, "products"))
   products.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+}
+
+// UPDATE MỚI: Reset toàn bộ form bao gồm cả các ô nhập link URL
+const resetForm = () => {
+  editingId.value = null
+  name_vi.value = ''
+  name_en.value = ''
+  categoryId.value = ''
+  category_vi.value = ''
+  category_en.value = ''
+  description_vi.value = ''
+  description_en.value = ''
+  specifications_vi.value = ''
+  specifications_en.value = ''
+  gift_vi.value = ''
+  gift_en.value = ''
+  brandId.value = ''
+  brand.value = ''
+  price_piece.value = 0
+  price_box.value = 0
+  price.value = 0
+  stock.value = 0
+  
+  image.value = ''
+  imageFile.value = null
+  mainImageUrlInput.value = ''
+  
+  subImages.value = []
+  subImageFiles.value = []
+  subImageUrlInput.value = ''
+  
+  custom_url.value = ''
+  catalog_link.value = ''
+  selectedTags.value = []
+  hasPromotion.value = false
+  promotionValue.value = ''
+  editingId.value = null
+  name_vi.value = ''
+  name_en.value = ''
+  categoryId.value = '' 
+  category_vi.value = ''
+  category_en.value = ''
+  
+  description_vi.value = ''
+  description_en.value = ''
+  specifications_vi.value = '' 
+  specifications_en.value = '' 
+  
+  gift_vi.value = ''
+  gift_en.value = ''
+  brandId.value = ''
+  brand.value = '' 
+
+  price_piece.value = 0
+  price_box.value = 0
+  price.value = 0
+
+  // Reset các biến giá hiển thị ảo
+  display_discount_type_box.value = 'percentage'
+  display_discount_value_box.value = 0
+  original_price_box.value = 0
+
+  display_discount_type_piece.value = 'percentage'
+  display_discount_value_piece.value = 0
+  original_price_piece.value = 0
+  original_price.value = 0
+
+  stock.value = 0
+  image.value = ''
+  imageFile.value = null
+  
+  hasPromotion.value = false
+  promotionValue.value = ''
+  custom_url.value = '' 
+  catalog_link.value = '' 
+  
+  sales_type.value = 'flexible'
+  box_qty.value = 10
+
+  selectedTags.value = []
+  
+  subImages.value = []
+  subImageFiles.value = []
 }
 
 // --- THAO TÁC SUBMIT SẢN PHẨM ---
@@ -483,7 +605,7 @@ const handleSubmit = async () => {
       price_piece: Number(price_piece.value) || 0,
       price_box: Number(price_box.value) || 0,
       price: Number(price_piece.value) || Number(price.value) || 0,
-      //  Lưu dữ liệu Giá hiển thị ảo (gạch đi) vào Firebase
+      
       display_discount_type_box: display_discount_type_box.value,
       display_discount_value_box: Number(display_discount_value_box.value) || 0,
       original_price_box: Number(original_price_box.value) || Number(price_box.value) || 0,
@@ -531,11 +653,13 @@ const handleSubmit = async () => {
   }
 }
 
+// UPDATE MỚI: Chọn file logo từ máy sẽ làm mới ô nhập link
 const onBrandLogoChange = (e) => {
   const file = e.target.files[0]
   if (file) {
     brandLogoFile.value = file
     brandLogoUrl.value = URL.createObjectURL(file) 
+    brandLogoUrlInput.value = ''
   }
 }
 
@@ -666,56 +790,6 @@ const confirmDeleteBrand = async (id, bName) => {
   }
 }
 
-const resetForm = () => {
-  editingId.value = null
-  name_vi.value = ''
-  name_en.value = ''
-  categoryId.value = '' 
-  category_vi.value = ''
-  category_en.value = ''
-  
-  description_vi.value = ''
-  description_en.value = ''
-  specifications_vi.value = '' 
-  specifications_en.value = '' 
-  
-  gift_vi.value = ''
-  gift_en.value = ''
-  brandId.value = ''
-  brand.value = '' 
-
-  price_piece.value = 0
-  price_box.value = 0
-  price.value = 0
-
-  // Reset các biến giá hiển thị ảo
-  display_discount_type_box.value = 'percentage'
-  display_discount_value_box.value = 0
-  original_price_box.value = 0
-
-  display_discount_type_piece.value = 'percentage'
-  display_discount_value_piece.value = 0
-  original_price_piece.value = 0
-  original_price.value = 0
-
-  stock.value = 0
-  image.value = ''
-  imageFile.value = null
-  
-  hasPromotion.value = false
-  promotionValue.value = ''
-  custom_url.value = '' 
-  catalog_link.value = '' 
-  
-  sales_type.value = 'flexible'
-  box_qty.value = 10
-
-  selectedTags.value = []
-  
-  subImages.value = []
-  subImageFiles.value = []
-}
-
 const resetBrandForm = () => {
   editingBrandId.value = null
   brandName.value = ''
@@ -777,32 +851,93 @@ const resetBrandForm = () => {
               <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6">
                 
                 <div class="mb-6">
-                  <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 text-center">Hình ảnh sản phẩm</label>
-                  <div class="relative group w-full aspect-square max-w-50 mx-auto overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all flex items-center justify-center bg-slate-50">
-                    <input type="file" @change="onFileChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
-                    <img v-if="image" :src="image" class="w-full h-full object-contain p-2" />
-                    <div v-else class="text-center p-4">
-                       <span class="text-2xl block">📷</span>
-                       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
-                    </div>
-                  </div>
+  <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 text-center">Hình ảnh sản phẩm</label>
+  
+  <!-- Khu vực Upload chọn từ máy hoặc xem trước Ảnh Chính -->
+  <div class="relative group w-full aspect-square max-w-50 mx-auto overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all flex items-center justify-center bg-slate-50">
+    <input type="file" @change="onFileChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+    
+    <template v-if="image">
+      <img :src="image" class="w-full h-full object-contain p-2" />
+      <!-- UPDATE MỚI: Nút xóa ảnh chính hiện tại khi hover -->
+      <button 
+        type="button" 
+        @click.stop="removeMainImage" 
+        class="absolute top-2 right-2 z-20 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Xóa ảnh"
+      >
+        ✕
+      </button>
+    </template>
+    
+    <div v-else class="text-center p-4">
+       <span class="text-2xl block">📷</span>
+       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
+    </div>
+  </div>
 
-                  <div class="mt-4 pt-4 border-t border-slate-100">
-                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
-                    <div class="grid grid-cols-4 gap-2">
-                      <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
-                        <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
-                        <span class="text-sm font-bold text-slate-400">+ Ảnh</span>
-                      </div>
-                      <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb">
-                        <img :src="imgUrl" class="w-full h-full object-contain" />
-                        <button type="button" @click="removeSubImage(index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity">
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+  <!-- UPDATE MỚI: Ô nhập link URL trực tiếp cho Ảnh chính -->
+  <div class="mt-2.5 flex gap-1.5 max-w-50 mx-auto">
+    <input 
+      type="text" 
+      v-model="mainImageUrlInput" 
+      @keyup.enter="applyMainImageUrl"
+      placeholder="Hoặc dán link ảnh (https://...)" 
+      class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
+    />
+    <button 
+      type="button" 
+      @click="applyMainImageUrl" 
+      class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
+    >
+      Dán link
+    </button>
+  </div>
+
+  <!-- THƯ VIỆN ẢNH CHI TIẾT (NHIỀU HÌNH ẢNH) -->
+  <div class="mt-4 pt-4 border-t border-slate-100">
+    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
+    
+    <!-- UPDATE MỚI: Ô nhập link URL cho Thư viện ảnh chi tiết -->
+    <div class="flex gap-1.5 mb-2.5">
+      <input 
+        type="text" 
+        v-model="subImageUrlInput" 
+        @keyup.enter="addSubImageUrl"
+        placeholder="Dán link ảnh chi tiết (https://...)" 
+        class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
+      />
+      <button 
+        type="button" 
+        @click="addSubImageUrl" 
+        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
+      >
+        + Thêm link
+      </button>
+    </div>
+
+    <!-- Grid chọn file và danh sách ảnh phụ -->
+    <div class="grid grid-cols-4 gap-2">
+      <!-- Nút chọn file từ máy -->
+      <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
+        <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+        <span class="text-xs font-bold text-slate-400">+ Máy</span>
+      </div>
+
+      <!-- Danh sách ảnh chi tiết đã chọn/dán link -->
+      <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb shadow-sm">
+        <img :src="imgUrl" class="w-full h-full object-contain" />
+        <button 
+          type="button" 
+          @click="removeSubImage(index)" 
+          class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
                 <div class="space-y-4">
                   <div class="grid grid-cols-1 gap-2">
