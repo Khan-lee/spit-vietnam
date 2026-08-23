@@ -54,7 +54,7 @@
                   </span>
                   <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="product.name" />
                   <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
-                  <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">{{ product[`name_${locale}`] || product.name }}</h4>
+                  <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug break-words">{{ product[`name_${locale}`] || product.name }}</h4>
                   <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
                     {{ currentUnitPrice.toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ / {{ displayUnitLabel }}</span>
                   </p>
@@ -76,7 +76,7 @@
                   <template v-if="compareProduct">
                     <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="compareProduct.name" />
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ compareProduct.brand || 'SPIT' }}</p>
-                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
+                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug break-words">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
                     <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
                       {{ cleanNumber(compareProduct.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
                     </p>
@@ -199,8 +199,8 @@
           </div>
         </div>
         
-        <!-- Cột thông tin sản phẩm -->
-        <div class="space-y-6">
+        <!-- Cột thông tin sản phẩm (Đã thêm class min-w-0 để khống chế width trong Grid) -->
+        <div class="space-y-6 min-w-0">
           <div>
             <div class="flex flex-wrap gap-2 items-center mb-4">
               <span class="inline-block bg-slate-900 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{{ product.brand || 'SPIT' }}</span>
@@ -215,7 +215,8 @@
               </span>
             </div>
 
-            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2">
+            <!-- Tên sản phẩm: Đã thêm break-words để tự động xuống dòng chuỗi mã dính liền dài -->
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2 break-words">
               {{ product[`name_${locale}`] || product.name }}
             </h1>
             <p class="text-red-600 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-100 pb-4">
@@ -314,13 +315,12 @@
             </div>
           </div>
 
-          <!-- KHỐI GIÁ SẢN PHẨM (ĐÃ CẬP NHẬT GHÉP BIẾN GIÁ ẢO DYNAMIC) -->
+          <!-- KHỐI GIÁ SẢN PHẨM -->
           <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10 space-y-3">
             <div class="flex items-center justify-between gap-2">
               <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 ĐƠN GIÁ THEO {{ displayUnitLabel }}:
               </span>
-              <!-- NẾU CÓ GIÁ NIÊM YẾT ẢO CAO HƠN GIÁ BÁN -> HIỂN THỊ BADGE TIẾT KIỆM -->
               <span v-if="hasVirtualDiscount" class="text-[10px] bg-red-600 text-white font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-md shadow-red-600/30 flex items-center gap-1">
                 <span></span> TIẾT KIỆM {{ savingsAmount.toLocaleString('vi-VN') }} VNĐ
               </span>
@@ -335,12 +335,10 @@
                 </span>
               </div>
               
-              <!-- GIÁ ẢO GẠCH ĐI (HIỂN THỊ KHI CÓ GIÁ BÁN RẺ HƠN GIÁ NIÊM YẾT ẢO) -->
               <div v-if="hasVirtualDiscount" class="text-slate-400 font-extrabold text-base sm:text-lg line-through opacity-60">
                 {{ displayOriginalPrice.toLocaleString('vi-VN') }} VNĐ
               </div>
 
-              <!-- BADGE TỰ ĐỘNG TÍNH % GIẢM GIÁ TỪ GIÁ ẢO -->
               <span v-if="hasVirtualDiscount && displayOriginalPrice > 0" class="text-xs font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
                 -{{ Math.round(((displayOriginalPrice - currentUnitPrice) / displayOriginalPrice) * 100) }}%
               </span>
@@ -355,7 +353,7 @@
             </div>
           </div>
 
-          <!-- BOX "ƯU ĐÃI ĐẶC BIỆT" & THANH TIẾN ĐỘ THÔNG MINH (CHỈ HIỂN THỊ KHI MUA HỘP) -->
+          <!-- BOX "ƯU ĐÃI ĐẶC BIỆT" & THANH TIẾN ĐỘ THÔNG MINH -->
           <div v-if="activeGiftInfo" class="p-5 sm:p-6 rounded-3xl bg-amber-50/70 border-2 border-amber-200/80 shadow-sm space-y-3.5 relative overflow-hidden">
             <div class="absolute -right-3 -bottom-3 text-5xl opacity-10 pointer-events-none select-none">🎁</div>
 
