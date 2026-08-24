@@ -229,7 +229,7 @@ const getActivePromo = (product) => {
 }
 
 // ==========================================
-// ⚡ UPDATE: BỔ SUNG LOGIC GIÁ ÁO NIÊM YẾT & CHIẾT KHẤU TÍNH TOÁN ĐỒNG BỘ
+// HÀM XỬ LÝ GIÁ ÁO NIÊM YẾT & GIẢM GIÁ KHUYẾN MÃI
 // ==========================================
 
 // 1. Hàm lấy Giá gạch đi (Ưu tiên Giá ảo niêm yết -> Giá niêm yết gốc)
@@ -328,12 +328,21 @@ const getDiscountPercent = (product, isBox = false) => {
   return 0;
 };
 
-// 5. ⚡ UPDATE: Lọc tất cả sản phẩm HOT SALE (Bao gồm Giá ảo NIÊM YẾT HOẶC Khuyến mãi)
+// ==========================================
+// ⚡ UPDATE QUAN TRỌNG: TÁCH BIỆT GIÁ ÁO RA KHỎI KHỐI HOT SALE GIÁ SỐC
+// ==========================================
+// Lọc CHỈ các sản phẩm có Chương trình khuyến mãi thật (giảm giá thật từ Admin campaign hoặc discount_percent).
+// Các sản phẩm CHỈ có giá ảo niêm yết (virtual price) sẽ KHÔNG bị lọt vào đây.
 const allPromoProducts = computed(() => {
   return products.value.filter(p => {
+    // 1. Kiểm tra sản phẩm có KM bán lẻ/mảnh không
     const hasPromoSale = getSalePrice(p) !== null;
-    const hasVirtualDiscount = getDisplayOriginalPrice(p) > (Number(p.price) || 0);
-    return hasPromoSale || hasVirtualDiscount;
+    
+    // 2. Kiểm tra sản phẩm có KM bán hộp không
+    const hasPromoSaleBox = getSalePriceBox(p) !== null;
+
+    // Chỉ lấy sản phẩm có chiến dịch giảm giá thật
+    return hasPromoSale || hasPromoSaleBox;
   });
 });
 
@@ -1039,174 +1048,177 @@ const getCategoryBanner = (catName) => {
           <!-- BỌC CÁC KHỐI CÒN LẠI ĐỂ ẨN ĐI KHI ĐANG LỌC -->
           <div v-show="!isFiltering" class="space-y-6">
             
-            <!-- 5. Khối HOT SALE GIÁ SỐC -->
-            <div v-if="promoProducts.length > 0" class="bg-white border-2 border-red-500 rounded-3xl overflow-hidden shadow-sm flex flex-col relative">
-              
-              <!-- Header Nền Đỏ -->
-              <div class="bg-linear-to-r from-red-700 via-red-600 to-red-700 px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300 drop-shadow-md">
-                    HOT SALE GIÁ SỐC
-                  </h2>
-                </div>
-                <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40 shadow-inner">
-                  <span class="text-xs font-semibold text-slate-200">Kết thúc sau:</span>
-                  <span class="font-mono text-sm font-black text-yellow-300">{{ getCountdown(activeBannerPromo.end_date) }}</span>
-                </div>
-              </div>
+<!-- 5. Khối HOT SALE GIÁ SỐC -->
+<!-- 
+  ⚡ LƯU Ý: Khung này sẽ CHỈ HIỂN THỊ khi mảng `promoProducts` có sản phẩm.
+  Sau khi đồng bộ đoạn <script setup>, mảng `promoProducts` chỉ còn chứa sản phẩm thuộc Chiến dịch khuyến mãi thật (Admin chạy campaign), 
+  giá ảo sẽ KHÔNG làm cho mảng này có dữ liệu nữa.
+-->
+<div v-if="promoProducts.length > 0" class="bg-white border-2 border-red-500 rounded-3xl overflow-hidden shadow-sm flex flex-col relative">
+  
+  <!-- Header Nền Đỏ -->
+  <div class="bg-linear-to-r from-red-700 via-red-600 to-red-700 px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <h2 class="text-xl sm:text-2xl font-black uppercase italic tracking-wider flex items-center gap-1.5 text-yellow-300 drop-shadow-md">
+        HOT SALE GIÁ SỐC
+      </h2>
+    </div>
+    <div v-if="activeBannerPromo?.end_date" class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-400/40 shadow-inner">
+      <span class="text-xs font-semibold text-slate-200">Kết thúc sau:</span>
+      <span class="font-mono text-sm font-black text-yellow-300">{{ getCountdown(activeBannerPromo.end_date) }}</span>
+    </div>
+  </div>
 
-              <!-- Khu vực Nội dung (Nền sáng chứa Slider & Filter) -->
-              <div class="p-4 sm:p-6 bg-red-50/20 relative group/promo">
-                
-                <!-- Bộ lọc 2 Tầng riêng cho Deal Sốc -->
-                <div class="space-y-2.5 mb-5">
-                  <!-- Tầng 1: Lọc Danh Mục -->
-                  <div class="flex overflow-x-auto gap-2 sm:gap-3 pb-1 scrollbar-hide">
-                    <button
-                      v-for="cat in promoCategories" 
-                      :key="cat.id"
-                      @click="selectPromoCategory(cat.id)"
-                      :class="[
-                        'px-4 py-1.5 rounded-full border whitespace-nowrap text-xs sm:text-sm font-bold transition-all',
-                        activePromoCategory === cat.id 
-                          ? 'border-red-500 bg-red-500 text-white shadow-md' 
-                          : 'border-red-200 bg-white text-slate-700 hover:border-red-400 hover:bg-red-50'
-                      ]"
-                    >
-                      {{ cat.name }}
-                    </button>
-                  </div>
+  <!-- Khu vực Nội dung (Nền sáng chứa Slider & Filter) -->
+  <div class="p-4 sm:p-6 bg-red-50/20 relative group/promo">
+    
+    <!-- Bộ lọc 2 Tầng riêng cho Deal Sốc -->
+    <div class="space-y-2.5 mb-5">
+      <!-- Tầng 1: Lọc Danh Mục -->
+      <div class="flex overflow-x-auto gap-2 sm:gap-3 pb-1 scrollbar-hide">
+        <button
+          v-for="cat in promoCategories" 
+          :key="cat.id"
+          @click="selectPromoCategory(cat.id)"
+          :class="[
+            'px-4 py-1.5 rounded-full border whitespace-nowrap text-xs sm:text-sm font-bold transition-all',
+            activePromoCategory === cat.id 
+              ? 'border-red-500 bg-red-500 text-white shadow-md' 
+              : 'border-red-200 bg-white text-slate-700 hover:border-red-400 hover:bg-red-50'
+          ]"
+        >
+          {{ cat.name }}
+        </button>
+      </div>
 
-                  <!-- Tầng 2: Lọc Thương Hiệu -->
-                  <div v-if="promoBrands.length > 1" class="flex overflow-x-auto gap-2 pb-1 scrollbar-hide">
-                    <button
-                      v-for="brand in promoBrands" 
-                      :key="brand.id"
-                      @click="activePromoBrand = brand.id"
-                      :class="[
-                        'px-3 py-1 rounded-full border whitespace-nowrap text-[11px] sm:text-xs font-bold transition-all',
-                        activePromoBrand === brand.id 
-                          ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm' 
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      ]"
-                    >
-                      {{ brand.name }}
-                    </button>
-                  </div>
-                </div>
+      <!-- Tầng 2: Lọc Thương Hiệu -->
+      <div v-if="promoBrands.length > 1" class="flex overflow-x-auto gap-2 pb-1 scrollbar-hide">
+        <button
+          v-for="brand in promoBrands" 
+          :key="brand.id"
+          @click="activePromoBrand = brand.id"
+          :class="[
+            'px-3 py-1 rounded-full border whitespace-nowrap text-[11px] sm:text-xs font-bold transition-all',
+            activePromoBrand === brand.id 
+              ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm' 
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+          ]"
+        >
+          {{ brand.name }}
+        </button>
+      </div>
+    </div>
 
-                <!-- Nút cuộn Trái -->
-                <button 
-                  @click="scrollPromoLeft"
-                  class="absolute left-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
-                </button>
+    <!-- Nút cuộn Trái -->
+    <button 
+      @click="scrollPromoLeft"
+      class="absolute left-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+    </button>
 
-                <!-- Slider Cuộn Ngang -->
-                <div 
-                  ref="promoScrollContainer"
-                  class="flex overflow-x-auto gap-3 sm:gap-4 snap-x snap-mandatory scroll-smooth scrollbar-hide pb-4 pt-1"
-                >
-                  <!-- Card Sản Phẩm HOT SALE -->
-                  <div v-for="p in promoProducts" :key="p.id" 
-                       class="snap-start min-w-40 sm:min-w-50 shrink-0 group bg-white border border-slate-200/60 rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-xl hover:border-red-400 transition-all duration-300 relative overflow-hidden">
-                    
-                    <div>
-                      <!-- UPDATE GIÁ & CHIẾT KHẤU: % Giảm chính xác từ getDiscountPercent -->
-                      <div v-if="getDiscountPercent(p, p.sales_type === 'box') > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
-                        Giảm {{ getDiscountPercent(p, p.sales_type === 'box') }}%
-                      </div>
-                      
-                      <div class="h-32 sm:h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
-                        <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                      </div>
-                      
-                      <div>
-                        <!-- Tag quy cách bán hàng -->
-                        <div class="flex items-center justify-between gap-1 mb-0.5">
-                          <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
-                          <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
-                          <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
-                          <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Chỉ bán Viên" đồng bộ với AdminView -->
-                          <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
-                          <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
-                        </div>
-                        <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
-                          {{ p[`name_${locale}`] || p.name }}
-                        </h3>
-                      </div>
-                    </div>
-
-                    <!-- UPDATE GIÁ & CHIẾT KHẤU: Khối giá Hot Sale dùng getDisplayOriginalPrice -->
-                    <div class="mt-3 pt-2 border-t border-slate-100">
-
-                      <!-- ================= TRƯỜNG HỢP 1: BÁN THEO HỘP ================= -->
-                      <template v-if="p?.sales_type === 'box'">
-                        <div v-if="getSalePriceBox(p) || p?.price_box" class="flex items-baseline gap-1 flex-wrap">
-                          <span class="text-sm sm:text-base font-black text-red-600">
-                            {{ Math.round(getSalePriceBox(p) || p.price_box).toLocaleString('vi-VN') }}đ
-                          </span>
-                          <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
-                          
-                          <!-- Giá ảo / Giá niêm yết gạch đi -->
-                          <span v-if="getDisplayOriginalPrice(p, true)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
-                            {{ Math.round(getDisplayOriginalPrice(p, true)).toLocaleString('vi-VN') }}đ
-                          </span>
-                        </div>
-
-                        <div v-else class="text-sm sm:text-base font-black text-red-600">
-                          Liên hệ giá
-                        </div>
-                      </template>
-
-                      <!-- ================= TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN (KHÔNG BÁN HỘP) ================= -->
-                      <template v-else>
-                        <div v-if="getSalePrice(p) || p?.price" class="flex items-baseline gap-1 flex-wrap">
-                          <span class="text-sm sm:text-base font-black text-red-600">
-                            {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
-                          </span>
-                          <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" thay vì luôn cứng "Mảnh" khi sales_type === 'vien' -->
-                          <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
-
-                          <!-- Giá ảo / Giá niêm yết gạch đi cho Mảnh -->
-                          <span v-if="getDisplayOriginalPrice(p, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
-                            {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
-                          </span>
-                        </div>
-
-                        <div v-else class="text-sm sm:text-base font-black text-red-600">
-                          Liên hệ giá
-                        </div>
-                      </template>
-
-                      <!-- Nút Xem Catalog -->
-                      <a 
-                        v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
-                        :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
-                        target="_blank"
-                        @click.stop
-                        class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
-                      </a>
-                    </div>
-
-                    <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
-                  </div>
-                </div>
-
-                <!-- Nút cuộn Phải -->
-                <button 
-                  @click="scrollPromoRight"
-                  class="absolute right-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
-                </button>
-
-              </div>
+    <!-- Slider Cuộn Ngang -->
+    <div 
+      ref="promoScrollContainer"
+      class="flex overflow-x-auto gap-3 sm:gap-4 snap-x snap-mandatory scroll-smooth scrollbar-hide pb-4 pt-1"
+    >
+      <!-- Card Sản Phẩm HOT SALE -->
+      <div v-for="p in promoProducts" :key="p.id" 
+           class="snap-start min-w-40 sm:min-w-50 shrink-0 group bg-white border border-slate-200/60 rounded-2xl p-3 flex flex-col justify-between text-slate-900 hover:shadow-xl hover:border-red-400 transition-all duration-300 relative overflow-hidden">
+        
+        <div>
+          <!-- Tag % Giảm giá của Chiến dịch -->
+          <div v-if="getDiscountPercent(p, p.sales_type === 'box') > 0" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black z-10 shadow">
+            Giảm {{ getDiscountPercent(p, p.sales_type === 'box') }}%
+          </div>
+          
+          <div class="h-32 sm:h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
+            <img :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+          </div>
+          
+          <div>
+            <!-- Tag quy cách bán hàng -->
+            <div class="flex items-center justify-between gap-1 mb-0.5">
+              <span class="text-[9px] font-bold text-slate-400 uppercase block">{{ p.brand }}</span>
+              <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
+              <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+              <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+              <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
             </div>
+            <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
+              {{ p[`name_${locale}`] || p.name }}
+            </h3>
+          </div>
+        </div>
+
+        <!-- Khối hiển thị Giá thật & Giá ảo niêm yết -->
+        <div class="mt-3 pt-2 border-t border-slate-100">
+
+          <!-- TRƯỜNG HỢP 1: BÁN THEO HỘP -->
+          <template v-if="p?.sales_type === 'box'">
+            <div v-if="getSalePriceBox(p) || p?.price_box" class="flex items-baseline gap-1 flex-wrap">
+              <span class="text-sm sm:text-base font-black text-red-600">
+                {{ Math.round(getSalePriceBox(p) || p.price_box).toLocaleString('vi-VN') }}đ
+              </span>
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ Hộp</span>
+              
+              <!-- Vẫn giữ nguyên hiển thị Giá ảo niêm yết gạch đi nếu sản phẩm có tạo giá ảo -->
+              <span v-if="getDisplayOriginalPrice(p, true)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
+                {{ Math.round(getDisplayOriginalPrice(p, true)).toLocaleString('vi-VN') }}đ
+              </span>
+            </div>
+
+            <div v-else class="text-sm sm:text-base font-black text-red-600">
+              Liên hệ giá
+            </div>
+          </template>
+
+          <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN -->
+          <template v-else>
+            <div v-if="getSalePrice(p) || p?.price" class="flex items-baseline gap-1 flex-wrap">
+              <span class="text-sm sm:text-base font-black text-red-600">
+                {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
+              </span>
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+
+              <!-- Vẫn giữ nguyên hiển thị Giá ảo niêm yết gạch đi cho Mảnh / Viên -->
+              <span v-if="getDisplayOriginalPrice(p, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
+                {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
+              </span>
+            </div>
+
+            <div v-else class="text-sm sm:text-base font-black text-red-600">
+              Liên hệ giá
+            </div>
+          </template>
+
+          <!-- Nút Xem Catalog -->
+          <a 
+            v-if="p.catalog_link || p.catalog || p.catalog_url || p.pdf"
+            :href="p.catalog_link || p.catalog || p.catalog_url || p.pdf" 
+            target="_blank"
+            @click.stop
+            class="relative z-20 mt-2 w-full flex items-center justify-center gap-1 py-1 px-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold rounded-lg border border-red-200 transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <span>{{ locale === 'vi' ? 'Xem Catalog' : 'View Catalog' }}</span>
+          </a>
+        </div>
+
+        <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
+      </div>
+    </div>
+
+    <!-- Nút cuộn Phải -->
+    <button 
+      @click="scrollPromoRight"
+      class="absolute right-2 top-1/2 mt-4 z-20 w-9 h-9 bg-white/90 backdrop-blur rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:scale-110 transition-all opacity-0 group-hover/promo:opacity-100 disabled:opacity-0"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+    </button>
+
+  </div>
+</div>
 
             <!-- 6. KHỐI TỔNG HỢP THEO TỪNG DANH MỤC -->
             <div v-for="cat in categories" :key="cat" class="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">

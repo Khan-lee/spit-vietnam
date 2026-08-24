@@ -18,159 +18,175 @@
 
     <!-- MODAL PHÓNG TO ẢNH -->
     <transition name="fade">
-      <div v-if="isZoomed" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-8" @click.self="isZoomed = false">
+      <div v-if="isZoomed" class="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-8" @click.self="isZoomed = false">
         <button @click="isZoomed = false" class="absolute top-6 right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl transition-colors backdrop-blur-lg">✕</button>
         <img :src="activeImage" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl pointer-events-none select-none" alt="Product Image Zoomed" />
       </div>
     </transition>
 
-    <!-- MODAL SO SÁNH SẢN PHẨM -->
-    <Teleport to="body">
-      <transition name="fade">
-        <div v-if="isCompareOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
-          <div class="bg-white rounded-4xl sm:rounded-[2.5rem] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
-            
-            <div class="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
-              <div class="flex items-center gap-3">
-                <span class="w-3 h-8 bg-red-600 rounded-full"></span>
-                <div>
-                  <h3 class="font-black text-white text-base sm:text-xl uppercase tracking-wider">
-                    BẢNG SO SÁNH THÔNG SỐ KỸ THUẬT
-                  </h3>
-                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    So sánh chi tiết đặc tính kỹ thuật sản phẩm cơ khí
-                  </p>
-                </div>
-              </div>
-              <button @click="isCompareOpen = false" class="w-10 h-10 rounded-2xl bg-slate-800 hover:bg-red-600 text-white font-bold flex items-center justify-center transition-colors">✕</button>
-            </div>
-
-            <div class="p-4 sm:p-6 overflow-y-auto space-y-6 grow">
-              <div class="grid grid-cols-2 gap-3 sm:gap-6">
-                <!-- Sản phẩm hiện tại -->
-                <div class="bg-slate-50/80 p-4 rounded-3xl border border-slate-200 flex flex-col items-center text-center relative">
-                  <span class="text-[9px] font-black uppercase bg-red-600 text-white px-3 py-1 rounded-full mb-3 tracking-widest">
-                    ĐANG XEM
-                  </span>
-                  <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="product.name" />
-                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
-                  <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ product[`name_${locale}`] || product.name }}</h4>
-                  <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
-                    {{ currentUnitPrice.toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ / {{ displayUnitLabel }}</span>
-                  </p>
-                </div>
-
-                <!-- Sản phẩm đối chiếu -->
-                <div class="bg-slate-50/80 p-4 rounded-3xl border border-slate-200 flex flex-col items-center text-center relative">
-                  <span class="text-[9px] font-black uppercase bg-slate-900 text-white px-3 py-1 rounded-full mb-3 tracking-widest">
-                    SẢN PHẨM ĐỐI CHIẾU
-                  </span>
-
-                  <select v-model="selectedCompareId" class="w-full text-xs font-bold border-2 border-slate-300 rounded-xl p-2.5 bg-white text-slate-800 mb-3 cursor-pointer focus:border-red-600 focus:outline-none transition-colors truncate">
-                    <option value="" disabled>-- Chọn sản phẩm so sánh --</option>
-                    <option v-for="item in relatedProducts" :key="item.id" :value="item.id">
-                      {{ item.brand ? `[${item.brand}] ` : '' }}{{ item[`name_${locale}`] || item.name }}
-                    </option>
-                  </select>
-
-                  <template v-if="compareProduct">
-                    <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="compareProduct.name" />
-                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ compareProduct.brand || 'SPIT' }}</p>
-                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
-                    <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
-                      {{ cleanNumber(compareProduct.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
-                    </p>
-                  </template>
-
-                  <template v-else>
-                    <div class="h-40 flex items-center justify-center text-slate-400 text-xs font-medium italic">
-                      Chọn sản phẩm ở menu trên để bắt đầu so sánh
-                    </div>
-                  </template>
-                </div>
-              </div>
-
-              <!-- BẢNG SO SÁNH -->
-              <div v-if="compareProduct" class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                <table class="w-full text-xs text-left border-collapse">
-                  <thead>
-                    <tr class="bg-slate-100 text-slate-900 font-black text-[11px] uppercase tracking-wider border-b border-slate-200">
-                      <th scope="col" class="p-3.5 w-1/3 bg-slate-200/60">Thông số kỹ thuật</th>
-                      <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ product.brand || 'SPIT' }}</th>
-                      <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-slate-100">
-                    <template v-if="allSpecKeys.length > 0">
-                      <tr v-for="key in allSpecKeys" :key="key" class="hover:bg-slate-50/80 transition-colors">
-                        <td class="p-3 font-extrabold text-slate-700 bg-slate-50/60 uppercase text-[10px] tracking-wider">{{ key }}</td>
-                        <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
-                          {{ getSpecValue(getParsedSpecs(product), key) }}
-                        </td>
-                        <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
-                          {{ getSpecValue(getParsedSpecs(compareProduct), key) }}
-                        </td>
-                      </tr>
-                    </template>
-
-                    <tr v-else>
-                      <td class="p-3.5 font-black text-red-600 uppercase tracking-wider bg-slate-50/60 align-top">
-                        Đặc tính & Thông số
-                      </td>
-                      <td class="p-3.5 align-top border-l border-slate-200">
-                        <div class="raw-html-content text-slate-800 font-medium leading-relaxed"
-                             v-html="product[`specifications_${locale}`] || product.specifications || product[`features_${locale}`] || product.features || 'Chưa có thông số chi tiết.'">
-                        </div>
-                      </td>
-                      <td class="p-3.5 align-top border-l border-slate-200">
-                        <div class="raw-html-content text-slate-800 font-medium leading-relaxed"
-                             v-html="compareProduct[`specifications_${locale}`] || compareProduct.specifications || compareProduct[`features_${locale}`] || compareProduct.features || 'Chưa có thông số chi tiết.'">
-                        </div>
-                      </td>
-                    </tr>
-
-                    <tr class="bg-slate-50/30">
-                      <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60 align-top">Mô tả sản phẩm</td>
-                      <td class="p-3.5 align-top border-l border-slate-200 text-slate-600">
-                        <div class="raw-html-content max-h-36 overflow-y-auto" v-html="product[`description_${locale}`] || product.description || 'Chưa có thông tin.'"></div>
-                      </td>
-                      <td class="p-3.5 align-top border-l border-slate-200 text-slate-600">
-                        <div class="raw-html-content max-h-36 overflow-y-auto" v-html="compareProduct[`description_${locale}`] || compareProduct.description || 'Chưa có thông tin.'"></div>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Thương hiệu</td>
-                      <td class="p-3.5 font-black text-slate-900 border-l border-slate-200">{{ product.brand || 'SPIT' }}</td>
-                      <td class="p-3.5 font-black text-slate-900 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</td>
-                    </tr>
-                    <tr>
-                      <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Mã sản phẩm / SKU</td>
-                      <td class="p-3.5 font-mono font-bold text-slate-800 border-l border-slate-200">{{ product.sku || product.id?.substring(0,8).toUpperCase() }}</td>
-                      <td class="p-3.5 font-mono font-bold text-slate-800 border-l border-slate-200">{{ compareProduct.sku || compareProduct.id?.substring(0,8).toUpperCase() }}</td>
-                    </tr>
-                    <tr>
-                      <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Tình trạng kho</td>
-                      <td class="p-3.5 border-l border-slate-200">
-                        <span :class="product.stock > 0 ? 'text-green-600 font-extrabold' : 'text-red-500 font-extrabold'">
-                          {{ product.stock > 0 ? `Còn ${product.stock} sp` : 'Hết hàng' }}
-                        </span>
-                      </td>
-                      <td class="p-3.5 border-l border-slate-200">
-                        <span :class="compareProduct.stock > 0 ? 'text-green-600 font-extrabold' : 'text-red-500 font-extrabold'">
-                          {{ compareProduct.stock > 0 ? `Còn ${compareProduct.stock} sp` : 'Hết hàng' }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
+<!-- MODAL SO SÁNH SẢN PHẨM -->
+<Teleport to="body">
+  <transition name="fade">
+    <div v-if="isCompareOpen" class="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 bg-slate-900/80 backdrop-blur-md" @click.self="isCompareOpen = false">
+      <div class="bg-white rounded-4xl sm:rounded-[2.5rem] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+        
+        <div class="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-8 bg-red-600 rounded-full"></span>
+            <div>
+              <h3 class="font-black text-white text-base sm:text-xl uppercase tracking-wider">
+                BẢNG SO SÁNH THÔNG SỐ KỸ THUẬT
+              </h3>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                So sánh chi tiết đặc tính kỹ thuật sản phẩm cơ khí
+              </p>
             </div>
           </div>
+          <button @click="isCompareOpen = false" class="w-10 h-10 rounded-2xl bg-slate-800 hover:bg-red-600 text-white font-bold flex items-center justify-center transition-colors">✕</button>
         </div>
-      </transition>
-    </Teleport>
+
+        <div class="p-4 sm:p-6 overflow-y-auto space-y-6 grow">
+          <div class="grid grid-cols-2 gap-3 sm:gap-6">
+            <!-- Sản phẩm hiện tại -->
+            <div class="bg-slate-50/80 p-4 rounded-3xl border border-slate-200 flex flex-col items-center text-center relative">
+              <span class="text-[9px] font-black uppercase bg-red-600 text-white px-3 py-1 rounded-full mb-3 tracking-widest">
+                ĐANG XEM
+              </span>
+              <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="product.name" />
+              <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
+              <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ product[`name_${locale}`] || product.name }}</h4>
+              <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
+                {{ currentUnitPrice.toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ / {{ displayUnitLabel }}</span>
+              </p>
+            </div>
+
+            <!-- Sản phẩm đối chiếu -->
+            <div class="bg-slate-50/80 p-4 rounded-3xl border border-slate-200 flex flex-col items-center text-center relative">
+              <span class="text-[9px] font-black uppercase bg-slate-900 text-white px-3 py-1 rounded-full mb-3 tracking-widest">
+                SẢN PHẨM ĐỐI CHIẾU
+              </span>
+
+              <!-- [UPDATE 1]: Thêm ô tìm kiếm sản phẩm nhanh -->
+              <div class="w-full mb-2">
+                <input 
+                  v-model="compareSearchQuery" 
+                  type="text" 
+                  placeholder="🔍 Nhập mã / tên sản phẩm..." 
+                  class="w-full text-xs font-semibold border border-slate-300 rounded-xl p-2 bg-white text-slate-800 focus:border-red-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <!-- [UPDATE 2]: Render danh sách sản phẩm theo danh mục và lọc theo search query -->
+              <select v-model="selectedCompareId" class="w-full text-xs font-bold border-2 border-slate-300 rounded-xl p-2.5 bg-white text-slate-800 mb-3 cursor-pointer focus:border-red-600 focus:outline-none transition-colors truncate">
+                <option value="" disabled>-- Chọn sản phẩm cùng danh mục --</option>
+                <option v-for="item in filteredCompareProducts" :key="item.id" :value="item.id">
+                  {{ item.brand ? `[${item.brand}] ` : '' }}{{ item[`name_${locale}`] || item.name }}
+                </option>
+              </select>
+
+              <!-- [UPDATE 3]: Thông báo nếu không tìm thấy sản phẩm phù hợp -->
+              <p v-if="filteredCompareProducts.length === 0" class="text-[10px] text-amber-600 font-semibold mb-2">
+                Không có sản phẩm nào phù hợp trong danh mục này.
+              </p>
+
+              <template v-if="compareProduct">
+                <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="compareProduct.name" />
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ compareProduct.brand || 'SPIT' }}</p>
+                <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
+                <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
+                  {{ cleanNumber(compareProduct.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
+                </p>
+              </template>
+
+              <template v-else>
+                <div class="h-40 flex items-center justify-center text-slate-400 text-xs font-medium italic">
+                  Chọn sản phẩm ở menu trên để bắt đầu so sánh
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- BẢNG SO SÁNH -->
+          <div v-if="compareProduct" class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-900 font-black text-[11px] uppercase tracking-wider border-b border-slate-200">
+                  <th scope="col" class="p-3.5 w-1/3 bg-slate-200/60">Thông số kỹ thuật</th>
+                  <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ product.brand || 'SPIT' }}</th>
+                  <th scope="col" class="p-3.5 w-1/3 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <template v-if="allSpecKeys.length > 0">
+                  <tr v-for="key in allSpecKeys" :key="key" class="hover:bg-slate-50/80 transition-colors">
+                    <td class="p-3 font-extrabold text-slate-700 bg-slate-50/60 uppercase text-[10px] tracking-wider">{{ key }}</td>
+                    <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
+                      {{ getSpecValue(getParsedSpecs(product), key) }}
+                    </td>
+                    <td class="p-3 font-bold text-slate-900 border-l border-slate-200">
+                      {{ getSpecValue(getParsedSpecs(compareProduct), key) }}
+                    </td>
+                  </tr>
+                </template>
+
+                <tr v-else>
+                  <td class="p-3.5 font-black text-red-600 uppercase tracking-wider bg-slate-50/60 align-top">
+                    Đặc tính & Thông số
+                  </td>
+                  <td class="p-3.5 align-top border-l border-slate-200">
+                    <div class="raw-html-content text-slate-800 font-medium leading-relaxed"
+                         v-html="product[`specifications_${locale}`] || product.specifications || product[`features_${locale}`] || product.features || 'Chưa có thông số chi tiết.'">
+                    </div>
+                  </td>
+                  <td class="p-3.5 align-top border-l border-slate-200">
+                    <div class="raw-html-content text-slate-800 font-medium leading-relaxed"
+                         v-html="compareProduct[`specifications_${locale}`] || compareProduct.specifications || compareProduct[`features_${locale}`] || compareProduct.features || 'Chưa có thông số chi tiết.'">
+                    </div>
+                  </td>
+                </tr>
+
+                <tr class="bg-slate-50/30">
+                  <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60 align-top">Mô tả sản phẩm</td>
+                  <td class="p-3.5 align-top border-l border-slate-200 text-slate-600">
+                    <div class="raw-html-content max-h-36 overflow-y-auto" v-html="product[`description_${locale}`] || product.description || 'Chưa có thông tin.'"></div>
+                  </td>
+                  <td class="p-3.5 align-top border-l border-slate-200 text-slate-600">
+                    <div class="raw-html-content max-h-36 overflow-y-auto" v-html="compareProduct[`description_${locale}`] || compareProduct.description || 'Chưa có thông tin.'"></div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Thương hiệu</td>
+                  <td class="p-3.5 font-black text-slate-900 border-l border-slate-200">{{ product.brand || 'SPIT' }}</td>
+                  <td class="p-3.5 font-black text-slate-900 border-l border-slate-200">{{ compareProduct.brand || 'SPIT' }}</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Mã sản phẩm / SKU</td>
+                  <td class="p-3.5 font-mono font-bold text-slate-800 border-l border-slate-200">{{ product.sku || product.id?.substring(0,8).toUpperCase() }}</td>
+                  <td class="p-3.5 font-mono font-bold text-slate-800 border-l border-slate-200">{{ compareProduct.sku || compareProduct.id?.substring(0,8).toUpperCase() }}</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-extrabold text-slate-500 uppercase tracking-wider bg-slate-50/60">Tình trạng kho</td>
+                  <td class="p-3.5 border-l border-slate-200">
+                    <span :class="product.stock > 0 ? 'text-green-600 font-extrabold' : 'text-red-500 font-extrabold'">
+                      {{ product.stock > 0 ? `Còn ${product.stock} sp` : 'Hết hàng' }}
+                    </span>
+                  </td>
+                  <td class="p-3.5 border-l border-slate-200">
+                    <span :class="compareProduct.stock > 0 ? 'text-green-600 font-extrabold' : 'text-red-500 font-extrabold'">
+                      {{ compareProduct.stock > 0 ? `Còn ${compareProduct.stock} sp` : 'Hết hàng' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </transition>
+</Teleport>
 
     <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM -->
     <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
@@ -515,14 +531,13 @@ const listenActivePromotions = () => {
 // --- XÁC ĐỊNH SẢN PHẨM CÓ ĐANG MUA THEO HỘP HAY KHÔNG ---
 const isBuyingBox = computed(() => {
   if (isBoxOnlyMode.value) return true
-  // 🆕 [CẬP NHẬT MỚI] Tắt mua hộp nếu chọn bán mảnh hoặc bán viên
   if (isPieceOnlyMode.value || isVienOnlyMode.value) return false
   return selectedUnit.value === 'box'
 })
 
 // --- 1. LỌC CHIẾN DỊCH HỢP LỆ (CHỈ ÁP DỤNG KHI MUA HỘP) ---
 const matchedCampaign = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT CHIẾN DỊCH KM
+  if (!isBuyingBox.value) return null
   if (!product.value || activePromotions.value.length === 0) return null
   const productId = route.params.id
   const now = new Date()
@@ -542,7 +557,7 @@ const matchedCampaign = computed(() => {
 
 // --- 2. QUÀ TẶNG KÈM (CHỈ ÁP DỤNG KHI MUA HỘP) ---
 const activeGiftInfo = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT QUÀ TẶNG
+  if (!isBuyingBox.value) return null
   if (!matchedCampaign.value || !matchedCampaign.value.gift_enabled) return null
 
   const target = Number(matchedCampaign.value.gift_target) || 10
@@ -567,7 +582,7 @@ const comboProgress = computed(() => activeGiftInfo.value ? activeGiftInfo.value
 
 // --- 3. TÍNH TOÁN CHIẾN DỊCH HỢP LỆ VÀ MỐC GIẢM GIÁ (TIER) ---
 const effectivePromo = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT KHUYẾN MÃI
+  if (!isBuyingBox.value) return null
   if (!product.value) return null
 
   if (matchedCampaign.value) {
@@ -676,6 +691,23 @@ const updateCountdown = () => {
 const isCompareOpen = ref(false)
 const selectedCompareId = ref('')
 
+// 🆕 [UPDATE MỚI]: Thêm biến từ khóa tìm kiếm cho Modal so sánh
+const compareSearchQuery = ref('')
+
+// 🆕 [UPDATE MỚI]: Lọc danh sách sản phẩm cùng danh mục dựa theo từ khóa tìm kiếm
+const filteredCompareProducts = computed(() => {
+  if (!relatedProducts.value) return []
+  if (!compareSearchQuery.value.trim()) return relatedProducts.value
+
+  const queryStr = compareSearchQuery.value.toLowerCase().trim()
+  return relatedProducts.value.filter(p => {
+    const pName = (p[`name_${locale.value}`] || p.name || '').toLowerCase()
+    const pBrand = (p.brand || '').toLowerCase()
+    const pSku = (p.sku || p.id || '').toLowerCase()
+    return pName.includes(queryStr) || pBrand.includes(queryStr) || pSku.includes(queryStr)
+  })
+})
+
 const compareProduct = computed(() => {
   if (!selectedCompareId.value) return null
   return relatedProducts.value.find(p => p.id === selectedCompareId.value) || null
@@ -683,8 +715,10 @@ const compareProduct = computed(() => {
 
 const openCompareModal = () => {
   isCompareOpen.value = true
-  if (relatedProducts.value.length > 0 && !selectedCompareId.value) {
-    selectedCompareId.value = relatedProducts.value[0].id
+  // Reset từ khóa tìm kiếm khi mở Modal
+  compareSearchQuery.value = ''
+  if (filteredCompareProducts.value.length > 0 && !selectedCompareId.value) {
+    selectedCompareId.value = filteredCompareProducts.value[0].id
   }
 }
 
@@ -763,28 +797,25 @@ const normalizedSellingMode = computed(() => {
     ''
   ).toLowerCase().trim()
 
-  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Nhận diện chế độ "Chỉ bán viên" từ Admin
   if (mode === 'vien' || mode === 'chi_ban_vien' || mode.includes('viên') || mode.includes('vien')) return 'vien_only'
   if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
   if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
   if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
 
   const unitVi = String(product.value?.unit_vi || '').toLowerCase()
-  if (unitVi === 'viên' || unitVi === 'vien') return 'vien_only' // 🆕 Bổ sung check theo đơn vị
+  if (unitVi === 'viên' || unitVi === 'vien') return 'vien_only'
   if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
 
   if (boxSize.value > 1) return 'flexible'
   return 'piece_only'
 })
 
-// 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Bổ sung flag kiểm tra isVienOnlyMode
 const isVienOnlyMode = computed(() => normalizedSellingMode.value === 'vien_only')
 const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
 const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
 const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
 
 const unitPieceName = computed(() => {
-  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Ưu tiên trả về "Viên" khi ở chế độ bán viên
   if (isVienOnlyMode.value) return locale.value === 'vi' ? 'Viên' : 'Pill'
   if (product.value?.unit_piece) return product.value.unit_piece
   return locale.value === 'vi' ? 'Mảnh' : 'Pc'
@@ -798,7 +829,6 @@ const unitBoxName = computed(() => {
 })
 
 const displayUnitLabel = computed(() => {
-  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Hiển thị nhãn đơn vị Viên chuẩn xác
   if (isVienOnlyMode.value) {
     return product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')
   }
@@ -829,7 +859,6 @@ const originalUnitPrice = computed(() => {
   return directPiecePrice.value
 })
 
-// GIÁ NIÊM YẾT ẢO GẠCH ĐI (LẤY TỪ ADMIN)
 const displayOriginalPrice = computed(() => {
   if (!product.value) return 0
   if (isBuyingBox.value) {
@@ -842,17 +871,14 @@ const displayOriginalPrice = computed(() => {
   }
 })
 
-// TÍNH TOÁN GIÁ BÁN THỰC TẾ
 const currentUnitPrice = computed(() => {
   if (!product.value) return 0
   let price = originalUnitPrice.value
 
-  // NẾU MUA MẢNH HOẶC VIÊN -> NGUYÊN GIÁ CỦA MẢNH/VIÊN, KHÔNG ÁP DỤNG BẤT KỲ MỐC GIẢM GIÁ NÀO
   if (!isBuyingBox.value) {
     return Math.round(price)
   }
 
-  // NẾU MUA HỘP -> MỚI TÍNH CHIẾT KHẤU
   if (isFlexibleMode.value && directBoxPrice.value === 0 && boxDiscountPercent.value > 0) {
     price = price * (1 - boxDiscountPercent.value / 100)
   }
@@ -869,14 +895,12 @@ const currentUnitPrice = computed(() => {
   return Math.round(price)
 })
 
-// KIỂM TRA CÓ HIỂN THỊ GIÁ GẠCH ĐI HAY KHÔNG
 const hasVirtualDiscount = computed(() => {
   return displayOriginalPrice.value > currentUnitPrice.value
 })
 
 const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
 
-// TIẾT KIỆM TÍNH DỰA TRÊN GIÁ ẢO HOẶC GIÁ GỐC
 const savingsAmount = computed(() => {
   const refPrice = displayOriginalPrice.value > 0 ? displayOriginalPrice.value : originalUnitPrice.value
   return Math.max(0, refPrice - currentUnitPrice.value)
@@ -896,7 +920,6 @@ const addToCart = (item) => {
     const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
     const pName = item[`name_${locale.value}`] || item.name
     
-    // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Xác định chuẩn key 'vien' và label hiển thị cho Giỏ Hàng
     const currentUnitKey = isVienOnlyMode.value ? 'vien' : (isBoxOnlyMode.value ? 'box' : selectedUnit.value)
     const currentUnitLabel = isVienOnlyMode.value 
       ? (product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')) 
@@ -941,20 +964,22 @@ const addToCart = (item) => {
   }, 200)
 }
 
+// 🆕 [UPDATE MỚI]: Tăng limit lên 50 để lấy được toàn bộ sản phẩm trong cùng danh mục
 const fetchRelatedProducts = async (categoryStr) => {
   if (!categoryStr) return
   try {
-    let q = query(collection(db, "products"), where("category", "==", categoryStr), limit(6))
+    let q = query(collection(db, "products"), where("category", "==", categoryStr), limit(10000))
     let snap = await getDocs(q)
     let items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
     if (items.length <= 1) { 
-      q = query(collection(db, "products"), where("category_vi", "==", categoryStr), limit(6))
+      q = query(collection(db, "products"), where("category_vi", "==", categoryStr), limit(10000))
       snap = await getDocs(q)
       items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     }
 
-    relatedProducts.value = items.filter(item => item.id !== route.params.id).slice(0, 5)
+    // Lọc bỏ sản phẩm đang xem và lưu toàn bộ mảng sản phẩm cùng danh mục
+    relatedProducts.value = items.filter(item => item.id !== route.params.id)
   } catch (e) {
     console.error("Lỗi lấy sp liên quan:", e)
   }
@@ -972,7 +997,6 @@ onMounted(async () => {
     if (docSnap.exists()) {
       product.value = { id: docSnap.id, ...docSnap.data() }
       
-      // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Mặc định đơn vị khi load sản phẩm là 'vien' nếu bán viên
       if (isVienOnlyMode.value) {
         selectedUnit.value = 'vien'
       } else if (isBoxOnlyMode.value) {
