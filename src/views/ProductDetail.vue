@@ -54,7 +54,7 @@
                   </span>
                   <img :src="product.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="product.name" />
                   <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ product.brand || 'SPIT' }}</p>
-                  <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug break-words">{{ product[`name_${locale}`] || product.name }}</h4>
+                  <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ product[`name_${locale}`] || product.name }}</h4>
                   <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
                     {{ currentUnitPrice.toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ / {{ displayUnitLabel }}</span>
                   </p>
@@ -76,7 +76,7 @@
                   <template v-if="compareProduct">
                     <img :src="compareProduct.image" class="w-24 h-24 sm:w-32 sm:h-32 object-contain mix-blend-multiply mb-3" :alt="compareProduct.name" />
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ compareProduct.brand || 'SPIT' }}</p>
-                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug break-words">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
+                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug wrap-break-word">{{ compareProduct[`name_${locale}`] || compareProduct.name }}</h4>
                     <p class="text-red-600 font-black text-sm sm:text-lg mt-2">
                       {{ cleanNumber(compareProduct.price).toLocaleString('vi-VN') }} <span class="text-[10px]">VNĐ</span>
                     </p>
@@ -199,7 +199,7 @@
           </div>
         </div>
         
-        <!-- Cột thông tin sản phẩm (Đã thêm class min-w-0 để khống chế width trong Grid) -->
+        <!-- Cột thông tin sản phẩm -->
         <div class="space-y-6 min-w-0">
           <div>
             <div class="flex flex-wrap gap-2 items-center mb-4">
@@ -215,8 +215,8 @@
               </span>
             </div>
 
-            <!-- Tên sản phẩm: Đã thêm break-words để tự động xuống dòng chuỗi mã dính liền dài -->
-            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2 break-words">
+            <!-- Tên sản phẩm -->
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2 wrap-break-word">
               {{ product[`name_${locale}`] || product.name }}
             </h1>
             <p class="text-red-600 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-100 pb-4">
@@ -230,7 +230,8 @@
               Chọn quy cách mua:
             </label>
             
-            <div class="grid grid-cols-2 gap-3">
+            <!-- 🆕 [CẬP NHẬT MỚI] Đổi grid-cols-2 thành grid-cols-1 sm:grid-cols-3 để chứa thêm nút "Mua Viên" -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <!-- Mua Lẻ -->
               <button 
                 type="button"
@@ -262,13 +263,29 @@
                   Quy cách: {{ boxSize }} {{ unitPieceName }}/{{ unitBoxName }}
                 </span>
               </button>
+
+              <!-- 🆕 [CẬP NHẬT MỚI] Bổ sung Nút chọn MUA VIÊN trong chế độ bán linh hoạt -->
+              <button 
+                type="button"
+                @click="selectedUnit = 'vien'"
+                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
+                :class="selectedUnit === 'vien' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
+              >
+                <div class="flex items-center justify-between w-full mb-1">
+                  <span class="text-xs uppercase font-black">Mua Viên</span>
+                  <span v-if="selectedUnit === 'vien'" class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-semibold">Theo từng viên</span>
+              </button>
             </div>
           </div>
 
-          <!-- CHẾ ĐỘ "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
+          <!-- 🆕 [CẬP NHẬT MỚI] CHẾ ĐỘ "CHỈ BÁN VIÊN", "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
           <div v-else class="inline-flex items-center gap-2 bg-slate-100/90 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold border border-slate-200/80 shadow-sm">
             <span class="text-slate-400 uppercase text-[10px] tracking-wider font-extrabold">QUY CÁCH BÁN:</span>
-            <span class="text-slate-900 font-black uppercase tracking-wide text-xs">{{ displayUnitLabel }}</span>
+            <span class="text-slate-900 font-black uppercase tracking-wide text-xs">
+              {{ isVienOnlyMode ? 'VIÊN' : (isBoxOnlyMode ? 'CHỈ BÁN HỘP' : (isPieceOnlyMode ? 'CHỈ BÁN MẢNH' : displayUnitLabel)) }}
+            </span>
           </div>
 
           <!-- BANNER ĐẾM NGƯỢC FLASH SALE (CHỈ HIỂN THỊ KHI MUA HỘP VÀ CÓ KM) -->
@@ -406,14 +423,17 @@
                 <input type="number" v-model.number="quantity" min="1" class="w-14 text-center font-black text-sm text-slate-900 focus:outline-none" />
                 <button @click="changeQuantity(1)" class="w-10 h-10 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 transition-colors active:bg-slate-200 cursor-pointer">+</button>
               </div>
+              
+              <!-- 🆕 [CẬP NHẬT MỚI] Đồng bộ hiển thị đơn vị bên cạnh bộ chọn số lượng -->
               <span class="text-xs font-extrabold text-slate-500 uppercase">
-                ({{ isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName) }})
+                ({{ isVienOnlyMode || selectedUnit === 'vien' ? unitPieceName : (isBoxOnlyMode || selectedUnit === 'box' ? unitBoxName : unitPieceName) }})
               </span>
             </div>
 
+            <!-- 🆕 [CẬP NHẬT MỚI] Đồng bộ tên đơn vị trên nút Thêm vào giỏ hàng -->
             <button @click="addToCart(product)" :disabled="isAdding || product.stock <= 0" class="group w-full relative overflow-hidden py-5 rounded-2xl font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98] cursor-pointer" :class="product.stock > 0 ? 'bg-slate-950 text-white shadow-slate-950/10 hover:bg-red-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'">
               <span class="relative z-10 tracking-[0.2em] flex items-center justify-center gap-2">
-                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? `Thêm ${quantity} ${isBoxOnlyMode ? unitBoxName : (selectedUnit === 'box' ? unitBoxName : unitPieceName)} vào giỏ` : 'Add to cart') : 'Hết hàng tạm thời') }}
+                {{ isAdding ? '...' : (product.stock > 0 ? (locale === 'vi' ? `Thêm ${quantity} ${isVienOnlyMode || selectedUnit === 'vien' ? unitPieceName : (isBoxOnlyMode || selectedUnit === 'box' ? unitBoxName : unitPieceName)} vào giỏ` : 'Add to cart') : 'Hết hàng tạm thời') }}
               </span>
             </button>
 
@@ -468,7 +488,7 @@ const showToast = ref(false)
 const toastMessage = ref('')
 
 // --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
-const selectedUnit = ref('piece') // 'piece' hoặc 'box'
+const selectedUnit = ref('piece') // 'piece', 'box', hoặc 'vien'
 const quantity = ref(1)
 
 // --- TAB MÔ TẢ VÀ ĐẶC TÍNH ---
@@ -495,13 +515,14 @@ const listenActivePromotions = () => {
 // --- XÁC ĐỊNH SẢN PHẨM CÓ ĐANG MUA THEO HỘP HAY KHÔNG ---
 const isBuyingBox = computed(() => {
   if (isBoxOnlyMode.value) return true
-  if (isPieceOnlyMode.value) return false
+  // 🆕 [CẬP NHẬT MỚI] Tắt mua hộp nếu chọn bán mảnh hoặc bán viên
+  if (isPieceOnlyMode.value || isVienOnlyMode.value) return false
   return selectedUnit.value === 'box'
 })
 
 // --- 1. LỌC CHIẾN DỊCH HỢP LỆ (CHỈ ÁP DỤNG KHI MUA HỘP) ---
 const matchedCampaign = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT CHIẾN DỊCH KM
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT CHIẾN DỊCH KM
   if (!product.value || activePromotions.value.length === 0) return null
   const productId = route.params.id
   const now = new Date()
@@ -521,7 +542,7 @@ const matchedCampaign = computed(() => {
 
 // --- 2. QUÀ TẶNG KÈM (CHỈ ÁP DỤNG KHI MUA HỘP) ---
 const activeGiftInfo = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT QUÀ TẶNG
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT QUÀ TẶNG
   if (!matchedCampaign.value || !matchedCampaign.value.gift_enabled) return null
 
   const target = Number(matchedCampaign.value.gift_target) || 10
@@ -546,7 +567,7 @@ const comboProgress = computed(() => activeGiftInfo.value ? activeGiftInfo.value
 
 // --- 3. TÍNH TOÁN CHIẾN DỊCH HỢP LỆ VÀ MỐC GIẢM GIÁ (TIER) ---
 const effectivePromo = computed(() => {
-  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH -> TẮT KHUYẾN MÃI
+  if (!isBuyingBox.value) return null // NẾU CHỌN MẢNH / VIÊN -> TẮT KHUYẾN MÃI
   if (!product.value) return null
 
   if (matchedCampaign.value) {
@@ -742,22 +763,29 @@ const normalizedSellingMode = computed(() => {
     ''
   ).toLowerCase().trim()
 
+  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Nhận diện chế độ "Chỉ bán viên" từ Admin
+  if (mode === 'vien' || mode === 'chi_ban_vien' || mode.includes('viên') || mode.includes('vien')) return 'vien_only'
   if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
   if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
   if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
 
   const unitVi = String(product.value?.unit_vi || '').toLowerCase()
+  if (unitVi === 'viên' || unitVi === 'vien') return 'vien_only' // 🆕 Bổ sung check theo đơn vị
   if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
 
   if (boxSize.value > 1) return 'flexible'
   return 'piece_only'
 })
 
+// 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Bổ sung flag kiểm tra isVienOnlyMode
+const isVienOnlyMode = computed(() => normalizedSellingMode.value === 'vien_only')
 const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
 const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
 const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
 
 const unitPieceName = computed(() => {
+  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Ưu tiên trả về "Viên" khi ở chế độ bán viên
+  if (isVienOnlyMode.value) return locale.value === 'vi' ? 'Viên' : 'Pill'
   if (product.value?.unit_piece) return product.value.unit_piece
   return locale.value === 'vi' ? 'Mảnh' : 'Pc'
 })
@@ -770,6 +798,10 @@ const unitBoxName = computed(() => {
 })
 
 const displayUnitLabel = computed(() => {
+  // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Hiển thị nhãn đơn vị Viên chuẩn xác
+  if (isVienOnlyMode.value) {
+    return product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')
+  }
   if (isBoxOnlyMode.value) {
     const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
     return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${unitPieceName.value})` : mainUnit
@@ -797,7 +829,7 @@ const originalUnitPrice = computed(() => {
   return directPiecePrice.value
 })
 
-// 🆕 [CẬP NHẬT MỚI] GIÁ NIÊM YẾT ẢO GẠCH ĐI (LẤY TỪ ADMIN)
+// GIÁ NIÊM YẾT ẢO GẠCH ĐI (LẤY TỪ ADMIN)
 const displayOriginalPrice = computed(() => {
   if (!product.value) return 0
   if (isBuyingBox.value) {
@@ -810,12 +842,12 @@ const displayOriginalPrice = computed(() => {
   }
 })
 
-// 🆕 [CẬP NHẬT MỚI] TÍNH TOÁN GIÁ BÁN THỰC TẾ
+// TÍNH TOÁN GIÁ BÁN THỰC TẾ
 const currentUnitPrice = computed(() => {
   if (!product.value) return 0
   let price = originalUnitPrice.value
 
-  // NẾU MUA MẢNH -> NGUYÊN GIÁ CỦA MẢNH, KHÔNG ÁP DỤNG BẤT KỲ MỐC GIẢM GIÁ NÀO
+  // NẾU MUA MẢNH HOẶC VIÊN -> NGUYÊN GIÁ CỦA MẢNH/VIÊN, KHÔNG ÁP DỤNG BẤT KỲ MỐC GIẢM GIÁ NÀO
   if (!isBuyingBox.value) {
     return Math.round(price)
   }
@@ -837,14 +869,14 @@ const currentUnitPrice = computed(() => {
   return Math.round(price)
 })
 
-// 🆕 [CẬP NHẬT MỚI] KIỂM TRA CÓ HIỂN THỊ GIÁ GẠCH ĐI HAY KHÔNG
+// KIỂM TRA CÓ HIỂN THỊ GIÁ GẠCH ĐI HAY KHÔNG
 const hasVirtualDiscount = computed(() => {
   return displayOriginalPrice.value > currentUnitPrice.value
 })
 
 const totalPrice = computed(() => currentUnitPrice.value * quantity.value)
 
-// 🆕 [CẬP NHẬT MỚI] TIẾT KIỆM TÍNH DỰA TRÊN GIÁ ẢO HOẶC GIÁ GỐC
+// TIẾT KIỆM TÍNH DỰA TRÊN GIÁ ẢO HOẶC GIÁ GỐC
 const savingsAmount = computed(() => {
   const refPrice = displayOriginalPrice.value > 0 ? displayOriginalPrice.value : originalUnitPrice.value
   return Math.max(0, refPrice - currentUnitPrice.value)
@@ -864,8 +896,11 @@ const addToCart = (item) => {
     const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
     const pName = item[`name_${locale.value}`] || item.name
     
-    const currentUnitKey = isBoxOnlyMode.value ? 'box' : selectedUnit.value
-    const currentUnitLabel = isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)
+    // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Xác định chuẩn key 'vien' và label hiển thị cho Giỏ Hàng
+    const currentUnitKey = isVienOnlyMode.value ? 'vien' : (isBoxOnlyMode.value ? 'box' : selectedUnit.value)
+    const currentUnitLabel = isVienOnlyMode.value 
+      ? (product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')) 
+      : (isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value))
     
     const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
 
@@ -937,8 +972,10 @@ onMounted(async () => {
     if (docSnap.exists()) {
       product.value = { id: docSnap.id, ...docSnap.data() }
       
-      // Mặc định chọn Hộp nếu chỉ bán hộp, ngược lại chọn Mảnh
-      if (isBoxOnlyMode.value) {
+      // 🆕 [CẬP NHẬT MỚI - ĐỒNG BỘ BÁN VIÊN] Mặc định đơn vị khi load sản phẩm là 'vien' nếu bán viên
+      if (isVienOnlyMode.value) {
+        selectedUnit.value = 'vien'
+      } else if (isBoxOnlyMode.value) {
         selectedUnit.value = 'box'
       } else {
         selectedUnit.value = 'piece'

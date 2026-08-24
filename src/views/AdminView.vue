@@ -54,9 +54,10 @@ const promotionValue = ref('')
 const activePromotions = ref([]) 
 
 // --- BIẾN QUẢN LÝ QUY CÁCH & BÁN HÀNG ---
-// sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp)
+// ⚡ UPDATE MỚI: Bổ sung thêm loại hình 'stone' (Chỉ bán viên)
+// sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp), 'stone' (Chỉ bán viên)
 const sales_type = ref('flexible') 
-const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh
+const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh / viên
 
 // --- BIẾN QUẢN LÝ THƯ VIỆN ẢNH PHỤ ---
 const subImages = ref([])       // Lưu các chuỗi URL (bao gồm cả link nhập tay và Cloudinary)
@@ -94,18 +95,18 @@ const brand = ref('')
 const brandId = ref('') 
 
 // --- 2 LOẠI GIÁ BÁN ĐỘC LẬP ---
-const price_piece = ref(0) // Giá bán theo Mảnh
+const price_piece = ref(0) // Giá bán theo Mảnh / Viên
 const price_box = ref(0)   // Giá bán theo Hộp
 const price = ref(0)       // Đồng bộ với price_piece để tương thích ngược dữ liệu cũ
 
 // --- BIẾN QUẢN LÝ GIÁ HIỂN THỊ ẢO (GIÁ GẠCH ĐI TẠO KÍCH THÍCH) ---
 const display_discount_type_box = ref('percentage') // 'percentage' (%) hoặc 'fixed' (VNĐ) cho Hộp
-const display_discount_value_box = ref(0)           // Giá trị giảm % hoặc số tiền cho Hộp
+const display_discount_value_box = ref(0)          // Giá trị giảm % hoặc số tiền cho Hộp
 const original_price_box = ref(0)                  // Giá hiển thị niêm yết (gạch đi) của Hộp
 
-const display_discount_type_piece = ref('percentage') // 'percentage' (%) hoặc 'fixed' (VNĐ) cho Mảnh
-const display_discount_value_piece = ref(0)           // Giá trị giảm % hoặc số tiền cho Mảnh
-const original_price_piece = ref(0)                  // Giá hiển thị niêm yết (gạch đi) của Mảnh
+const display_discount_type_piece = ref('percentage') // 'percentage' (%) hoặc 'fixed' (VNĐ) cho Mảnh / Viên
+const display_discount_value_piece = ref(0)          // Giá trị giảm % hoặc số tiền cho Mảnh / Viên
+const original_price_piece = ref(0)                  // Giá hiển thị niêm yết (gạch đi) của Mảnh / Viên
 const original_price = ref(0)                        // Đồng bộ với original_price_piece tương thích ngược
 
 const stock = ref(0)
@@ -160,7 +161,7 @@ const applyBrandLogoUrl = () => {
 // ⚡ LOGIC TÍNH TOÁN GIÁ TỰ ĐỘNG & ĐIỀU CHỈNH HÌNH THỨC BÁN (THÊM MỚI CHUẨN)
 // =========================================================================
 
-// 1. Chuyển đổi loại hình bán
+// 1. Chuyển đổi loại hình bán ('flexible', 'piece', 'box', 'stone')
 const setSalesType = (type) => {
   sales_type.value = type
 }
@@ -182,7 +183,7 @@ const calculateOriginalPriceBox = () => {
   }
 }
 
-// 1.2. Hàm tự động tính Giá hiển thị ảo (Gạch đi) cho Mảnh
+// 1.2. Hàm tự động tính Giá hiển thị ảo (Gạch đi) cho Mảnh / Viên
 const calculateOriginalPricePiece = () => {
   const pPiece = Number(price_piece.value) || 0
   const val = Number(display_discount_value_piece.value) || 0
@@ -210,7 +211,7 @@ const updateAllDisplayPrices = () => {
   calculateOriginalPricePiece()
 }
 
-// 2. Tự động gợi ý Giá Mảnh khi nhập Giá Hộp
+// 2. Tự động gợi ý Giá Mảnh / Viên khi nhập Giá Hộp
 const onPriceBoxInput = () => {
   const bQty = Number(box_qty.value) || 1
   const pBox = Number(price_box.value) || 0
@@ -223,7 +224,7 @@ const onPriceBoxInput = () => {
   updateAllDisplayPrices()
 }
 
-// 3. Tự động gợi ý lại Giá Mảnh khi thay đổi Số Mảnh / Hộp
+// 3. Tự động gợi ý lại Giá Mảnh / Viên khi thay đổi Số Mảnh (Viên) / Hộp
 const onBoxQtyInput = () => {
   const bQty = Number(box_qty.value) || 1
   const pBox = Number(price_box.value) || 0
@@ -536,27 +537,7 @@ const resetForm = () => {
   selectedTags.value = []
   hasPromotion.value = false
   promotionValue.value = ''
-  editingId.value = null
-  name_vi.value = ''
-  name_en.value = ''
-  categoryId.value = '' 
-  category_vi.value = ''
-  category_en.value = ''
   
-  description_vi.value = ''
-  description_en.value = ''
-  specifications_vi.value = '' 
-  specifications_en.value = '' 
-  
-  gift_vi.value = ''
-  gift_en.value = ''
-  brandId.value = ''
-  brand.value = '' 
-
-  price_piece.value = 0
-  price_box.value = 0
-  price.value = 0
-
   // Reset các biến giá hiển thị ảo
   display_discount_type_box.value = 'percentage'
   display_discount_value_box.value = 0
@@ -567,22 +548,8 @@ const resetForm = () => {
   original_price_piece.value = 0
   original_price.value = 0
 
-  stock.value = 0
-  image.value = ''
-  imageFile.value = null
-  
-  hasPromotion.value = false
-  promotionValue.value = ''
-  custom_url.value = '' 
-  catalog_link.value = '' 
-  
   sales_type.value = 'flexible'
   box_qty.value = 10
-
-  selectedTags.value = []
-  
-  subImages.value = []
-  subImageFiles.value = []
 }
 
 // --- THAO TÁC SUBMIT SẢN PHẨM ---
@@ -860,93 +827,89 @@ const resetBrandForm = () => {
               <div class="bg-white p-6 rounded-4xl shadow-xl border border-slate-100 sticky top-6">
                 
                 <div class="mb-6">
-  <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 text-center">Hình ảnh sản phẩm</label>
-  
-  <!-- Khu vực Upload chọn từ máy hoặc xem trước Ảnh Chính -->
-  <div class="relative group w-full aspect-square max-w-50 mx-auto overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all flex items-center justify-center bg-slate-50">
-    <input type="file" @change="onFileChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
-    
-    <template v-if="image">
-      <img :src="image" class="w-full h-full object-contain p-2" />
-      <!-- UPDATE MỚI: Nút xóa ảnh chính hiện tại khi hover -->
-      <button 
-        type="button" 
-        @click.stop="removeMainImage" 
-        class="absolute top-2 right-2 z-20 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Xóa ảnh"
-      >
-        ✕
-      </button>
-    </template>
-    
-    <div v-else class="text-center p-4">
-       <span class="text-2xl block">📷</span>
-       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
-    </div>
-  </div>
+                  <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 text-center">Hình ảnh sản phẩm</label>
+                  
+                  <!-- Khu vực Upload chọn từ máy hoặc xem trước Ảnh Chính -->
+                  <div class="relative group w-full aspect-square max-w-50 mx-auto overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all flex items-center justify-center bg-slate-50">
+                    <input type="file" @change="onFileChange" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+                    
+                    <template v-if="image">
+                      <img :src="image" class="w-full h-full object-contain p-2" />
+                      <button 
+                        type="button" 
+                        @click.stop="removeMainImage" 
+                        class="absolute top-2 right-2 z-20 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Xóa ảnh"
+                      >
+                        ✕
+                      </button>
+                    </template>
+                    
+                    <div v-else class="text-center p-4">
+                       <span class="text-2xl block">📷</span>
+                       <p class="text-[9px] font-bold text-slate-400 uppercase mt-1">Chọn ảnh từ máy</p>
+                    </div>
+                  </div>
 
-  <!-- UPDATE MỚI: Ô nhập link URL trực tiếp cho Ảnh chính -->
-  <div class="mt-2.5 flex gap-1.5 max-w-50 mx-auto">
-    <input 
-      type="text" 
-      v-model="mainImageUrlInput" 
-      @keyup.enter="applyMainImageUrl"
-      placeholder="Hoặc dán link ảnh (https://...)" 
-      class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
-    />
-    <button 
-      type="button" 
-      @click="applyMainImageUrl" 
-      class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
-    >
-      Dán link
-    </button>
-  </div>
+                  <!-- Ô nhập link URL trực tiếp cho Ảnh chính -->
+                  <div class="mt-2.5 flex gap-1.5 max-w-50 mx-auto">
+                    <input 
+                      type="text" 
+                      v-model="mainImageUrlInput" 
+                      @keyup.enter="applyMainImageUrl"
+                      placeholder="Hoặc dán link ảnh (https://...)" 
+                      class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
+                    />
+                    <button 
+                      type="button" 
+                      @click="applyMainImageUrl" 
+                      class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
+                    >
+                      Dán link
+                    </button>
+                  </div>
 
-  <!-- THƯ VIỆN ẢNH CHI TIẾT (NHIỀU HÌNH ẢNH) -->
-  <div class="mt-4 pt-4 border-t border-slate-100">
-    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
-    
-    <!-- UPDATE MỚI: Ô nhập link URL cho Thư viện ảnh chi tiết -->
-    <div class="flex gap-1.5 mb-2.5">
-      <input 
-        type="text" 
-        v-model="subImageUrlInput" 
-        @keyup.enter="addSubImageUrl"
-        placeholder="Dán link ảnh chi tiết (https://...)" 
-        class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
-      />
-      <button 
-        type="button" 
-        @click="addSubImageUrl" 
-        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
-      >
-        + Thêm link
-      </button>
-    </div>
+                  <!-- THƯ VIỆN ẢNH CHI TIẾT (NHIỀU HÌNH ẢNH) -->
+                  <div class="mt-4 pt-4 border-t border-slate-100">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Thư viện ảnh chi tiết (Nhiều hình ảnh)</label>
+                    
+                    <div class="flex gap-1.5 mb-2.5">
+                      <input 
+                        type="text" 
+                        v-model="subImageUrlInput" 
+                        @keyup.enter="addSubImageUrl"
+                        placeholder="Dán link ảnh chi tiết (https://...)" 
+                        class="w-full text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white shadow-sm placeholder:text-slate-300"
+                      />
+                      <button 
+                        type="button" 
+                        @click="addSubImageUrl" 
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 shadow-sm"
+                      >
+                        + Thêm link
+                      </button>
+                    </div>
 
-    <!-- Grid chọn file và danh sách ảnh phụ -->
-    <div class="grid grid-cols-4 gap-2">
-      <!-- Nút chọn file từ máy -->
-      <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
-        <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
-        <span class="text-xs font-bold text-slate-400">+ Máy</span>
-      </div>
+                    <!-- Grid chọn file và danh sách ảnh phụ -->
+                    <div class="grid grid-cols-4 gap-2">
+                      <div class="relative aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center bg-slate-50 cursor-pointer">
+                        <input type="file" @change="onSubFilesChange" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
+                        <span class="text-xs font-bold text-slate-400">+ Máy</span>
+                      </div>
 
-      <!-- Danh sách ảnh chi tiết đã chọn/dán link -->
-      <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb shadow-sm">
-        <img :src="imgUrl" class="w-full h-full object-contain" />
-        <button 
-          type="button" 
-          @click="removeSubImage(index)" 
-          class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity"
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+                      <div v-for="(imgUrl, index) in subImages" :key="index" class="relative aspect-square rounded-xl border border-slate-100 bg-white p-1 group/thumb shadow-sm">
+                        <img :src="imgUrl" class="w-full h-full object-contain" />
+                        <button 
+                          type="button" 
+                          @click="removeSubImage(index)" 
+                          class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-black shadow-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div class="space-y-4">
                   <div class="grid grid-cols-1 gap-2">
@@ -1002,152 +965,154 @@ const resetBrandForm = () => {
                   </div>
 
                   <!-- 1. KHỐI CẤU HÌNH BÁN HÀNG SỈ & LẺ -->
-<div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
-  <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
-  
-  <!-- 3 Nút chọn Kịch bản Bán -->
-  <div class="grid grid-cols-3 gap-1.5">
-    <button 
-      type="button"
-      @click="sales_type = 'flexible'"
-      :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-    >
-      Linh hoạt (PCS+Hộp)
-    </button>
-    <button 
-      type="button"
-      @click="sales_type = 'piece'"
-      :class="sales_type === 'piece' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-    >
-      Chỉ bán Mảnh
-    </button>
-    <button 
-      type="button"
-      @click="sales_type = 'box'"
-      :class="sales_type === 'box' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
-      class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
-    >
-      Chỉ bán Hộp
-    </button>
-  </div>
+                  <div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
+                    <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
+                    
+                    <!-- 4 Nút chọn Kịch bản Bán (Đã bổ sung nút CHỈ BÁN VIÊN) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      <button 
+                        type="button"
+                        @click="sales_type = 'flexible'"
+                        :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Linh hoạt (Sỉ+Lẻ)
+                      </button>
+                      <button 
+                        type="button"
+                        @click="sales_type = 'piece'"
+                        :class="sales_type === 'piece' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Mảnh
+                      </button>
 
-  <!-- Ô Nhập Quy cách Hộp & % Giảm giá -->
-  <div v-if="sales_type !== 'piece'" class="grid grid-cols-2 gap-2 pt-1">
-    <div class="space-y-1">
-      <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
-      <!-- Đã thêm @input="onBoxQtyInput" để tự tính lại giá mảnh khi đổi số lượng mảnh/hộp -->
-      <input 
-        v-model.number="box_qty" 
-        @input="onBoxQtyInput"
-        type="number" 
-        min="1" 
-        placeholder="10" 
-        class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
-      />
-    </div>
-  </div>
-</div>
+                      <!-- NÚT MỚI THÊM: CHỈ BÁN VIÊN -->
+                      <button 
+                        type="button"
+                        @click="sales_type = 'vien'"
+                        :class="sales_type === 'vien' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Viên
+                      </button>
 
-<!-- 2. KHỐI NHẬP GIÁ SẢN PHẨM (NẰM NGAY DƯỚI KHỐI CẤU HÌNH) -->
-<div class="grid grid-cols-2 gap-2 pt-2">
+                      <button 
+                        type="button"
+                        @click="sales_type = 'box'"
+                        :class="sales_type === 'box' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Hộp
+                      </button>
+                    </div>
 
-  <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh') -->
-  <div v-if="sales_type !== 'piece'" class="space-y-1">
-    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Hộp (VNĐ)</label>
-    <!-- Thêm @input="onPriceBoxInput" để gõ giá hộp -> tự động gợi ý chia ra giá mảnh -->
-    <input 
-      v-model.number="price_box" 
-      @input="onPriceBoxInput"
-      type="number" 
-      placeholder="0" 
-      class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
-    />
+                    <!-- Ô Nhập Quy cách Hộp -->
+                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien'" class="grid grid-cols-2 gap-2 pt-1">
+                      <div class="space-y-1">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
+                        <input 
+                          v-model.number="box_qty" 
+                          @input="onBoxQtyInput"
+                          type="number" 
+                          min="1" 
+                          placeholder="10" 
+                          class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-    <!-- 🆕 [CẬP NHẬT MỚI] Khối Cấu hình Giá Hiển Thị Ảo cho Hộp -->
-    <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
-      <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo (Hộp):</span>
-      
-      <div class="flex gap-1.5">
-        <!-- Chọn kiểu giảm % hoặc VNĐ -->
-        <select 
-          v-model="display_discount_type_box" 
-          @change="calculateOriginalPriceBox" 
-          class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
-        >
-          <option value="percentage">% Giảm</option>
-          <option value="fixed">Số tiền (VNĐ)</option>
-        </select>
+                  <!-- 2. KHỐI NHẬP GIÁ SẢN PHẨM -->
+                  <div class="grid grid-cols-2 gap-2 pt-2">
 
-        <!-- Nhập giá trị giảm -->
-        <input 
-          v-model.number="display_discount_value_box" 
-          @input="calculateOriginalPriceBox"
-          type="number" 
-          :placeholder="display_discount_type_box === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
-          class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
-        />
-      </div>
+                    <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh' và không phải 'Chỉ bán viên') -->
+                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien'" class="space-y-1">
+                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Hộp (VNĐ)</label>
+                      <input 
+                        v-model.number="price_box" 
+                        @input="onPriceBoxInput"
+                        type="number" 
+                        placeholder="0" 
+                        class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                      />
 
-      <!-- Preview Giá Gạch Đi trực tiếp cho Admin xem -->
-      <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
-        <span>Giá niêm yết ảo:</span>
-        <del class="text-red-500 font-bold">
-          {{ original_price_box ? original_price_box.toLocaleString() : 0 }} đ
-        </del>
-      </div>
-    </div>
-  </div>
+                      <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Hộp -->
+                      <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
+                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo (Hộp):</span>
+                        
+                        <div class="flex gap-1.5">
+                          <select 
+                            v-model="display_discount_type_box" 
+                            @change="calculateOriginalPriceBox" 
+                            class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                          >
+                            <option value="percentage">% Giảm</option>
+                            <option value="fixed">Số tiền (VNĐ)</option>
+                          </select>
 
-  <!-- Ô Nhập Giá Mảnh (Hiện khi không phải 'Chỉ bán hộp') -->
-  <div v-if="sales_type !== 'box'" class="space-y-1">
-    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 PCS (VNĐ)</label>
-    <!-- Thêm @input="onPricePieceInput" để tự sửa giá mảnh thoải mái không lo lỗi -->
-    <input 
-      v-model.number="price_piece" 
-      @input="onPricePieceInput"
-      type="number" 
-      placeholder="0" 
-      class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
-    />
+                          <input 
+                            v-model.number="display_discount_value_box" 
+                            @input="calculateOriginalPriceBox"
+                            type="number" 
+                            :placeholder="display_discount_type_box === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
+                            class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                          />
+                        </div>
 
-    <!-- 🆕 [CẬP NHẬT MỚI] Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh -->
-    <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
-      <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo (Mảnh):</span>
-      
-      <div class="flex gap-1.5">
-        <!-- Chọn kiểu giảm % hoặc VNĐ -->
-        <select 
-          v-model="display_discount_type_piece" 
-          @change="calculateOriginalPricePiece" 
-          class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
-        >
-          <option value="percentage">% Giảm</option>
-          <option value="fixed">Số tiền (VNĐ)</option>
-        </select>
+                        <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
+                          <span>Giá niêm yết ảo:</span>
+                          <del class="text-red-500 font-bold">
+                            {{ original_price_box ? original_price_box.toLocaleString() : 0 }} đ
+                          </del>
+                        </div>
+                      </div>
+                    </div>
 
-        <!-- Nhập giá trị giảm -->
-        <input 
-          v-model.number="display_discount_value_piece" 
-          @input="calculateOriginalPricePiece"
-          type="number" 
-          :placeholder="display_discount_type_piece === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
-          class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
-        />
-      </div>
+                    <!-- Ô Nhập Giá Mảnh / Viên (Hiện khi không phải 'Chỉ bán hộp') -->
+                    <div v-if="sales_type !== 'box'" class="space-y-1">
+                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 {{ sales_type === 'vien' ? 'Viên' : 'Mảnh' }} (VNĐ)</label>
+                      <input 
+                        v-model.number="price_piece" 
+                        @input="onPricePieceInput"
+                        type="number" 
+                        placeholder="0" 
+                        class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                      />
 
-      <!-- Preview Giá Gạch Đi trực tiếp cho Admin xem -->
-      <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
-        <span>Giá niêm yết ảo:</span>
-        <del class="text-blue-600 font-bold">
-          {{ original_price_piece ? original_price_piece.toLocaleString() : 0 }} đ
-        </del>
-      </div>
-    </div>
-  </div>
+                      <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh / Viên -->
+                      <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
+                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo ({{ sales_type === 'vien' ? 'Viên' : 'Mảnh' }}):</span>
+                        
+                        <div class="flex gap-1.5">
+                          <select 
+                            v-model="display_discount_type_piece" 
+                            @change="calculateOriginalPricePiece" 
+                            class="p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                          >
+                            <option value="percentage">% Giảm</option>
+                            <option value="fixed">Số tiền (VNĐ)</option>
+                          </select>
 
-</div>
+                          <input 
+                            v-model.number="display_discount_value_piece" 
+                            @input="calculateOriginalPricePiece"
+                            type="number" 
+                            :placeholder="display_discount_type_piece === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
+                            class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                          />
+                        </div>
+
+                        <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
+                          <span>Giá niêm yết ảo:</span>
+                          <del class="text-blue-600 font-bold">
+                            {{ original_price_piece ? original_price_piece.toLocaleString() : 0 }} đ
+                          </del>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
 
                   <div v-if="availableTags.length > 0" class="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Đặc tính / Phân loại nhu cầu</label>
@@ -1301,7 +1266,9 @@ const resetBrandForm = () => {
                            <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
                            
                            <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
-                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Mảnh/Hộp (Hộp {{ p.box_qty || 10 }})</span>
+                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>
+                           <span v-else-if="p.sales_type === 'vien'" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">Bán Viên</span>
+                           <span v-else-if="p.sales_type === 'piece'" class="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">Bán Mảnh</span>
                            <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
                         </div>
                       </div>
@@ -1349,7 +1316,7 @@ const resetBrandForm = () => {
                   <label class="text-[10px] font-black uppercase text-slate-500">Đường link Website (Nếu có)</label>
                   <input 
                     v-model="brandLink" 
-                    type="url" 
+                    type="text" 
                     placeholder="Ví dụ: https://www.korloy.com..."
                     class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-medium text-blue-600 border border-transparent focus:border-red-400"
                   />
