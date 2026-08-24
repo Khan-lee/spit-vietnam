@@ -1013,7 +1013,7 @@ const resetBrandForm = () => {
       :class="sales_type === 'flexible' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
       class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
     >
-      Linh hoạt (Sỉ+Lẻ)
+      Linh hoạt (PCS+Hộp)
     </button>
     <button 
       type="button"
@@ -1102,7 +1102,7 @@ const resetBrandForm = () => {
 
   <!-- Ô Nhập Giá Mảnh (Hiện khi không phải 'Chỉ bán hộp') -->
   <div v-if="sales_type !== 'box'" class="space-y-1">
-    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Mảnh (VNĐ)</label>
+    <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 PCS (VNĐ)</label>
     <!-- Thêm @input="onPricePieceInput" để tự sửa giá mảnh thoải mái không lo lỗi -->
     <input 
       v-model.number="price_piece" 
@@ -1301,7 +1301,7 @@ const resetBrandForm = () => {
                            <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
                            
                            <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
-                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>
+                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Mảnh/Hộp (Hộp {{ p.box_qty || 10 }})</span>
                            <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
                         </div>
                       </div>

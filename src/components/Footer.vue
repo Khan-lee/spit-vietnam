@@ -114,20 +114,7 @@
         </ul>
 
         <!-- LOGO ĐÃ THÔNG BÁO BỘ CÔNG THƯƠNG -->
-        <div class="pt-2">
-          <a 
-            :href="config.boCongThuongUrl || config.bocongthuong || 'https://online.gov.vn'" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="inline-block transition-transform duration-300 hover:scale-105"
-          >
-            <img 
-              src="../assets/logoSaleNoti.png" 
-              alt="Đã thông báo Bộ Công Thương" 
-              class="h-12 w-auto object-contain"
-            />
-          </a>
-        </div>
+
       </div>
 
     </div>
