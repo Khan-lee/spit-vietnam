@@ -135,7 +135,7 @@
     <!-- HÀNG BẢN QUYỀN -->
     <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-black">
       <p class="italic">© 2026 VTCNVC VIETNAM. All rights reserved.</p>
-      <p>Designed by Khang Le</p>
+      <p>Designed by VATTUVOCUC</p>
     </div>
   </footer>
 </template>
