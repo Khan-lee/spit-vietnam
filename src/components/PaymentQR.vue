@@ -42,7 +42,7 @@ const loading = ref(false)
 // Thông tin ngân hàng của sếp cung cấp
 const bankConfig = {
   bankId: 'VCB', // Vietcombank
-  accountNo: '0071000622079',
+  accountNo: '0511000474543',
   template: 'compact' // Giao diện mã QR gọn gàng
 }
 

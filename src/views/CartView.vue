@@ -130,6 +130,8 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
+// ⚡ NEW: Import getAuth từ Firebase
+import { getAuth } from 'firebase/auth'
 
 const router = useRouter()
 const props = defineProps(['cart'])
@@ -265,9 +267,25 @@ const changeQty = (id, delta) => {
 }
 
 const removeItemWithoutPopup = (id) => emit('remove-item', id)
+
+// ⚡ UPDATE: HÀM XỬ LÝ THANH TOÁN (KIỂM TRA DỰA TRÊN TRẠNG THÁI ĐĂNG NHẬP)
 const handleProceed = () => {
-  if (!isCartEmpty.value) {
-    emit('close')
+  if (isCartEmpty.value) return
+
+  const auth = getAuth()
+  const currentUser = auth.currentUser
+
+  // Đóng Drawer giỏ hàng
+  emit('close')
+
+  if (!currentUser) {
+    // Nếu CHƯA ĐĂNG NHẬP: Điều hướng tới /login kèm query redirect=/checkout
+    router.push({
+      path: '/login',
+      query: { redirect: '/checkout' }
+    })
+  } else {
+    // Nếu ĐÃ ĐĂNG NHẬP: Cho sang thẳng trang Checkout
     router.push('/checkout')
   }
 }

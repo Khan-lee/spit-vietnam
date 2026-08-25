@@ -240,61 +240,47 @@
             </p>
           </div>
           
-          <!-- HIỂN THỊ CHỌN QUY CÁCH (NẾU BÁN LINH HOẠT SỈ+LẺ) -->
-          <div v-if="isFlexibleMode" class="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-3xl border border-slate-200/80">
-            <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
-              Chọn quy cách mua:
-            </label>
-            
-            <!-- 🆕 [CẬP NHẬT MỚI] Đổi grid-cols-2 thành grid-cols-1 sm:grid-cols-3 để chứa thêm nút "Mua Viên" -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <!-- Mua Lẻ -->
-              <button 
-                type="button"
-                @click="selectedUnit = 'piece'"
-                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
-                :class="selectedUnit === 'piece' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
-              >
-                <div class="flex items-center justify-between w-full mb-1">
-                  <span class="text-xs uppercase font-black">Mua lẻ ({{ unitPieceName }})</span>
-                  <span v-if="selectedUnit === 'piece'" class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                </div>
-                <span class="text-[10px] text-slate-400 font-semibold">Theo từng mảnh</span>
-              </button>
+<!-- HIỂN THỊ CHỌN QUY CÁCH (CHỈ ÁP DỤNG MUA LẺ MẢNH + MUA HỘP) -->
+<div v-if="isFlexibleMode" class="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-3xl border border-slate-200/80">
+  <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
+    Chọn quy cách mua:
+  </label>
+  
+  <!-- ⚡ UPDATE: Đã đưa về grid-cols-2 chuyên biệt cho chọn Mảnh (Lẻ) & Hộp (Sỉ), loại bỏ nút Mua Viên -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <!-- Mua Lẻ (Mảnh) -->
+    <button 
+      type="button"
+      @click="selectedUnit = 'piece'"
+      class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
+      :class="selectedUnit === 'piece' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
+    >
+      <div class="flex items-center justify-between w-full mb-1">
+        <span class="text-xs uppercase font-black">Mua lẻ ({{ unitPieceName }})</span>
+        <span v-if="selectedUnit === 'piece'" class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+      </div>
+      <span class="text-[10px] text-slate-400 font-semibold">Theo từng mảnh</span>
+    </button>
 
-              <!-- Mua Hộp -->
-              <button 
-                type="button"
-                @click="selectedUnit = 'box'"
-                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
-                :class="selectedUnit === 'box' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
-              >
-                <div class="flex items-center justify-between w-full mb-1">
-                  <span class="text-xs uppercase font-black">Mua {{ unitBoxName }}</span>
-                  <span v-if="boxDiscountPercent > 0 && directBoxPrice === 0" class="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.5 rounded-md uppercase">
-                    -{{ boxDiscountPercent }}%
-                  </span>
-                </div>
-                <span class="text-[10px] text-slate-500 font-bold">
-                  Quy cách: {{ boxSize }} {{ unitPieceName }}/{{ unitBoxName }}
-                </span>
-              </button>
-
-              <!-- 🆕 [CẬP NHẬT MỚI] Bổ sung Nút chọn MUA VIÊN trong chế độ bán linh hoạt -->
-              <button 
-                type="button"
-                @click="selectedUnit = 'vien'"
-                class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
-                :class="selectedUnit === 'vien' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
-              >
-                <div class="flex items-center justify-between w-full mb-1">
-                  <span class="text-xs uppercase font-black">Mua Viên</span>
-                  <span v-if="selectedUnit === 'vien'" class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                </div>
-                <span class="text-[10px] text-slate-400 font-semibold">Theo từng viên</span>
-              </button>
-            </div>
-          </div>
+    <!-- Mua Hộp (Sỉ) -->
+    <button 
+      type="button"
+      @click="selectedUnit = 'box'"
+      class="relative p-3.5 rounded-2xl border-2 font-bold text-left transition-all flex flex-col justify-between cursor-pointer"
+      :class="selectedUnit === 'box' ? 'border-red-600 bg-white shadow-md text-slate-900' : 'border-slate-200 bg-slate-100/70 text-slate-500 hover:border-slate-300'"
+    >
+      <div class="flex items-center justify-between w-full mb-1">
+        <span class="text-xs uppercase font-black">Mua {{ unitBoxName }}</span>
+        <span v-if="boxDiscountPercent > 0 && directBoxPrice === 0" class="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.5 rounded-md uppercase">
+          -{{ boxDiscountPercent }}%
+        </span>
+      </div>
+      <span class="text-[10px] text-slate-500 font-bold">
+        Quy cách: {{ boxSize }} {{ unitPieceName }}/{{ unitBoxName }}
+      </span>
+    </button>
+  </div>
+</div>
 
           <!-- 🆕 [CẬP NHẬT MỚI] CHẾ ĐỘ "CHỈ BÁN VIÊN", "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
           <div v-else class="inline-flex items-center gap-2 bg-slate-100/90 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold border border-slate-200/80 shadow-sm">

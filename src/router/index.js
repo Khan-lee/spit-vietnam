@@ -44,7 +44,14 @@ const router = createRouter({
       component: () => import('../views/AdminLoginView.vue') 
     },
 
-    { path: '/checkout', name: 'checkout', component: () => import('../views/CheckoutView.vue') },
+    // ⚡ UPDATE: BẢO VỆ ROUTE CHECKOUT CHO NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP
+    { 
+      path: '/checkout', 
+      name: 'checkout', 
+      component: () => import('../views/CheckoutView.vue'),
+      meta: { requiresUserAuth: true }
+    },
+    
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     {
       path: '/orders',
@@ -63,7 +70,6 @@ const router = createRouter({
     },
 
     // --- ADMIN ROUTES ---
-    // ⚡ UPDATE MỚI: ROUTE CHO BẢNG THỐNG KÊ TRUY CẬP
     { 
       path: '/spit-system-manager/stats', 
       name: 'AdminStats', 
@@ -155,6 +161,7 @@ const ADMIN_EMAILS = [
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
 
+  // 1. Kiểm tra Route yêu cầu quyền ADMIN
   if (to.meta.requiresAuth) {
     const user = await getCurrentUser();
     
@@ -163,7 +170,23 @@ router.beforeEach(async (to, from, next) => {
     } else {
       next({ name: 'admin-login' });
     }
-  } else {
+  } 
+  // 2. UPDATE: Kiểm tra Route yêu cầu đăng nhập KHÁCH HÀNG (Checkout)
+  else if (to.meta.requiresUserAuth) {
+    const user = await getCurrentUser();
+
+    if (user) {
+      next(); // Đã đăng nhập -> cho phép vào Checkout
+    } else {
+      // Chưa đăng nhập -> Chuyển hướng sang Login và lưu tham số query redirect
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      });
+    }
+  } 
+  // 3. Các route public thông thường
+  else {
     next();
   }
 });

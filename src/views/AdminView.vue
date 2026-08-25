@@ -55,7 +55,8 @@ const activePromotions = ref([])
 
 // --- BIẾN QUẢN LÝ QUY CÁCH & BÁN HÀNG ---
 // ⚡ UPDATE MỚI: Bổ sung thêm loại hình 'stone' (Chỉ bán viên)
-// sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp), 'stone' (Chỉ bán viên)
+// ⚡ UPDATE MỚI (2): Bổ sung thêm loại hình 'cai' (Chỉ bán Cái), tương tự cách hoạt động của 'vien'
+// sales_type: 'flexible' (Mảnh + Sỉ Hộp), 'piece' (Chỉ bán mảnh), 'box' (Chỉ bán hộp), 'stone' (Chỉ bán viên), 'cai' (Chỉ bán Cái)
 const sales_type = ref('flexible') 
 const box_qty = ref(10) // Mặc định 1 hộp = 10 mảnh / viên
 
@@ -451,6 +452,45 @@ const filteredBrands = computed(() => {
   return brands.value.filter(b => 
     b.name?.toLowerCase().includes(brandSearchQuery.value.toLowerCase())
   )
+})
+
+// =========================================================================
+// ⚡ UPDATE MỚI: GOM NHÓM DANH SÁCH SẢN PHẨM THEO TỪNG DANH MỤC NHỎ
+// Giúp bảng "Quản lý hàng hóa" gọn gàng hơn, không bị kéo dài vô tận khi có nhiều SP
+// =========================================================================
+
+// Trạng thái đóng/mở của từng nhóm danh mục trong bảng danh sách sản phẩm
+// (mặc định coi là đang MỞ, trừ khi được set về false)
+const expandedCategories = ref({})
+
+// Bật/tắt đóng-mở 1 nhóm danh mục khi bấm vào tiêu đề nhóm
+const toggleCategoryGroup = (catName) => {
+  expandedCategories.value[catName] = expandedCategories.value[catName] === false ? true : false
+}
+
+// Gom nhóm sản phẩm đã lọc (theo ô tìm kiếm) thành từng cụm theo Danh mục (category_vi)
+// và sắp xếp thứ tự nhóm theo đúng thứ tự Danh mục đã cấu hình ở phần "Quản lý danh mục"
+const groupedFilteredProducts = computed(() => {
+  const groups = {}
+  filteredProducts.value.forEach(p => {
+    const catName = p.category_vi || p.category || 'Chưa phân loại'
+    if (!groups[catName]) groups[catName] = []
+    groups[catName].push(p)
+  })
+
+  const catOrderMap = {}
+  categories.value.forEach((c, idx) => {
+    if (c.name_vi) catOrderMap[c.name_vi] = idx
+  })
+
+  return Object.keys(groups)
+    .sort((a, b) => {
+      const orderA = catOrderMap[a] !== undefined ? catOrderMap[a] : 999
+      const orderB = catOrderMap[b] !== undefined ? catOrderMap[b] : 999
+      if (orderA !== orderB) return orderA - orderB
+      return a.localeCompare(b)
+    })
+    .map(catName => ({ catName, items: groups[catName] }))
 })
 
 // UPDATE MỚI: Chọn file từ máy sẽ làm mới ô nhập link
@@ -968,8 +1008,9 @@ const resetBrandForm = () => {
                   <div class="p-3 bg-blue-50/40 rounded-2xl border border-blue-100/60 space-y-3">
                     <label class="text-[9px] font-black uppercase text-blue-600 ml-1 block tracking-wider">⚡ Hình thức & Quy cách bán hàng</label>
                     
-                    <!-- 4 Nút chọn Kịch bản Bán (Đã bổ sung nút CHỈ BÁN VIÊN) -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <!-- 5 Nút chọn Kịch bản Bán (Đã bổ sung nút CHỈ BÁN VIÊN và CHỈ BÁN CÁI) -->
+                    <!-- ⚡ UPDATE MỚI: Đổi grid-cols-4 -> grid-cols-5 (sm) để chứa thêm nút "Chỉ bán Cái" -->
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                       <button 
                         type="button"
                         @click="sales_type = 'flexible'"
@@ -997,6 +1038,16 @@ const resetBrandForm = () => {
                         Chỉ bán Viên
                       </button>
 
+                      <!-- ⚡ NÚT MỚI THÊM: CHỈ BÁN CÁI -->
+                      <button 
+                        type="button"
+                        @click="sales_type = 'cai'"
+                        :class="sales_type === 'cai' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="p-2 rounded-xl text-[9px] font-black uppercase transition-all border border-slate-100"
+                      >
+                        Chỉ bán Cái
+                      </button>
+
                       <button 
                         type="button"
                         @click="sales_type = 'box'"
@@ -1008,7 +1059,8 @@ const resetBrandForm = () => {
                     </div>
 
                     <!-- Ô Nhập Quy cách Hộp -->
-                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien'" class="grid grid-cols-2 gap-2 pt-1">
+                    <!-- ⚡ UPDATE MỚI: Thêm điều kiện loại trừ 'cai' (Chỉ bán Cái cũng không cần khai báo box_qty) -->
+                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien' && sales_type !== 'cai'" class="grid grid-cols-2 gap-2 pt-1">
                       <div class="space-y-1">
                         <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
                         <input 
@@ -1026,8 +1078,9 @@ const resetBrandForm = () => {
                   <!-- 2. KHỐI NHẬP GIÁ SẢN PHẨM -->
                   <div class="grid grid-cols-2 gap-2 pt-2">
 
-                    <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh' và không phải 'Chỉ bán viên') -->
-                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien'" class="space-y-1">
+                    <!-- Ô Nhập Giá Hộp (Hiện khi không phải 'Chỉ bán mảnh', 'Chỉ bán viên' và không phải 'Chỉ bán Cái') -->
+                    <!-- ⚡ UPDATE MỚI: Thêm điều kiện loại trừ 'cai' -->
+                    <div v-if="sales_type !== 'piece' && sales_type !== 'vien' && sales_type !== 'cai'" class="space-y-1">
                       <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 Hộp (VNĐ)</label>
                       <input 
                         v-model.number="price_box" 
@@ -1071,7 +1124,8 @@ const resetBrandForm = () => {
 
                     <!-- Ô Nhập Giá Mảnh / Viên (Hiện khi không phải 'Chỉ bán hộp') -->
                     <div v-if="sales_type !== 'box'" class="space-y-1">
-                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 {{ sales_type === 'vien' ? 'Viên' : 'Mảnh' }} (VNĐ)</label>
+                      <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Cái" bên cạnh "Viên" / "Mảnh" -->
+                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 {{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : 'Mảnh') }} (VNĐ)</label>
                       <input 
                         v-model.number="price_piece" 
                         @input="onPricePieceInput"
@@ -1082,7 +1136,8 @@ const resetBrandForm = () => {
 
                       <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh / Viên -->
                       <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
-                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo ({{ sales_type === 'vien' ? 'Viên' : 'Mảnh' }}):</span>
+                        <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Cái" bên cạnh "Viên" / "Mảnh" -->
+                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo ({{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : 'Mảnh') }}):</span>
                         
                         <div class="flex gap-1.5">
                           <select 
@@ -1246,48 +1301,70 @@ const resetBrandForm = () => {
                     <th class="p-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-50">
-                  <tr v-for="p in filteredProducts" :key="p.id" class="hover:bg-blue-50/30 transition-colors group">
-                    <td class="p-5 flex items-center gap-4">
-                      <div class="relative">
-                        <img :src="p.image" class="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-100 p-1 shadow-sm group-hover:scale-110 transition-transform" />
-                        <div v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
-                             class="absolute -top-1 -right-1 text-white text-[7px] font-black px-1 rounded-md shadow-sm"
-                             :class="p.isCampaign ? 'bg-orange-500' : 'bg-red-500'">
-                          {{ p.isCampaign ? 'CAMPAIGN' : 'SALE' }}
-                        </div>
-                      </div>
-                      <div>
-                        <div class="text-sm font-black text-slate-800 leading-tight">{{ p.name_vi || p.name }}</div>
-                        <div class="text-[10px] font-medium text-slate-400 italic mb-1">{{ p.name_en }}</div>
-                        <div class="inline-flex items-center gap-1.5 flex-wrap">
-                           <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
-                           <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
-                           <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
-                           
-                           <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
-                           <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>
-                           <span v-else-if="p.sales_type === 'vien'" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">Bán Viên</span>
-                           <span v-else-if="p.sales_type === 'piece'" class="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">Bán Mảnh</span>
-                           <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="p-5 text-right font-black text-sm italic text-slate-700">
-                      {{ p.price?.toLocaleString() }}<span class="text-[10px] ml-0.5">đ</span>
-                    </td>
-                    <td class="p-5 text-right">
-                      <div class="flex justify-end gap-2">
-                        <button @click="startEdit(p)" class="p-2 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer">
-                          <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
-                        </button>
-                        <button @click="confirmDelete(p.id, p.name_vi || p.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
-                          <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
-                        </button>
+                <!-- ⚡ UPDATE MỚI: Thay bảng phẳng bằng danh sách GOM NHÓM THEO DANH MỤC, có thể bấm để đóng/mở từng nhóm -->
+                <tbody v-for="group in groupedFilteredProducts" :key="group.catName" class="divide-y divide-slate-50">
+                  <!-- Header của từng nhóm Danh mục - bấm vào để đóng/mở -->
+                  <tr @click="toggleCategoryGroup(group.catName)" class="bg-slate-100/70 hover:bg-slate-200/60 cursor-pointer transition-colors select-none">
+                    <td colspan="3" class="px-5 py-3">
+                      <div class="flex items-center gap-2.5">
+                        <span 
+                          class="text-slate-400 text-[10px] transition-transform duration-200"
+                          :class="expandedCategories[group.catName] === false ? '-rotate-90' : ''"
+                        >▼</span>
+                        <span class="text-xs font-black text-slate-700 uppercase tracking-wider">{{ group.catName }}</span>
+                        <span class="text-[9px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">{{ group.items.length }} sản phẩm</span>
                       </div>
                     </td>
                   </tr>
-                  <tr v-if="filteredProducts.length === 0">
+
+                  <!-- Danh sách sản phẩm bên trong nhóm (chỉ hiện khi nhóm đang MỞ) -->
+                  <template v-if="expandedCategories[group.catName] !== false">
+                    <tr v-for="p in group.items" :key="p.id" class="hover:bg-blue-50/30 transition-colors group">
+                      <td class="p-5 flex items-center gap-4">
+                        <div class="relative">
+                          <img :src="p.image" class="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-100 p-1 shadow-sm group-hover:scale-110 transition-transform" />
+                          <div v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
+                               class="absolute -top-1 -right-1 text-white text-[7px] font-black px-1 rounded-md shadow-sm"
+                               :class="p.isCampaign ? 'bg-orange-500' : 'bg-red-500'">
+                            {{ p.isCampaign ? 'CAMPAIGN' : 'SALE' }}
+                          </div>
+                        </div>
+                        <div>
+                          <div class="text-sm font-black text-slate-800 leading-tight">{{ p.name_vi || p.name }}</div>
+                          <div class="text-[10px] font-medium text-slate-400 italic mb-1">{{ p.name_en }}</div>
+                          <div class="inline-flex items-center gap-1.5 flex-wrap">
+                             <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
+                             <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
+                             <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
+                             
+                             <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
+                             <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>
+                             <span v-else-if="p.sales_type === 'vien'" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">Bán Viên</span>
+                             <!-- ⚡ UPDATE MỚI: Badge hiển thị "Bán Cái" trong bảng danh sách sản phẩm -->
+                             <span v-else-if="p.sales_type === 'cai'" class="text-[8px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase">Bán Cái</span>
+                             <span v-else-if="p.sales_type === 'piece'" class="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">Bán Mảnh</span>
+                             <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="p-5 text-right font-black text-sm italic text-slate-700">
+                        {{ p.price?.toLocaleString() }}<span class="text-[10px] ml-0.5">đ</span>
+                      </td>
+                      <td class="p-5 text-right">
+                        <div class="flex justify-end gap-2">
+                          <button @click="startEdit(p)" class="p-2 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer">
+                            <span class="text-blue-500 font-black text-[10px] uppercase">Sửa</span>
+                          </button>
+                          <button @click="confirmDelete(p.id, p.name_vi || p.name)" class="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
+                            <span class="text-red-300 hover:text-red-500 font-black text-[10px] uppercase">Xóa</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+                <tbody v-if="filteredProducts.length === 0">
+                  <tr>
                     <td colspan="3" class="p-10 text-center text-slate-400 text-xs italic">Không tìm thấy sản phẩm nào...</td>
                   </tr>
                 </tbody>
