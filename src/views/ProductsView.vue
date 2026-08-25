@@ -130,6 +130,26 @@
               >
                 MẢNH
               </button>
+              <!-- ⚡ UPDATE MỚI: Bổ sung nút lọc nhanh theo quy cách "VIÊN" đồng bộ với AdminView/HomeView -->
+              <button 
+                @click="selectedSalesType = 'vien'"
+                :class="[
+                  'px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border',
+                  selectedSalesType === 'vien' ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-violet-50/60 text-violet-600 border-violet-200 hover:bg-violet-100'
+                ]"
+              >
+                VIÊN
+              </button>
+              <!-- ⚡ UPDATE MỚI: Bổ sung nút lọc nhanh theo quy cách "CÁI" đồng bộ với AdminView/HomeView -->
+              <button 
+                @click="selectedSalesType = 'cai'"
+                :class="[
+                  'px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border',
+                  selectedSalesType === 'cai' ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm' : 'bg-cyan-50/60 text-cyan-600 border-cyan-200 hover:bg-cyan-100'
+                ]"
+              >
+                CÁI
+              </button>
               <button 
                 @click="selectedSalesType = 'flexible'"
                 :class="[
@@ -203,6 +223,9 @@
                     <span class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase block truncate max-w-[60%]">{{ p.brand || 'Khác' }}</span>
                     <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
                     <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
+                    <!-- ⚡ UPDATE MỚI: Badge quy cách "VIÊN" / "CÁI" đồng bộ với AdminView/HomeView -->
+                    <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+                    <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
                     <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
                   </div>
 
@@ -240,13 +263,14 @@
                   </div>
                 </template>
 
-                <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH HOẶC KHÁC -->
+                <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN / CÁI HOẶC KHÁC -->
                 <template v-else>
                   <div v-if="getSalePrice(p)" class="flex items-baseline gap-1 flex-wrap">
                     <span class="text-xs sm:text-base font-black text-red-600">
                       {{ Math.round(getSalePrice(p)).toLocaleString('vi-VN') }}đ
                     </span>
-                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ Mảnh</span>
+                    <!-- ⚡ UPDATE MỚI: Đơn vị hiển thị đổi thành "Viên"/"Cái" thay vì luôn cứng "Mảnh" -->
+                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
                     <span class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-0.5">
                       {{ p.price?.toLocaleString('vi-VN') }}đ
                     </span>
@@ -256,7 +280,8 @@
                     <span class="text-xs sm:text-base font-black text-red-600">
                       {{ p.price.toLocaleString('vi-VN') }}đ
                     </span>
-                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ Mảnh</span>
+                    <!-- ⚡ UPDATE MỚI: Đơn vị hiển thị đổi thành "Viên"/"Cái" thay vì luôn cứng "Mảnh" -->
+                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
                   </div>
 
                   <div v-else class="text-xs sm:text-base font-black text-red-600">
@@ -305,6 +330,9 @@
                     <span class="text-[10px] font-bold text-slate-400 uppercase">{{ p.brand || 'Khác' }}</span>
                     <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200">HỘP</span>
                     <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200">MẢNH</span>
+                    <!-- ⚡ UPDATE MỚI: Badge quy cách "VIÊN" / "CÁI" cho chế độ danh sách (List view) -->
+                    <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200">VIÊN</span>
+                    <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] font-bold px-1.5 py-px rounded border border-cyan-200">CÁI</span>
                     <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200">SỈ + LẺ</span>
                   </div>
                   <h3 class="font-bold text-sm text-slate-800 group-hover:text-red-600 transition-colors">
@@ -438,7 +466,8 @@ const isMobileFilterOpen = ref(false)
 const viewMode = ref('grid') // 'grid' | 'list'
 
 // Toolbar state
-const selectedSalesType = ref('all') // 'all', 'box', 'piece', 'flexible'
+// ⚡ UPDATE MỚI: Bổ sung thêm 2 giá trị 'vien' và 'cai' vào danh sách quy cách có thể lọc
+const selectedSalesType = ref('all') // 'all', 'box', 'piece', 'vien', 'cai', 'flexible'
 const sortBy = ref('default')
 
 // Phân trang

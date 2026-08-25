@@ -792,6 +792,8 @@ const getCategoryBanner = (catName) => {
             <span v-else-if="product.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
             <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Chỉ bán Viên" đồng bộ với AdminView (sales_type === 'vien') -->
             <span v-else-if="product.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+            <!-- ⚡ UPDATE MỚI (2): Bổ sung nhãn "Chỉ bán Cái" đồng bộ với AdminView (sales_type === 'cai') -->
+            <span v-else-if="product.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
             <span v-else-if="product.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
           </div>
 
@@ -823,15 +825,15 @@ const getCategoryBanner = (catName) => {
             </div>
           </template>
 
-          <!-- ================= TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN (KHÔNG BÁN HỘP) ================= -->
+          <!-- ================= TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN / CÁI (KHÔNG BÁN HỘP) ================= -->
           <template v-else>
             <div v-if="getSalePrice(product) || product?.price" class="flex items-baseline gap-1 flex-wrap">
-              <!-- Giá Mảnh / Viên thực tế bán -->
+              <!-- Giá Mảnh / Viên / Cái thực tế bán -->
               <span class="text-sm sm:text-base font-black text-red-600">
                 {{ Math.round(getSalePrice(product) || product.price).toLocaleString('vi-VN') }}đ
               </span>
-              <!-- ⚡ UPDATE MỚI: Hiển thị đơn vị "Viên" thay vì luôn cứng "Mảnh" khi sales_type === 'vien' -->
-              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ product.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+              <!-- ⚡ UPDATE MỚI: Hiển thị đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ product.sales_type === 'vien' ? 'Viên' : (product.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
 
               <!-- Hiển thị Giá Ảo / Giá Niêm Yết gạch đi cho Mảnh -->
               <span v-if="getDisplayOriginalPrice(product, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
@@ -906,6 +908,8 @@ const getCategoryBanner = (catName) => {
                   <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
                   <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Chỉ bán Viên" đồng bộ với AdminView -->
                   <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+                  <!-- ⚡ UPDATE MỚI (2): Bổ sung nhãn "Chỉ bán Cái" đồng bộ với AdminView -->
+                  <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
                   <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
                 </div>
                 <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
@@ -934,8 +938,8 @@ const getCategoryBanner = (catName) => {
                   <span class="text-xs sm:text-base font-black text-red-600">
                     {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                   </span>
-                  <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" thay vì luôn cứng "Mảnh" khi sales_type === 'vien' -->
-                  <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+                  <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
+                  <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
                   <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-1">
                     {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
                   </span>
@@ -997,6 +1001,8 @@ const getCategoryBanner = (catName) => {
                       <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
                       <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Chỉ bán Viên" đồng bộ với AdminView -->
                       <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+                      <!-- ⚡ UPDATE MỚI (2): Bổ sung nhãn "Chỉ bán Cái" đồng bộ với AdminView -->
+                      <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
                       <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
                     </div>
                     <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
@@ -1025,8 +1031,8 @@ const getCategoryBanner = (catName) => {
                       <span class="text-xs sm:text-base font-black text-red-600">
                         {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                       </span>
-                      <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" thay vì luôn cứng "Mảnh" khi sales_type === 'vien' -->
-                      <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+                      <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
+                      <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
                       <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-1">
                         {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
                       </span>
@@ -1143,6 +1149,8 @@ const getCategoryBanner = (catName) => {
               <span v-if="p.sales_type === 'box'" class="bg-blue-50 text-blue-600 text-[8px] font-bold px-1.5 py-px rounded border border-blue-200 whitespace-nowrap">HỘP</span>
               <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
               <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+              <!-- ⚡ UPDATE MỚI (2): Bổ sung nhãn "Chỉ bán Cái" đồng bộ với AdminView -->
+              <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
               <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
             </div>
             <h3 class="font-bold text-xs text-slate-800 line-clamp-2 h-8 group-hover:text-red-600 transition-colors">
@@ -1173,15 +1181,16 @@ const getCategoryBanner = (catName) => {
             </div>
           </template>
 
-          <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN -->
+          <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN / CÁI -->
           <template v-else>
             <div v-if="getSalePrice(p) || p?.price" class="flex items-baseline gap-1 flex-wrap">
               <span class="text-sm sm:text-base font-black text-red-600">
                 {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
               </span>
-              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+              <!-- ⚡ UPDATE MỚI (2): Đơn vị "Cái" bên cạnh "Viên" / "Mảnh" -->
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
 
-              <!-- Vẫn giữ nguyên hiển thị Giá ảo niêm yết gạch đi cho Mảnh / Viên -->
+              <!-- Vẫn giữ nguyên hiển thị Giá ảo niêm yết gạch đi cho Mảnh / Viên / Cái -->
               <span v-if="getDisplayOriginalPrice(p, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
                 {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
               </span>
@@ -1275,6 +1284,8 @@ const getCategoryBanner = (catName) => {
                           <span v-else-if="p.sales_type === 'piece'" class="bg-amber-50 text-amber-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-amber-200 whitespace-nowrap">MẢNH</span>
                           <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Chỉ bán Viên" đồng bộ với AdminView -->
                           <span v-else-if="p.sales_type === 'vien'" class="bg-violet-50 text-violet-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-violet-200 whitespace-nowrap">VIÊN</span>
+                          <!-- ⚡ UPDATE MỚI (2): Bổ sung nhãn "Chỉ bán Cái" đồng bộ với AdminView -->
+                          <span v-else-if="p.sales_type === 'cai'" class="bg-cyan-50 text-cyan-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-cyan-200 whitespace-nowrap">CÁI</span>
                           <span v-else-if="p.sales_type === 'flexible'" class="bg-emerald-50 text-emerald-600 text-[8px] sm:text-[9px] font-bold px-1.5 py-px rounded border border-emerald-200 whitespace-nowrap">SỈ + LẺ</span>
                         </div>
 
@@ -1307,14 +1318,14 @@ const getCategoryBanner = (catName) => {
                         </div>
                       </template>
 
-                      <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN (KHÔNG BÁN HỘP) -->
+                      <!-- TRƯỜNG HỢP 2: BÁN THEO MẢNH / VIÊN / CÁI (KHÔNG BÁN HỘP) -->
                       <template v-else>
                         <div v-if="getSalePrice(p) || p?.price" class="flex items-baseline gap-1 flex-wrap">
                           <span class="text-xs sm:text-base font-black text-red-600">
                             {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                           </span>
-                          <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" thay vì luôn cứng "Mảnh" khi sales_type === 'vien' -->
-                          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : 'Mảnh' }}</span>
+                          <!-- ⚡ UPDATE MỚI (2): Đơn vị "Cái" bên cạnh "Viên" / "Mảnh" -->
+                          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
 
                           <!-- Giá Mảnh Niêm Yết / Giá Ảo Gạch Đi -->
                           <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-0.5">

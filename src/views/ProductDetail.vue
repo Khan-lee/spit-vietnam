@@ -282,11 +282,12 @@
   </div>
 </div>
 
-          <!-- 🆕 [CẬP NHẬT MỚI] CHẾ ĐỘ "CHỈ BÁN VIÊN", "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
+          <!-- 🆕 [CẬP NHẬT MỚI] CHẾ ĐỘ "CHỈ BÁN VIÊN", "CHỈ BÁN CÁI", "CHỈ BÁN HỘP" HOẶC "CHỈ BÁN MẢNH" TỪ ADMIN -->
           <div v-else class="inline-flex items-center gap-2 bg-slate-100/90 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold border border-slate-200/80 shadow-sm">
             <span class="text-slate-400 uppercase text-[10px] tracking-wider font-extrabold">QUY CÁCH BÁN:</span>
+            <!-- ⚡ UPDATE MỚI: Bổ sung nhánh hiển thị "CÁI" khi isCaiOnlyMode -->
             <span class="text-slate-900 font-black uppercase tracking-wide text-xs">
-              {{ isVienOnlyMode ? 'VIÊN' : (isBoxOnlyMode ? 'CHỈ BÁN HỘP' : (isPieceOnlyMode ? 'CHỈ BÁN MẢNH' : displayUnitLabel)) }}
+              {{ isVienOnlyMode ? 'VIÊN' : (isCaiOnlyMode ? 'CÁI' : (isBoxOnlyMode ? 'CHỈ BÁN HỘP' : (isPieceOnlyMode ? 'CHỈ BÁN MẢNH' : displayUnitLabel))) }}
             </span>
           </div>
 
@@ -490,7 +491,8 @@ const showToast = ref(false)
 const toastMessage = ref('')
 
 // --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
-const selectedUnit = ref('piece') // 'piece', 'box', hoặc 'vien'
+// ⚡ UPDATE MỚI: Bổ sung thêm giá trị 'cai' (Chỉ bán Cái), đồng bộ với AdminView
+const selectedUnit = ref('piece') // 'piece', 'box', 'vien', hoặc 'cai'
 const quantity = ref(1)
 
 // --- TAB MÔ TẢ VÀ ĐẶC TÍNH ---
@@ -517,7 +519,8 @@ const listenActivePromotions = () => {
 // --- XÁC ĐỊNH SẢN PHẨM CÓ ĐANG MUA THEO HỘP HAY KHÔNG ---
 const isBuyingBox = computed(() => {
   if (isBoxOnlyMode.value) return true
-  if (isPieceOnlyMode.value || isVienOnlyMode.value) return false
+  // ⚡ UPDATE MỚI: Bổ sung isCaiOnlyMode vào điều kiện KHÔNG mua theo Hộp
+  if (isPieceOnlyMode.value || isVienOnlyMode.value || isCaiOnlyMode.value) return false
   return selectedUnit.value === 'box'
 })
 
@@ -615,7 +618,7 @@ const effectivePromo = computed(() => {
         type: campaign.discount_type || 'percentage',
         value: cleanNumber(campaign.discount_value),
         min_qty: 1,
-        label: 'CAMPAIGN',
+        label: 'SALE',
         end_date: campaign.end_date,
         all_tiers: [],
         hasReachedTier: true
@@ -784,12 +787,16 @@ const normalizedSellingMode = computed(() => {
   ).toLowerCase().trim()
 
   if (mode === 'vien' || mode === 'chi_ban_vien' || mode.includes('viên') || mode.includes('vien')) return 'vien_only'
+  // ⚡ UPDATE MỚI: Nhận diện chế độ "Chỉ bán Cái" (sales_type === 'cai' từ AdminView)
+  if (mode === 'cai' || mode === 'chi_ban_cai' || mode.includes('cái') || mode.includes('cai')) return 'cai_only'
   if (mode === 'box' || mode.includes('hộp') || mode.includes('hop')) return 'box_only'
   if (mode === 'piece' || mode.includes('mảnh') || mode.includes('manh') || mode.includes('lẻ')) return 'piece_only'
   if (mode === 'flexible' || mode.includes('sỉ') || mode.includes('sile')) return 'flexible'
 
   const unitVi = String(product.value?.unit_vi || '').toLowerCase()
   if (unitVi === 'viên' || unitVi === 'vien') return 'vien_only'
+  // ⚡ UPDATE MỚI: Nhận diện qua unit_vi = "Cái"
+  if (unitVi === 'cái' || unitVi === 'cai') return 'cai_only'
   if (unitVi === 'hộp' || unitVi === 'box') return 'box_only'
 
   if (boxSize.value > 1) return 'flexible'
@@ -797,12 +804,16 @@ const normalizedSellingMode = computed(() => {
 })
 
 const isVienOnlyMode = computed(() => normalizedSellingMode.value === 'vien_only')
+// ⚡ UPDATE MỚI: Cờ nhận biết chế độ "Chỉ bán Cái", dùng tương tự isVienOnlyMode
+const isCaiOnlyMode = computed(() => normalizedSellingMode.value === 'cai_only')
 const isBoxOnlyMode = computed(() => normalizedSellingMode.value === 'box_only')
 const isPieceOnlyMode = computed(() => normalizedSellingMode.value === 'piece_only')
 const isFlexibleMode = computed(() => normalizedSellingMode.value === 'flexible')
 
 const unitPieceName = computed(() => {
   if (isVienOnlyMode.value) return locale.value === 'vi' ? 'Viên' : 'Pill'
+  // ⚡ UPDATE MỚI: Trả về nhãn "Cái" khi ở chế độ Chỉ bán Cái
+  if (isCaiOnlyMode.value) return locale.value === 'vi' ? 'Cái' : 'Piece'
   if (product.value?.unit_piece) return product.value.unit_piece
   return locale.value === 'vi' ? 'Mảnh' : 'Pc'
 })
@@ -817,6 +828,10 @@ const unitBoxName = computed(() => {
 const displayUnitLabel = computed(() => {
   if (isVienOnlyMode.value) {
     return product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')
+  }
+  // ⚡ UPDATE MỚI: Nhãn hiển thị đơn vị khi ở chế độ "Chỉ bán Cái"
+  if (isCaiOnlyMode.value) {
+    return product.value?.unit_vi || (locale.value === 'vi' ? 'Cái' : 'Piece')
   }
   if (isBoxOnlyMode.value) {
     const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
@@ -906,10 +921,13 @@ const addToCart = (item) => {
     const cart = JSON.parse(localStorage.getItem('spit_cart')) || []
     const pName = item[`name_${locale.value}`] || item.name
     
-    const currentUnitKey = isVienOnlyMode.value ? 'vien' : (isBoxOnlyMode.value ? 'box' : selectedUnit.value)
+    // ⚡ UPDATE MỚI: Bổ sung nhánh 'cai' vào key và nhãn đơn vị khi thêm vào giỏ hàng
+    const currentUnitKey = isVienOnlyMode.value ? 'vien' : (isCaiOnlyMode.value ? 'cai' : (isBoxOnlyMode.value ? 'box' : selectedUnit.value))
     const currentUnitLabel = isVienOnlyMode.value 
       ? (product.value?.unit_vi || (locale.value === 'vi' ? 'Viên' : 'Pill')) 
-      : (isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value))
+      : (isCaiOnlyMode.value 
+          ? (product.value?.unit_vi || (locale.value === 'vi' ? 'Cái' : 'Piece'))
+          : (isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)))
     
     const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
 
@@ -985,6 +1003,9 @@ onMounted(async () => {
       
       if (isVienOnlyMode.value) {
         selectedUnit.value = 'vien'
+      } else if (isCaiOnlyMode.value) {
+        // ⚡ UPDATE MỚI: Gán selectedUnit = 'cai' khi sản phẩm ở chế độ "Chỉ bán Cái"
+        selectedUnit.value = 'cai'
       } else if (isBoxOnlyMode.value) {
         selectedUnit.value = 'box'
       } else {
