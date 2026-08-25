@@ -6,6 +6,7 @@
     { "src": "/product/(?<slug>[^/]+)", "dest": "/product/$slug.html" },
     { "src": "/post/(?<slug>[^/]+)", "dest": "/post/$slug.html" },
     { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/(.*)", "dest": "/index.html" },
+    { "src": "/spit-system-manager", "dest": "/spit-system-manager.html" }
   ]
 }
