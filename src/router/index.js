@@ -52,6 +52,13 @@ const router = createRouter({
       meta: { requiresUserAuth: true }
     },
     
+    // ⚡ UPDATE MỚI: HỖ TRỢ ĐƯỜNG DẪN SEO CHO TRANG CHI TIẾT SẢN PHẨM
+    // Giữ nguyên tên tham số ":id" như cũ để KHÔNG phá vỡ bất kỳ code nào đang dùng route.params.id,
+    // nhưng giờ đây giá trị của "id" trên URL có thể là:
+    //   - Slug SEO thân thiện (VD: /product/may-phay-cnc-korloy-6mm) — sản phẩm đã cấu hình Slug ở Admin
+    //   - Hoặc ID Firestore ngẫu nhiên như cũ (VD: /product/04bZvFEPryme2IHGYwMu) — với sản phẩm chưa có Slug
+    // Việc phân giải Slug -> ID Firestore thật được xử lý bên trong ProductDetail.vue (khi tải dữ liệu sản phẩm),
+    // nên bản thân route này không cần đổi path pattern, chỉ cần comment ghi chú lại cho rõ ràng.
     { path: '/product/:id', name: 'product-detail', component: () => import('../views/ProductDetail.vue'), props: true },
     {
       path: '/orders',

@@ -118,6 +118,67 @@ const custom_url = ref('')
 const catalog_link = ref('')
 
 // =========================================================================
+// ⚡ UPDATE MỚI: BIẾN QUẢN LÝ SEO SẢN PHẨM (Đường dẫn thân thiện + Nội dung SEO + Schema JSON)
+// =========================================================================
+const slug = ref('')                 // Đường dẫn thân thiện SEO (thay thế cho ID ngẫu nhiên trên URL)
+const seo_title_vi = ref('')         // SEO Title (Thẻ tiêu đề hiển thị trên Google)
+const seo_keywords_vi = ref('')      // SEO Keywords (Từ khóa liên quan)
+const seo_description_vi = ref('')   // SEO Description (Mô tả ngắn hiển thị trên Google)
+const schema_json_vi = ref('')       // Schema JSON-LD (Dữ liệu có cấu trúc cho công cụ tìm kiếm)
+
+// Domain gốc của website, dùng để hiển thị "Đường dẫn mẫu" cho Admin dễ hình dung
+const SITE_DOMAIN = 'https://www.vattuvocuc.com.vn/product/'
+
+// Hàm chuyển Tên sản phẩm thành Slug thân thiện SEO (bỏ dấu tiếng Việt, khoảng trắng -> gạch ngang)
+const slugify = (str) => {
+  if (!str) return ''
+  let result = str.toString().trim().toLowerCase()
+  result = result.normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Bỏ dấu tiếng Việt
+  result = result.replace(/đ/g, 'd').replace(/Đ/g, 'D')
+  result = result.replace(/[^a-z0-9\s-]/g, '') // Bỏ ký tự đặc biệt
+  result = result.replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+  return result
+}
+
+// Tự động tạo Slug từ Tên sản phẩm (VI) khi Admin bấm nút "Tự động tạo từ tên SP"
+const generateSlugFromName = () => {
+  slug.value = slugify(name_vi.value)
+}
+
+// Tự động tạo Nội dung SEO (Title / Keywords / Description) dựa trên dữ liệu sản phẩm hiện có
+const generateSeoContent = () => {
+  seo_title_vi.value = (name_vi.value || '').slice(0, 70)
+  seo_keywords_vi.value = [name_vi.value, brand.value, category_vi.value].filter(Boolean).join(', ').slice(0, 70)
+  // Bóc tách chữ thô từ mô tả HTML (bỏ thẻ HTML) để làm SEO Description
+  const plainDesc = (description_vi.value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  seo_description_vi.value = plainDesc.slice(0, 160)
+}
+
+// Tự động tạo Schema JSON-LD (Product) dựa trên dữ liệu sản phẩm hiện có
+const generateSchemaJson = () => {
+  const schemaObj = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": name_vi.value || '',
+    "image": image.value || '',
+    "description": seo_description_vi.value || '',
+    "sku": editingId.value || '',
+    "brand": {
+      "@type": "Brand",
+      "name": brand.value || ''
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": slug.value ? (SITE_DOMAIN + slug.value) : '',
+      "priceCurrency": "VND",
+      "price": Number(price_piece.value) || Number(price.value) || 0,
+      "availability": (Number(stock.value) > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+    }
+  }
+  schema_json_vi.value = JSON.stringify(schemaObj, null, 2)
+}
+
+// =========================================================================
 // ⚡ UPDATE MỚI: BIẾN & HÀM XỬ LÝ NHẬP LINK (URL) ẢNH TRỰC TIẾP
 // =========================================================================
 const mainImageUrlInput = ref('')  // Lưu chuỗi link URL ảnh chính nhập từ input
@@ -577,6 +638,13 @@ const resetForm = () => {
   selectedTags.value = []
   hasPromotion.value = false
   promotionValue.value = ''
+
+  // ⚡ UPDATE MỚI: Reset các trường SEO (Slug, SEO Title/Keywords/Description, Schema JSON)
+  slug.value = ''
+  seo_title_vi.value = ''
+  seo_keywords_vi.value = ''
+  seo_description_vi.value = ''
+  schema_json_vi.value = ''
   
   // Reset các biến giá hiển thị ảo
   display_discount_type_box.value = 'percentage'
@@ -640,6 +708,13 @@ const handleSubmit = async () => {
       
       sales_type: sales_type.value || 'flexible',
       box_qty: Number(box_qty.value) || 10,
+
+      // ⚡ UPDATE MỚI: Lưu các trường SEO vào Firestore
+      slug: slug.value.trim(),
+      seo_title_vi: seo_title_vi.value.trim(),
+      seo_keywords_vi: seo_keywords_vi.value.trim(),
+      seo_description_vi: seo_description_vi.value.trim(),
+      schema_json_vi: schema_json_vi.value.trim(),
       
       updatedAt: serverTimestamp()
     }
@@ -763,6 +838,13 @@ const startEdit = (p) => {
 
   sales_type.value = p.sales_type || 'flexible'
   box_qty.value = p.box_qty !== undefined ? p.box_qty : 10
+
+  // ⚡ UPDATE MỚI: Nạp lại dữ liệu SEO khi nhấn "Chỉnh sửa"
+  slug.value = p.slug || ''
+  seo_title_vi.value = p.seo_title_vi || ''
+  seo_keywords_vi.value = p.seo_keywords_vi || ''
+  seo_description_vi.value = p.seo_description_vi || ''
+  schema_json_vi.value = p.schema_json_vi || ''
 
   selectedTags.value = p.tags ? [...p.tags] : []
 
@@ -1062,7 +1144,8 @@ const resetBrandForm = () => {
                     <!-- ⚡ UPDATE MỚI: Thêm điều kiện loại trừ 'cai' (Chỉ bán Cái cũng không cần khai báo box_qty) -->
                     <div v-if="sales_type !== 'piece' && sales_type !== 'vien' && sales_type !== 'cai'" class="grid grid-cols-2 gap-2 pt-1">
                       <div class="space-y-1">
-                        <label class="text-[9px] font-bold text-slate-500 ml-1">Số mảnh / 1 Hộp (box_qty)</label>
+                        <!-- ⚡ UPDATE MỚI: Đổi nhãn "Số mảnh / 1 Hộp" -> "Số Cái / 1 Hộp" theo yêu cầu sếp -->
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">Số Cái / 1 Hộp (box_qty)</label>
                         <input 
                           v-model.number="box_qty" 
                           @input="onBoxQtyInput"
@@ -1220,6 +1303,103 @@ const resetBrandForm = () => {
                     <input v-model="catalog_link" placeholder="Ví dụ: https://drive.google.com/file/d/..." class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200" />
                   </div>
 
+                  <!-- ⚡ UPDATE MỚI: KHỐI TỐI ƯU SEO - ĐƯỜNG DẪN THÂN THIỆN (SLUG) -->
+                  <!-- Thay thế ID ngẫu nhiên (VD: 04bZvFEPryme2IHGYwMu) bằng đường dẫn có ý nghĩa, tốt cho SEO -->
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                    <div class="flex items-center justify-between">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Đường dẫn sản phẩm (Slug SEO)</label>
+                      <button 
+                        type="button" 
+                        @click="generateSlugFromName" 
+                        class="text-[9px] font-bold text-blue-600 hover:text-blue-700 uppercase underline underline-offset-2 cursor-pointer"
+                      >
+                        Tự động tạo từ tên SP
+                      </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                      <span class="font-bold text-slate-500">Đường dẫn mẫu:</span> {{ SITE_DOMAIN }}<span class="text-blue-600 font-bold">{{ slug || '...' }}</span>
+                    </p>
+                    <input 
+                      v-model="slug" 
+                      placeholder="vi-du-ten-san-pham-toi-uu-seo" 
+                      class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                    />
+                  </div>
+
+                  <!-- ⚡ UPDATE MỚI: KHỐI NỘI DUNG SEO (SEO TITLE / KEYWORDS / DESCRIPTION) -->
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Nội dung SEO</label>
+                      <button 
+                        type="button" 
+                        @click="generateSeoContent" 
+                        class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold rounded-lg uppercase transition-colors cursor-pointer"
+                      >
+                        Tạo SEO
+                      </button>
+                    </div>
+
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">SEO Title (vi)</label>
+                        <span class="text-[9px] font-bold text-slate-400">{{ seo_title_vi.length }}/70 ký tự</span>
+                      </div>
+                      <input 
+                        v-model="seo_title_vi" 
+                        maxlength="70" 
+                        placeholder="SEO Title (vi)" 
+                        class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
+                      />
+                    </div>
+
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">SEO Keywords (vi)</label>
+                        <span class="text-[9px] font-bold text-slate-400">{{ seo_keywords_vi.length }}/70 ký tự</span>
+                      </div>
+                      <input 
+                        v-model="seo_keywords_vi" 
+                        maxlength="70" 
+                        placeholder="SEO Keywords (vi)" 
+                        class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
+                      />
+                    </div>
+
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between">
+                        <label class="text-[9px] font-bold text-slate-500 ml-1">SEO Description (vi)</label>
+                        <span class="text-[9px] font-bold text-slate-400">{{ seo_description_vi.length }}/160 ký tự</span>
+                      </div>
+                      <textarea 
+                        v-model="seo_description_vi" 
+                        maxlength="160" 
+                        rows="3" 
+                        placeholder="SEO Description (vi)" 
+                        class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  <!-- ⚡ UPDATE MỚI: KHỐI SCHEMA JSON PRODUCT (DỮ LIỆU CÓ CẤU TRÚC) -->
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                    <div class="flex items-center justify-between">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Schema JSON Product</label>
+                      <button 
+                        type="button" 
+                        @click="generateSchemaJson" 
+                        class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold rounded-lg uppercase transition-colors cursor-pointer"
+                      >
+                        Lưu và tạo tự động Schema
+                      </button>
+                    </div>
+                    <textarea 
+                      v-model="schema_json_vi" 
+                      rows="6" 
+                      placeholder="Nếu quý khách không biết cách sử dụng Data Structure vui lòng không nhập nội dung vào khung này để tránh phát sinh lỗi..." 
+                      class="w-full p-2.5 bg-white rounded-xl outline-none text-[10px] font-mono border border-slate-200 focus:border-blue-400"
+                    ></textarea>
+                  </div>
+
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
 
                   <div class="space-y-4">
@@ -1336,6 +1516,9 @@ const resetBrandForm = () => {
                              <span class="px-2 py-0.5 rounded-full bg-blue-50 text-[8px] font-black text-blue-500 uppercase tracking-tighter">TỒN: {{ p.stock || 0 }}</span>
                              <span class="text-[8px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase font-mono">{{ p.brand }}</span>
                              <span v-if="p.unit_vi" class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{{ p.unit_vi }}</span>
+                             <!-- ⚡ UPDATE MỚI: Badge báo hiệu sản phẩm đã có Slug SEO hay chưa -->
+                             <span v-if="p.slug" class="text-[8px] font-black text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded uppercase" :title="p.slug">🔗 Đã có Slug</span>
+                             <span v-else class="text-[8px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase">Chưa có Slug</span>
                              
                              <!-- Badge hiển thị chế độ bán trong Bảng danh sách -->
                              <span v-if="p.sales_type === 'flexible'" class="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Sỉ/Lẻ (Hộp {{ p.box_qty || 10 }})</span>

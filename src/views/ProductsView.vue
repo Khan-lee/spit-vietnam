@@ -305,7 +305,7 @@
               </div>
 
               <!-- Router Link tới chi tiết -->
-              <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+              <router-link :to="getProductLink(p)" class="absolute inset-0 z-10"></router-link>
             </div>
 
           </div>
@@ -373,7 +373,7 @@
                 </a>
               </div>
 
-              <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+              <router-link :to="getProductLink(p)" class="absolute inset-0 z-10"></router-link>
             </div>
           </div>
 
@@ -686,6 +686,11 @@ const paginatedProducts = computed(() => {
 })
 
 const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1)
+
+// ⚡ UPDATE MỚI: Hàm tạo đường dẫn tới trang chi tiết sản phẩm — ưu tiên dùng Slug SEO thân thiện
+// (VD: /product/may-phay-cnc-korloy-6mm), nếu sản phẩm chưa khai báo Slug thì dùng lại ID Firestore
+// như cũ (VD: /product/04bZvFEPryme2IHGYwMu) để không phá vỡ các link cũ
+const getProductLink = (p) => '/product/' + (p?.slug || p?.id)
 
 const visiblePages = computed(() => {
   const pages = []

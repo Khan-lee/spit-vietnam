@@ -507,6 +507,11 @@ const getProductsByCategory = (catName) => {
   })
 }
 
+// ⚡ UPDATE MỚI: Hàm tạo đường dẫn tới trang chi tiết sản phẩm — ưu tiên dùng Slug SEO thân thiện
+// (VD: /product/may-phay-cnc-korloy-6mm), nếu sản phẩm chưa khai báo Slug thì dùng lại ID Firestore
+// như cũ (VD: /product/04bZvFEPryme2IHGYwMu) để không phá vỡ các link cũ
+const getProductLink = (p) => '/product/' + (p?.slug || p?.id)
+
 const getCategoryBanner = (catName) => {
   const catDoc = categoryDocs.value.find(c => {
     const nameField = locale.value === 'vi' ? 'name_vi' : 'name_en'
@@ -646,7 +651,7 @@ const getCategoryBanner = (catName) => {
                 .filter(p => !activeFlyoutBrand || (p.brand && p.brand.toLowerCase() === activeFlyoutBrand.toLowerCase()))
                 .slice(0, 4)" 
               :key="p.id"
-              :to="'/product/' + p.id"
+              :to="getProductLink(p)"
               class="flex items-center gap-3 p-2 rounded-xl hover:bg-red-50/80 border border-slate-100 transition-all duration-200 group shadow-sm hover:shadow"
             >
               <div class="w-12 h-12 bg-white rounded-lg border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -860,7 +865,7 @@ const getCategoryBanner = (catName) => {
         </div>
 
         <!-- Layer click nhảy sang trang chi tiết -->
-        <router-link :to="'/product/' + product.id" class="absolute inset-0 z-10"></router-link>
+        <router-link :to="getProductLink(product)" class="absolute inset-0 z-10"></router-link>
       </div>
     </div>
   </div>
@@ -948,7 +953,7 @@ const getCategoryBanner = (catName) => {
               </template>
             </div>
 
-            <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+            <router-link :to="getProductLink(p)" class="absolute inset-0 z-10"></router-link>
           </div>
         </div>
       </div>
@@ -1041,7 +1046,7 @@ const getCategoryBanner = (catName) => {
                   </template>
                 </div>
 
-                <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+                <router-link :to="getProductLink(p)" class="absolute inset-0 z-10"></router-link>
               </div>
             </div>
 
@@ -1214,7 +1219,7 @@ const getCategoryBanner = (catName) => {
           </a>
         </div>
 
-        <router-link :to="'/product/' + p.id" class="absolute inset-0 z-20"></router-link>
+        <router-link :to="getProductLink(p)" class="absolute inset-0 z-20"></router-link>
       </div>
     </div>
 
@@ -1354,7 +1359,7 @@ const getCategoryBanner = (catName) => {
                     </div>
 
                     <!-- Router Link -->
-                    <router-link :to="'/product/' + p.id" class="absolute inset-0 z-10"></router-link>
+                    <router-link :to="getProductLink(p)" class="absolute inset-0 z-10"></router-link>
                   </div>
 
                   <!-- Trống danh mục -->

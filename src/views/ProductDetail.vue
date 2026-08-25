@@ -275,8 +275,9 @@
           -{{ boxDiscountPercent }}%
         </span>
       </div>
+      <!-- ⚡ UPDATE MỚI: Quy cách đóng gói theo Hộp giờ hiển thị cố định là "Cái" thay vì unitPieceName (Mảnh/Viên...) theo yêu cầu sếp -->
       <span class="text-[10px] text-slate-500 font-bold">
-        Quy cách: {{ boxSize }} {{ unitPieceName }}/{{ unitBoxName }}
+        Quy cách: {{ boxSize }} {{ locale === 'vi' ? 'Cái' : 'Pc' }}/{{ unitBoxName }}
       </span>
     </button>
   </div>
@@ -481,6 +482,8 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { doc, getDoc, getDocs, collection, query, where, limit, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
+// ⚡ UPDATE MỚI: Import useHead để đẩy SEO Title/Description/Canonical/Schema JSON lên thẻ <head>
+import { useHead } from '@unhead/vue'
 
 const { locale } = useI18n()
 const route = useRoute()
@@ -489,6 +492,51 @@ const loading = ref(true)
 const isAdding = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
+
+// =========================================================================
+// ⚡ UPDATE MỚI: CẤU HÌNH SEO HEAD (Title / Description / Canonical / Schema JSON-LD)
+// Lấy dữ liệu từ các trường SEO đã cấu hình bên AdminView (seo_title_vi, seo_description_vi, schema_json_vi, slug)
+// =========================================================================
+const SITE_DOMAIN = 'https://www.vattuvocuc.com.vn/product/' // Domain gốc, đồng bộ với AdminView
+
+// Đường dẫn Canonical ưu tiên Slug SEO, nếu chưa có Slug thì tạm dùng ID Firestore
+const canonicalUrl = computed(() => {
+  if (!product.value) return ''
+  const pathPart = product.value.slug || product.value.id || ''
+  return SITE_DOMAIN + pathPart
+})
+
+useHead({
+  title: computed(() => {
+    if (!product.value) return 'Đang tải sản phẩm...'
+    return product.value.seo_title_vi || product.value[`name_${locale.value}`] || product.value.name || 'Sản phẩm'
+  }),
+  meta: [
+    { 
+      name: 'description', 
+      content: computed(() => product.value?.seo_description_vi || '') 
+    },
+    { 
+      name: 'keywords', 
+      content: computed(() => product.value?.seo_keywords_vi || '') 
+    },
+    { property: 'og:type', content: 'product' },
+    { property: 'og:title', content: computed(() => product.value?.seo_title_vi || product.value?.name_vi || product.value?.name || '') },
+    { property: 'og:description', content: computed(() => product.value?.seo_description_vi || '') },
+    { property: 'og:image', content: computed(() => product.value?.image || '') },
+    { property: 'og:url', content: canonicalUrl }
+  ],
+  link: [
+    { rel: 'canonical', href: canonicalUrl }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      // Nhúng trực tiếp Schema JSON-LD đã cấu hình (hoặc tự sinh) từ AdminView
+      children: computed(() => product.value?.schema_json_vi || '{}')
+    }
+  ]
+})
 
 // --- LỰA CHỌN QUY CÁCH BÁN & SỐ LƯỢNG ---
 // ⚡ UPDATE MỚI: Bổ sung thêm giá trị 'cai' (Chỉ bán Cái), đồng bộ với AdminView
@@ -528,7 +576,9 @@ const isBuyingBox = computed(() => {
 const matchedCampaign = computed(() => {
   if (!isBuyingBox.value) return null
   if (!product.value || activePromotions.value.length === 0) return null
-  const productId = route.params.id
+  // ⚡ UPDATE MỚI: Dùng product.value.id (ID Firestore đã được xác định qua Slug/ID) thay vì route.params.id,
+  // vì route.params.id giờ có thể là Slug SEO chứ không còn chắc chắn là ID Firestore nữa
+  const productId = product.value.id
   const now = new Date()
 
   return activePromotions.value.find(p => {
@@ -835,13 +885,15 @@ const displayUnitLabel = computed(() => {
   }
   if (isBoxOnlyMode.value) {
     const mainUnit = locale.value === 'vi' ? (product.value?.unit_vi || 'Hộp') : (product.value?.unit_en || 'Box')
-    return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${unitPieceName.value})` : mainUnit
+    // ⚡ UPDATE MỚI: Theo yêu cầu sếp, quy cách đóng gói theo Hộp giờ hiển thị cố định là "Cái" thay vì unitPieceName (Mảnh/Viên...)
+    return boxSize.value > 1 ? `${mainUnit} (${boxSize.value} ${locale.value === 'vi' ? 'Cái' : 'Pc'})` : mainUnit
   }
   if (isPieceOnlyMode.value) {
     return unitPieceName.value
   }
   if (selectedUnit.value === 'box') {
-    return `${unitBoxName.value} (${boxSize.value} ${unitPieceName.value})`
+    // ⚡ UPDATE MỚI: Tương tự, quy cách Hộp ở chế độ Linh hoạt (Sỉ+Lẻ) cũng hiển thị cố định là "Cái"
+    return `${unitBoxName.value} (${boxSize.value} ${locale.value === 'vi' ? 'Cái' : 'Pc'})`
   }
   return unitPieceName.value
 })
@@ -929,7 +981,9 @@ const addToCart = (item) => {
           ? (product.value?.unit_vi || (locale.value === 'vi' ? 'Cái' : 'Piece'))
           : (isBoxOnlyMode.value ? unitBoxName.value : (selectedUnit.value === 'box' ? unitBoxName.value : unitPieceName.value)))
     
-    const existingIndex = cart.findIndex(i => i.id === route.params.id && i.unit === currentUnitKey)
+    // ⚡ UPDATE MỚI: Dùng product.value.id (ID Firestore thật) thay vì route.params.id để lưu vào giỏ hàng,
+    // đảm bảo giỏ hàng vẫn hoạt động đúng dù URL đang hiển thị Slug SEO thay vì ID
+    const existingIndex = cart.findIndex(i => i.id === product.value.id && i.unit === currentUnitKey)
 
     const giftData = (activeGiftInfo.value && activeGiftInfo.value.isReached) ? {
       name: activeGiftInfo.value.name,
@@ -942,7 +996,8 @@ const addToCart = (item) => {
       if (giftData) cart[existingIndex].applied_gift = giftData
     } else {
       cart.push({
-        id: route.params.id,
+        // ⚡ UPDATE MỚI: Lưu ID Firestore thật vào giỏ hàng (không lưu Slug) để các trang khác (giỏ hàng, đơn hàng...) hoạt động đúng
+        id: product.value.id,
         name: pName,
         price: currentUnitPrice.value,
         original_price: displayOriginalPrice.value > 0 ? displayOriginalPrice.value : originalUnitPrice.value,
@@ -983,7 +1038,9 @@ const fetchRelatedProducts = async (categoryStr) => {
     }
 
     // Lọc bỏ sản phẩm đang xem và lưu toàn bộ mảng sản phẩm cùng danh mục
-    relatedProducts.value = items.filter(item => item.id !== route.params.id)
+    // ⚡ UPDATE MỚI: So sánh bằng product.value.id (ID Firestore thật đã được xác định qua Slug/ID)
+    // thay vì route.params.id, vì route.params.id giờ có thể là Slug SEO chứ không phải ID
+    relatedProducts.value = items.filter(item => item.id !== product.value?.id)
   } catch (e) {
     console.error("Lỗi lấy sp liên quan:", e)
   }
@@ -996,10 +1053,39 @@ onMounted(async () => {
     updateCountdown()
     countdownTimer = setInterval(updateCountdown, 1000)
 
-    const docRef = doc(db, "products", route.params.id)
-    const docSnap = await getDoc(docRef)
-    if (docSnap.exists()) {
-      product.value = { id: docSnap.id, ...docSnap.data() }
+    // =========================================================================
+    // ⚡ UPDATE MỚI: TÌM SẢN PHẨM THEO SLUG SEO TRƯỚC, NẾU KHÔNG CÓ MỚI DÙNG ID
+    // route.params.id lúc này có thể là Slug thân thiện (VD: may-phay-cnc-korloy-6mm)
+    // hoặc ID Firestore cũ (VD: 04bZvFEPryme2IHGYwMu) — vẫn giữ nguyên tên biến "id"
+    // trong route để KHÔNG phá vỡ các đoạn code cũ bên dưới đang dùng route.params.id
+    // =========================================================================
+    let docSnap = null
+    let resolvedDocId = route.params.id
+
+    // 1. Thử tìm sản phẩm có slug trùng khớp với đường dẫn trên URL
+    try {
+      const slugQuery = query(collection(db, "products"), where("slug", "==", route.params.id), limit(1))
+      const slugSnap = await getDocs(slugQuery)
+      if (!slugSnap.empty) {
+        docSnap = slugSnap.docs[0]
+        resolvedDocId = docSnap.id
+      }
+    } catch (slugError) {
+      console.error("Lỗi tìm sản phẩm theo Slug:", slugError)
+    }
+
+    // 2. Nếu không tìm thấy theo Slug, quay về cách cũ: coi route.params.id là ID Firestore trực tiếp
+    if (!docSnap) {
+      const docRef = doc(db, "products", route.params.id)
+      const fallbackSnap = await getDoc(docRef)
+      if (fallbackSnap.exists()) {
+        docSnap = fallbackSnap
+        resolvedDocId = fallbackSnap.id
+      }
+    }
+
+    if (docSnap && docSnap.exists()) {
+      product.value = { id: resolvedDocId, ...docSnap.data() }
       
       if (isVienOnlyMode.value) {
         selectedUnit.value = 'vien'
