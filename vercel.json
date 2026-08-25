@@ -1,8 +1,11 @@
 {
+  "cleanUrls": true,
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/tin-tuc", "destination": "/tin-tuc.html" },
+    { "source": "/product/:slug", "destination": "/product/:slug.html" },
+    { "source": "/post/:slug", "destination": "/post/:slug.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
