@@ -1,11 +1,11 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/about", "destination": "/about.html" },
-    { "source": "/products", "destination": "/products.html" },
-    { "source": "/tin-tuc", "destination": "/tin-tuc.html" },
-    { "source": "/product/:slug", "destination": "/product/:slug.html" },
-    { "source": "/post/:slug", "destination": "/post/:slug.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/about", "dest": "/about.html" },
+    { "src": "/products", "dest": "/products.html" },
+    { "src": "/tin-tuc", "dest": "/tin-tuc.html" },
+    { "src": "/product/(?<slug>[^/]+)", "dest": "/product/$slug.html" },
+    { "src": "/post/(?<slug>[^/]+)", "dest": "/post/$slug.html" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
