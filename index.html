@@ -8,6 +8,42 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cửa Hàng Vật Tư Vô Cực</title>
+
+    <!-- 
+      ⚡ UPDATE MỚI: Bổ sung thẻ Meta SEO TĨNH (fallback) — trước đây file này KHÔNG có
+      bất kỳ <meta name="description"> nào cả.
+      
+      LÝ DO CẦN THÊM: Trang web đang chạy dạng SPA (Vue), nội dung + thẻ SEO thật (title,
+      description...) chỉ được gắn vào <head> SAU KHI JavaScript chạy xong và gọi được
+      Firestore về. Khi Googlebot đọc HTML thô lần đầu tiên (trước khi kịp chạy JS), nó
+      thấy <head> không có mô tả nào cả -> tự động "vơ đại" text nhìn thấy trên trang
+      (menu, nav...) để làm mô tả tạm. Đây chính là lý do kết quả tìm kiếm Google hiển
+      thị sai lệch, không giống nội dung mày cấu hình trong Admin.
+
+      Các thẻ dưới đây đóng vai trò "phao cứu sinh" — luôn có sẵn ngay từ đầu, để dù
+      Googlebot có bỏ qua bước chạy JS (timeout, lỗi mạng...) thì vẫn còn 1 bản mô tả
+      hợp lý thay vì bị rỗng. Khi JS chạy xong (ProductDetail.vue, AboutView.vue...),
+      các thẻ này sẽ được các trang con GHI ĐÈ lại bằng nội dung SEO chính xác hơn cho
+      từng trang cụ thể — không xung đột gì cả.
+
+      LƯU Ý: KHÔNG thêm <link rel="canonical"> tĩnh ở đây, vì mỗi trang (sản phẩm, giới
+      thiệu, bài viết...) cần 1 canonical URL RIÊNG của chính nó. Nếu để 1 canonical
+      chung ở đây, Google sẽ hiểu nhầm là TẤT CẢ các trang đều là bản sao của Trang chủ
+      -> phản tác dụng SEO nghiêm trọng. Việc set canonical đúng cho từng trang đã được
+      xử lý riêng trong ProductDetail.vue (qua useHead) và sẽ được bổ sung cho
+      AboutView.vue ở bản cập nhật này.
+    -->
+    <meta name="description" content="Cửa Hàng Vật Tư Vô Cực - Chuyên cung cấp mảnh phay, dao tiện, dụng cụ cắt gọt CNC và thiết bị cơ khí chính xác. Hàng sẵn kho, giá tốt, hỗ trợ tư vấn kỹ thuật." />
+    <meta name="keywords" content="vật tư vô cực, mảnh phay, dao tiện, dụng cụ cắt gọt CNC, thiết bị cơ khí chính xác" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Cửa Hàng Vật Tư Vô Cực" />
+    <meta property="og:description" content="Chuyên cung cấp mảnh phay, dao tiện, dụng cụ cắt gọt CNC và thiết bị cơ khí chính xác. Hàng sẵn kho, giá tốt, hỗ trợ tư vấn kỹ thuật." />
+    <!-- 
+      og:image chưa được thêm ở đây vì cần 1 URL ảnh banner đại diện thật (VD ảnh logo/banner
+      công ty đã upload lên Cloudinary). Khi có link ảnh, chỉ cần thêm dòng:
+      <meta property="og:image" content="https://link-anh-that-cua-ban.jpg" />
+    -->
   </head>
   <body>
     <div id="app"></div>

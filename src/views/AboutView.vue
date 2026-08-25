@@ -246,6 +246,42 @@ const updatePageMeta = (data) => {
     }
     metaKeyTag.setAttribute('content', data.seoKeywords)
   }
+
+  // =========================================================================
+  // ⚡ UPDATE MỚI: Bổ sung Open Graph tags (og:title, og:description, og:image)
+  // và Canonical URL — đồng bộ với cách ProductDetail.vue đang làm SEO.
+  // Các thẻ này giúp: (1) Google hiểu đúng nội dung trang khi crawl xong JS,
+  // (2) khi chia sẻ link trang Giới thiệu lên Facebook/Zalo sẽ hiện đúng
+  // tiêu đề/mô tả/ảnh thay vì trống hoặc sai, (3) Canonical giúp Google biết
+  // đây là URL "chuẩn" của trang, tránh bị tính trùng lặp nội dung.
+  // Hàm helper nhỏ dùng chung logic tạo/cập nhật thẻ <meta property="...">
+  // =========================================================================
+  const setOgMeta = (property, content) => {
+    let tag = document.querySelector(`meta[property="${property}"]`)
+    if (!tag) {
+      tag = document.createElement('meta')
+      tag.setAttribute('property', property)
+      document.head.appendChild(tag)
+    }
+    tag.setAttribute('content', content)
+  }
+
+  setOgMeta('og:type', 'website')
+  setOgMeta('og:title', data.metaTitle || data.title || 'Giới thiệu về SPIT')
+  setOgMeta('og:description', data.metaDescription || 'Nhà cung cấp giải pháp toàn diện dụng cụ cắt gọt cơ khí chính xác.')
+  if (data.imageUrl) {
+    setOgMeta('og:image', data.imageUrl)
+  }
+  setOgMeta('og:url', typeof window !== 'undefined' ? window.location.href : '')
+
+  // Cập nhật thẻ Canonical (đường dẫn chuẩn của chính trang Giới thiệu này)
+  let canonicalTag = document.querySelector('link[rel="canonical"]')
+  if (!canonicalTag) {
+    canonicalTag = document.createElement('link')
+    canonicalTag.setAttribute('rel', 'canonical')
+    document.head.appendChild(canonicalTag)
+  }
+  canonicalTag.setAttribute('href', typeof window !== 'undefined' ? window.location.href : '')
 }
 
 const fetchBrands = async () => {
