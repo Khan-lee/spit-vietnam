@@ -846,7 +846,8 @@ const getCategoryBanner = (catName) => {
                 {{ Math.round(getSalePrice(product) || product.price).toLocaleString('vi-VN') }}đ
               </span>
               <!-- ⚡ UPDATE MỚI: Hiển thị đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
-              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ product.sales_type === 'vien' ? 'Viên' : (product.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+              <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ product.sales_type === 'vien' ? 'Viên' : (product.sales_type === 'cai' ? 'Cái' : (product.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
 
               <!-- Hiển thị Giá Ảo / Giá Niêm Yết gạch đi cho Mảnh -->
               <span v-if="getDisplayOriginalPrice(product, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
@@ -952,7 +953,8 @@ const getCategoryBanner = (catName) => {
                     {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                   </span>
                   <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
-                  <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+                  <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+                  <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
                   <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-1">
                     {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
                   </span>
@@ -1045,7 +1047,8 @@ const getCategoryBanner = (catName) => {
                         {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                       </span>
                       <!-- ⚡ UPDATE MỚI: Đơn vị "Viên" / "Cái" thay vì luôn cứng "Mảnh" -->
-                      <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+                      <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+                      <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
                       <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-1">
                         {{ Math.round(getDisplayOriginalPrice(p, false)).toLocaleString('vi-VN') }}đ
                       </span>
@@ -1201,7 +1204,8 @@ const getCategoryBanner = (catName) => {
                 {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
               </span>
               <!-- ⚡ UPDATE MỚI (2): Đơn vị "Cái" bên cạnh "Viên" / "Mảnh" -->
-              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+              <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+              <span class="text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
 
               <!-- Vẫn giữ nguyên hiển thị Giá ảo niêm yết gạch đi cho Mảnh / Viên / Cái -->
               <span v-if="getDisplayOriginalPrice(p, false)" class="text-[10px] text-slate-400 line-through font-medium ml-1">
@@ -1338,7 +1342,8 @@ const getCategoryBanner = (catName) => {
                             {{ Math.round(getSalePrice(p) || p.price).toLocaleString('vi-VN') }}đ
                           </span>
                           <!-- ⚡ UPDATE MỚI (2): Đơn vị "Cái" bên cạnh "Viên" / "Mảnh" -->
-                          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+                          <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+                          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
 
                           <!-- Giá Mảnh Niêm Yết / Giá Ảo Gạch Đi -->
                           <span v-if="getDisplayOriginalPrice(p, false)" class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-0.5">

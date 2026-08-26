@@ -865,7 +865,11 @@ const unitPieceName = computed(() => {
   // ⚡ UPDATE MỚI: Trả về nhãn "Cái" khi ở chế độ Chỉ bán Cái
   if (isCaiOnlyMode.value) return locale.value === 'vi' ? 'Cái' : 'Piece'
   if (product.value?.unit_piece) return product.value.unit_piece
-  return locale.value === 'vi' ? 'Mảnh' : 'Pc'
+  // ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì
+  // "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (piece_only) vẫn
+  // giữ nguyên "Mảnh" như cũ.
+  if (isPieceOnlyMode.value) return locale.value === 'vi' ? 'Mảnh' : 'Pc'
+  return locale.value === 'vi' ? 'Cái' : 'Pc'
 })
 
 const unitBoxName = computed(() => {

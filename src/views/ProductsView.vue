@@ -270,7 +270,8 @@
                       {{ Math.round(getSalePrice(p)).toLocaleString('vi-VN') }}đ
                     </span>
                     <!-- ⚡ UPDATE MỚI: Đơn vị hiển thị đổi thành "Viên"/"Cái" thay vì luôn cứng "Mảnh" -->
-                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+                    <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
                     <span class="text-[9px] sm:text-[10px] text-slate-400 line-through font-medium ml-0.5">
                       {{ p.price?.toLocaleString('vi-VN') }}đ
                     </span>
@@ -281,7 +282,8 @@
                       {{ p.price.toLocaleString('vi-VN') }}đ
                     </span>
                     <!-- ⚡ UPDATE MỚI: Đơn vị hiển thị đổi thành "Viên"/"Cái" thay vì luôn cứng "Mảnh" -->
-                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : 'Mảnh') }}</span>
+                    <!-- ⚡ UPDATE MỚI: Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị bán lẻ thành "Cái" thay vì "Mảnh" theo thống nhất mới; riêng sản phẩm Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece) vẫn giữ nguyên "Mảnh" -->
+                    <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase">/ {{ p.sales_type === 'vien' ? 'Viên' : (p.sales_type === 'cai' ? 'Cái' : (p.sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}</span>
                   </div>
 
                   <div v-else class="text-xs sm:text-base font-black text-red-600">

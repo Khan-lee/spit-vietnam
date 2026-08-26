@@ -1217,7 +1217,10 @@ const resetBrandForm = () => {
                     <!-- Ô Nhập Giá Mảnh / Viên (Hiện khi không phải 'Chỉ bán hộp') -->
                     <div v-if="sales_type !== 'box'" class="space-y-1">
                       <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Cái" bên cạnh "Viên" / "Mảnh" -->
-                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 {{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : 'Mảnh') }} (VNĐ)</label>
+                      <!-- ⚡ UPDATE MỚI (2): Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị thành "Cái" thay vì
+                           "Mảnh" theo thống nhất mới; riêng khi Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece)
+                           thì vẫn giữ nguyên nhãn "Mảnh" -->
+                      <label class="text-[9px] font-bold text-slate-500 ml-1">Giá 1 {{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : (sales_type === 'piece' ? 'Mảnh' : 'Cái')) }} (VNĐ)</label>
                       <input 
                         v-model.number="price_piece" 
                         @input="onPricePieceInput"
@@ -1231,7 +1234,10 @@ const resetBrandForm = () => {
                       <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh / Viên -->
                       <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
                         <!-- ⚡ UPDATE MỚI: Bổ sung nhãn "Cái" bên cạnh "Viên" / "Mảnh" -->
-                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo ({{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : 'Mảnh') }}):</span>
+                        <!-- ⚡ UPDATE MỚI (2): Quy cách "Sỉ + Lẻ" (flexible) mặc định đổi đơn vị thành "Cái" thay vì
+                             "Mảnh" theo thống nhất mới; riêng khi Admin CỐ Ý chọn "Chỉ bán Mảnh" (sales_type = piece)
+                             thì vẫn giữ nguyên nhãn "Mảnh" -->
+                        <span class="text-[9px] font-bold text-slate-500 block">Tạo giảm giá ảo ({{ sales_type === 'vien' ? 'Viên' : (sales_type === 'cai' ? 'Cái' : (sales_type === 'piece' ? 'Mảnh' : 'Cái')) }}):</span>
                         
                         <div class="flex gap-1.5">
                           <select 
