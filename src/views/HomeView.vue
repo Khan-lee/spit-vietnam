@@ -588,8 +588,16 @@ const getCategoryBanner = (catName) => {
       @mouseenter="activeHoverCategory = cat; activeFlyoutBrand = null"
       class="group"
     >
+      <!-- 
+        ⚡ UPDATE MỚI: Sửa lỗi mất chữ khi tên danh mục chứa ký tự đặc biệt (VD: "&" trong
+        "Mũi khoan & Mũi taro"). Trước đây link được ghép bằng nối chuỗi thủ công
+        ('/products?category=' + cat) -> Vue Router KHÔNG tự encode ký tự đặc biệt trong
+        kiểu ghép chuỗi này, khiến "&" bị trình duyệt hiểu nhầm là dấu ngăn cách query string
+        khác -> mất phần tên đứng sau "&". Đổi sang dùng object { path, query } để Vue Router
+        tự động encode an toàn mọi ký tự đặc biệt (bao gồm "&", khoảng trắng, dấu tiếng Việt...).
+      -->
       <router-link 
-        :to="'/products?category=' + cat" 
+        :to="{ path: '/products', query: { category: cat } }" 
         class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-xs font-semibold"
         :class="activeHoverCategory === cat ? 'bg-red-50 text-red-600 shadow-inner' : 'text-slate-700 hover:bg-slate-50 hover:text-red-600'"
       >

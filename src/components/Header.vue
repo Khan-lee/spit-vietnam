@@ -210,7 +210,8 @@ const handleKeyDown = (e) => {
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
-      selectSuggestion(suggestions.value[selectedIndex.value].id)
+      // ⚡ UPDATE MỚI: Truyền cả object sản phẩm (thay vì chỉ .id) để selectSuggestion đọc được slug
+      selectSuggestion(suggestions.value[selectedIndex.value])
     } else {
       isSearchFocused.value = false
       if (router.currentRoute.value.path !== '/') {
@@ -224,8 +225,13 @@ const handleKeyDown = (e) => {
   }
 }
 
-const selectSuggestion = (id) => {
-  router.push('/product/' + id)
+// ⚡ UPDATE MỚI: Đổi tham số từ "id" -> nhận cả object sản phẩm "p" để có thể đọc được p.slug
+// (Trước đây chỉ truyền id -> luôn điều hướng theo ID Firestore cũ, không dùng được
+// đường dẫn Slug SEO thân thiện đã cấu hình ở AdminView.vue, khác với cách HomeView.vue/
+// ProductsView.vue đang làm qua hàm getProductLink(p) -> ưu tiên slug, nếu chưa có mới
+// dùng lại id, để không phá vỡ các link cũ)
+const selectSuggestion = (p) => {
+  router.push('/product/' + (p?.slug || p?.id))
   isSearchFocused.value = false
   emit('update:searchQuery', '') 
   searchStore.setSearchQuery('')
@@ -294,7 +300,8 @@ const navigateMobile = (path) => {
             <div 
               v-for="(p, index) in suggestions" 
               :key="p.id" 
-              @mousedown="selectSuggestion(p.id)"
+              
+              @mousedown="selectSuggestion(p)"
               @mouseenter="selectedIndex = index"
               :class="[
                 'flex items-center gap-3 p-2.5 cursor-pointer transition-colors border-b border-slate-50 last:border-0',
