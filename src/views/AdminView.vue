@@ -1153,7 +1153,12 @@ const resetBrandForm = () => {
                           min="1" 
                           placeholder="10" 
                           class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400" 
+                          @wheel="$event.target.blur()"
                         />
+                        <!-- ⚡ UPDATE MỚI: Thêm @wheel="$event.target.blur()" để CHẶN việc lỡ cuộn chuột khi
+                             đang focus ô input number làm tăng/giảm số ngoài ý muốn (hành vi mặc định của
+                             trình duyệt). Bỏ focus ngay khi phát hiện cuộn -> số không đổi, trang vẫn cuộn
+                             bình thường. Áp dụng đồng bộ cho toàn bộ 7 ô nhập số trong form sản phẩm. -->
                       </div>
                     </div>
                   </div>
@@ -1171,7 +1176,9 @@ const resetBrandForm = () => {
                         type="number" 
                         placeholder="0" 
                         class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                        @wheel="$event.target.blur()"
                       />
+                      <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
 
                       <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Hộp -->
                       <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
@@ -1193,7 +1200,9 @@ const resetBrandForm = () => {
                             type="number" 
                             :placeholder="display_discount_type_box === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
                             class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                            @wheel="$event.target.blur()"
                           />
+                          <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
                         </div>
 
                         <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
@@ -1215,7 +1224,9 @@ const resetBrandForm = () => {
                         type="number" 
                         placeholder="0" 
                         class="w-full p-2 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400"
+                        @wheel="$event.target.blur()"
                       />
+                      <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
 
                       <!-- Khối Cấu hình Giá Hiển Thị Ảo cho Mảnh / Viên -->
                       <div class="p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 mt-1.5">
@@ -1238,7 +1249,9 @@ const resetBrandForm = () => {
                             type="number" 
                             :placeholder="display_discount_type_piece === 'percentage' ? 'Mức %' : 'Số VNĐ'" 
                             class="w-full p-1.5 bg-white rounded-lg text-[10px] font-semibold border border-slate-200 outline-none focus:border-blue-400"
+                            @wheel="$event.target.blur()"
                           />
+                          <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
                         </div>
 
                         <div class="text-[10px] text-slate-500 font-medium pt-0.5 flex items-center justify-between">
@@ -1273,10 +1286,12 @@ const resetBrandForm = () => {
 
                   <div class="grid grid-cols-2 gap-2">
                     <div class="relative">
-                      <input v-model="price" type="number" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-red-600 pl-8" />
+                      <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
+                      <input v-model="price" type="number" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-red-600 pl-8" @wheel="$event.target.blur()" />
                       <span class="absolute left-3 top-3.5 text-[10px] font-bold text-red-400">₫</span>
                     </div>
-                    <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" />
+                    <!-- ⚡ UPDATE MỚI: Chặn cuộn chuột làm tăng/giảm giá trị ngoài ý muốn -->
+                    <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" @wheel="$event.target.blur()" />
                   </div>
 
                   <div class="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
