@@ -1,0 +1,23 @@
+# ⚡ FILE MỚI: public/robots.txt
+# -------------------------------------------------------------------------
+# File này cho Googlebot (và mọi bot tìm kiếm khác) biết phần nào của site
+# được phép crawl (thu thập dữ liệu), phần nào không nên vào.
+# Đặt tại public/robots.txt để Vite tự copy nguyên vẹn vào dist/robots.txt
+# lúc build, truy cập được tại https://www.vattuvocuc.com.vn/robots.txt
+# -------------------------------------------------------------------------
+
+User-agent: *
+Allow: /
+
+# Chặn các trang quản trị nội bộ / riêng tư — không có giá trị SEO, và
+# không nên để lộ ra công khai trên kết quả tìm kiếm
+Disallow: /spit-system-manager
+Disallow: /admin/login
+Disallow: /admin/brands
+Disallow: /login
+Disallow: /checkout
+Disallow: /cart
+Disallow: /orders
+
+# Khai báo vị trí Sitemap để Google tự động tìm thấy và crawl nhanh hơn
+Sitemap: https://www.vattuvocuc.com.vn/sitemap.xml

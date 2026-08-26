@@ -257,6 +257,44 @@ async function main() {
   }
   console.log(`  → Đã tạo ${postCount} trang chi tiết bài viết.`)
 
+  // =========================================================================
+  // ⚡ UPDATE MỚI: TỰ ĐỘNG SINH sitemap.xml
+  // -------------------------------------------------------------------------
+  // Tận dụng luôn danh sách "products" và "posts" đã lấy sẵn ở trên (không cần
+  // gọi lại Firestore lần nữa). Sitemap là "bản đồ" liệt kê mọi URL quan trọng
+  // của site, giúp Google tìm và index nhanh hơn nhiều so với tự crawl mò mẫm.
+  // File được khai báo sẵn trong public/robots.txt (dòng "Sitemap: ...") để
+  // Google tự động phát hiện.
+  // =========================================================================
+  console.log('\n🗺️  Đang tạo sitemap.xml ...')
+
+  // Hàm tạo 1 dòng <url> chuẩn theo định dạng sitemap của Google
+  // changefreq/priority chỉ là GỢI Ý cho Google, không bắt buộc phải tuân theo tuyệt đối
+  const urlEntry = (path, changefreq = 'weekly', priority = '0.7') => `
+  <url>
+    <loc>${SITE_DOMAIN}${path}</loc>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+  </url>`
+
+  const staticUrls = [
+    urlEntry('/', 'daily', '1.0'),
+    urlEntry('/about', 'monthly', '0.6'),
+    urlEntry('/products', 'daily', '0.9'),
+    urlEntry('/tin-tuc', 'daily', '0.8')
+  ]
+
+  const productUrls = products.map(p => urlEntry(`/product/${p.slug || p.id}`, 'weekly', '0.8'))
+  const postUrls = posts.map(p => urlEntry(`/post/${p.id}`, 'weekly', '0.6'))
+
+  const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls.join('')}${productUrls.join('')}${postUrls.join('')}
+</urlset>
+`
+
+  writeStaticFile('sitemap.xml', sitemapXml)
+  console.log(`  ✓ sitemap.xml (${staticUrls.length + productUrls.length + postUrls.length} URL)`)
+
   console.log('\n✅ Prerender hoàn tất!')
 }
 
