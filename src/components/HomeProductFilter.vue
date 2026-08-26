@@ -119,21 +119,32 @@ const categoryOptions = computed(() => {
   return [...new Set(props.products.map(p => p.category_vi).filter(Boolean))]
 })
 
-// 2. TỰ ĐỘNG LẤY TÍNH NĂNG / NHU CẦU TỪ SẢN PHẨM
-const needsOptions = computed(() => {
-  if (!props.products || props.products.length === 0) return []
-  
-  let activeCategory = null;
+// =========================================================================
+// ⚡ UPDATE MỚI: Tách riêng logic xác định "Danh mục đang active" (activeCategory)
+// ra thành 1 computed dùng chung, thay vì tính lại bên trong needsOptions như cũ.
+// Lý do: giờ cần biết CHÍNH XÁC category nào đang active để lồng khối
+// "Tính năng / Nhu cầu" ngay bên dưới ĐÚNG dòng danh mục đó trong template
+// (thay vì hiển thị thành 1 khối tách biệt phía dưới toàn bộ danh sách danh mục).
+// =========================================================================
+const activeCategoryForNeeds = computed(() => {
+  if (!props.products || props.products.length === 0) return null
 
   if (selectedFilters.categories.length === 1) {
-    activeCategory = selectedFilters.categories[0];
-  } else if (selectedFilters.categories.length === 0) {
-    const uniqueCategories = [...new Set(props.products.map(p => p.category_vi).filter(Boolean))];
+    return selectedFilters.categories[0]
+  }
+  if (selectedFilters.categories.length === 0) {
+    const uniqueCategories = [...new Set(props.products.map(p => p.category_vi).filter(Boolean))]
     if (uniqueCategories.length === 1) {
-      activeCategory = uniqueCategories[0];
+      return uniqueCategories[0]
     }
   }
+  return null
+})
 
+// 2. TỰ ĐỘNG LẤY TÍNH NĂNG / NHU CẦU TỪ SẢN PHẨM
+const needsOptions = computed(() => {
+  // ⚡ UPDATE MỚI: Dùng lại activeCategoryForNeeds thay vì tính riêng ở đây
+  const activeCategory = activeCategoryForNeeds.value
   if (!activeCategory) return [];
 
   const upperCat = String(activeCategory).toUpperCase()
@@ -357,25 +368,54 @@ watch(filteredProducts, (newVal) => {
 
     <div class="w-full h-px bg-slate-100"></div>
 
-    <!-- KHỐI 2: DANH MỤC -->
+    <!-- 
+      KHỐI 2: DANH MỤC
+      ⚡ UPDATE MỚI: Lồng khối "Tính năng / Nhu cầu" NGAY DƯỚI đúng dòng danh mục đang được
+      chọn (thay vì tách thành 1 khối riêng nằm dưới toàn bộ danh sách danh mục như bản trước).
+      Cách làm: gộp cả 2 phần vào chung 1 vòng lặp <template v-for="c in categoryOptions">,
+      sau mỗi dòng checkbox danh mục "c", kiểm tra nếu "c" chính là danh mục đang active
+      (c === activeCategoryForNeeds) thì "sổ ra" ngay bên dưới dòng đó khối Tính năng/Nhu cầu
+      thụt lề vào, có viền trái đỏ nhạt để phân biệt rõ đây là bộ lọc con của danh mục "c".
+    -->
     <div v-if="categoryOptions.length > 0" class="flex flex-col gap-3">
       <div class="flex items-center justify-between">
         <h3 class="text-[11px] font-bold uppercase text-slate-400">Loại hàng / Danh mục</h3>
       </div>
-      <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        <label 
-          v-for="c in categoryOptions" 
-          :key="c" 
-          class="flex items-center gap-3 group cursor-pointer"
-        >
-          <input 
-            type="checkbox" 
-            :checked="selectedFilters.categories.includes(c)" 
-            @change="toggleFilterItem('categories', c)" 
-            class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-          />
-          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ c }}</span>
-        </label>
+      <div class="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <template v-for="c in categoryOptions" :key="c">
+          <label 
+            class="flex items-center gap-3 group cursor-pointer"
+          >
+            <input 
+              type="checkbox" 
+              :checked="selectedFilters.categories.includes(c)" 
+              @change="toggleFilterItem('categories', c)" 
+              class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+            />
+            <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ c }}</span>
+          </label>
+
+          <!-- ⚡ UPDATE MỚI: Khối "Tính năng / Nhu cầu" lồng ngay dưới đúng danh mục "c" đang active -->
+          <div 
+            v-if="c === activeCategoryForNeeds && needsOptions.length > 0" 
+            class="flex flex-col gap-2 pl-7 py-1 border-l-2 border-red-100 ml-1.5"
+          >
+            <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
+            <label 
+              v-for="need in needsOptions" 
+              :key="need"
+              class="flex items-start gap-2.5 group cursor-pointer"
+            >
+              <input 
+                type="checkbox" 
+                :checked="selectedFilters.needs.includes(need)"
+                @change="toggleFilterItem('needs', need)"
+                class="w-3.5 h-3.5 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+              />
+              <span class="text-[11px] font-medium text-slate-600 group-hover:text-red-600 transition-colors leading-relaxed">{{ need }}</span>
+            </label>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -422,27 +462,6 @@ watch(filteredProducts, (newVal) => {
             class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
           />
           <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ b }}</span>
-        </label>
-      </div>
-      <div v-if="needsOptions.length > 0" class="w-full h-px bg-slate-100 mt-3"></div>
-    </div>
-
-    <!-- KHỐI 5: TÍNH NĂNG / NHU CẦU -->
-    <div v-if="needsOptions.length > 0" class="flex flex-col gap-3">
-      <h3 class="text-[11px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</h3>
-      <div class="flex flex-col gap-2.5 max-h-56 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        <label 
-          v-for="need in needsOptions" 
-          :key="need"
-          class="flex items-start gap-3 group cursor-pointer"
-        >
-          <input 
-            type="checkbox" 
-            :checked="selectedFilters.needs.includes(need)"
-            @change="toggleFilterItem('needs', need)"
-            class="w-4 h-4 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-          />
-          <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors leading-relaxed">{{ need }}</span>
         </label>
       </div>
     </div>
@@ -540,19 +559,42 @@ watch(filteredProducts, (newVal) => {
 
         <div class="w-full h-px bg-slate-100"></div>
 
-        <!-- Danh mục -->
+        <!-- 
+          Danh mục
+          ⚡ UPDATE MỚI: Lồng khối "Tính năng / Nhu cầu" NGAY DƯỚI đúng dòng danh mục đang chọn
+          (đồng bộ với cách làm ở bản Desktop phía trên), thay vì tách khối riêng như bản trước.
+        -->
         <div v-if="categoryOptions.length > 0" class="flex flex-col gap-3">
           <h3 class="text-[11px] font-bold uppercase text-slate-400">Loại hàng / Danh mục</h3>
-          <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-            <label v-for="c in categoryOptions" :key="'m-cat-' + c" class="flex items-center gap-3 cursor-pointer">
-              <input 
-                type="checkbox" 
-                :checked="selectedFilters.categories.includes(c)" 
-                @change="toggleFilterItem('categories', c)" 
-                class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-              />
-              <span class="text-xs font-medium text-slate-700 truncate">{{ c }}</span>
-            </label>
+          <div class="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            <template v-for="c in categoryOptions" :key="'m-cat-' + c">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  :checked="selectedFilters.categories.includes(c)" 
+                  @change="toggleFilterItem('categories', c)" 
+                  class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                />
+                <span class="text-xs font-medium text-slate-700 truncate">{{ c }}</span>
+              </label>
+
+              <!-- ⚡ UPDATE MỚI: Khối "Tính năng / Nhu cầu" lồng ngay dưới đúng danh mục "c" đang active -->
+              <div 
+                v-if="c === activeCategoryForNeeds && needsOptions.length > 0" 
+                class="flex flex-col gap-2 pl-7 py-1 border-l-2 border-red-100 ml-1.5"
+              >
+                <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
+                <label v-for="need in needsOptions" :key="'m-need-' + need" class="flex items-start gap-2.5 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    :checked="selectedFilters.needs.includes(need)"
+                    @change="toggleFilterItem('needs', need)"
+                    class="w-3.5 h-3.5 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                  />
+                  <span class="text-[11px] font-medium text-slate-600 leading-relaxed">{{ need }}</span>
+                </label>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -591,23 +633,6 @@ watch(filteredProducts, (newVal) => {
                 class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
               />
               <span class="text-xs font-medium text-slate-700 truncate">{{ b }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Tính năng / Nhu cầu -->
-        <div v-if="needsOptions.length > 0" class="flex flex-col gap-3">
-          <div class="w-full h-px bg-slate-100"></div>
-          <h3 class="text-[11px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</h3>
-          <div class="flex flex-col gap-2.5 max-h-56 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-            <label v-for="need in needsOptions" :key="'m-need-' + need" class="flex items-start gap-3 cursor-pointer">
-              <input 
-                type="checkbox" 
-                :checked="selectedFilters.needs.includes(need)"
-                @change="toggleFilterItem('needs', need)"
-                class="w-4 h-4 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-              />
-              <span class="text-xs font-medium text-slate-700 leading-relaxed">{{ need }}</span>
             </label>
           </div>
         </div>
