@@ -190,6 +190,33 @@
 
     <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM -->
     <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
+
+      <!-- 
+        ⚡ UPDATE MỚI: THANH ĐIỀU HƯỚNG BREADCRUMB
+        -----------------------------------------------------------------
+        Giúp khách bấm NGƯỢC về đúng Danh mục (hoặc Trang chủ / trang Sản phẩm) mà không
+        phải tự quay về Trang chủ rồi tìm lại danh mục từ đầu như trước đây. Link Danh mục
+        dùng đúng cách { path, query } (giống HomeView.vue/ProductsView.vue) để Vue Router
+        tự encode an toàn tên danh mục (kể cả tên có ký tự đặc biệt như "&", khoảng trắng...).
+        Chỉ hiển thị link Danh mục nếu sản phẩm có khai báo danh mục; nếu không có, breadcrumb
+        vẫn hoạt động bình thường, chỉ bớt đi 1 mắt xích.
+      -->
+      <nav class="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-xs font-semibold text-slate-500 mb-6">
+        <router-link to="/" class="hover:text-red-600 transition-colors shrink-0">Trang chủ</router-link>
+        <span class="text-slate-300 shrink-0">›</span>
+        <router-link to="/products" class="hover:text-red-600 transition-colors shrink-0">Sản phẩm</router-link>
+        <template v-if="product[`category_${locale}`] || product.category">
+          <span class="text-slate-300 shrink-0">›</span>
+          <router-link
+            :to="{ path: '/products', query: { category: product[`category_${locale}`] || product.category } }"
+            class="hover:text-red-600 transition-colors shrink-0"
+          >
+            {{ product[`category_${locale}`] || product.category }}
+          </router-link>
+        </template>
+        <span class="text-slate-300 shrink-0">›</span>
+        <span class="text-slate-800 truncate max-w-40 sm:max-w-none">{{ product[`name_${locale}`] || product.name }}</span>
+      </nav>
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
         
@@ -1058,34 +1085,43 @@ onMounted(async () => {
     countdownTimer = setInterval(updateCountdown, 1000)
 
     // =========================================================================
-    // ⚡ UPDATE MỚI: TÌM SẢN PHẨM THEO SLUG SEO TRƯỚC, NẾU KHÔNG CÓ MỚI DÙNG ID
-    // route.params.id lúc này có thể là Slug thân thiện (VD: may-phay-cnc-korloy-6mm)
-    // hoặc ID Firestore cũ (VD: 04bZvFEPryme2IHGYwMu) — vẫn giữ nguyên tên biến "id"
-    // trong route để KHÔNG phá vỡ các đoạn code cũ bên dưới đang dùng route.params.id
+    // ⚡ UPDATE MỚI: TỐI ƯU TỐC ĐỘ TẢI TRANG — CHẠY SONG SONG THAY VÌ TUẦN TỰ
+    // -------------------------------------------------------------------------
+    // NGUYÊN NHÂN CŨ GÂY CHẬM: code cũ chạy TUẦN TỰ 3 lượt gọi Firestore, lượt sau
+    // luôn phải ĐỢI lượt trước xong mới bắt đầu (dạng "thác nước" - waterfall):
+    //   1) await tìm sản phẩm theo Slug
+    //   2) NẾU không thấy -> await tìm lại theo ID (chạy SAU bước 1, không song song)
+    //   3) await tải "sản phẩm liên quan" -> chỉ SAU KHI xong cả bước 3 mới tắt loading
+    // Mỗi bước là 1 lượt round-trip riêng tới Firestore, cộng dồn lại gây cảm giác chậm,
+    // đặc biệt rõ khi mạng không nhanh (khác hẳn cảm giác "tức thì" của site dùng server
+    // tự render HTML sẵn như thietbi247.vn).
+    //
+    // CÁCH SỬA:
+    //   - Bước 1 và 2 giờ CHẠY SONG SONG (Promise.allSettled) thay vì đợi nhau -> gộp 2
+    //     lượt round-trip tuần tự thành 1 lượt "chờ đồng thời" duy nhất, nhanh hơn đáng kể.
+    //   - Bước 3 (sản phẩm liên quan) được tách ra chạy NGẦM PHÍA SAU (không await, không
+    //     chặn trang hiện ra). Dữ liệu này CHỈ dùng cho Modal "So sánh sản phẩm" (xem biến
+    //     relatedProducts) — modal này chỉ hiện khi khách CHỦ ĐỘNG bấm nút "So sánh", nên
+    //     hoàn toàn an toàn để tải ngầm phía sau mà không ảnh hưởng gì tới trải nghiệm xem
+    //     sản phẩm chính. -> Trang chi tiết sản phẩm hiện ra NGAY KHI có dữ liệu sản phẩm,
+    //     không cần đợi thêm bước 3 nữa.
     // =========================================================================
     let docSnap = null
     let resolvedDocId = route.params.id
 
-    // 1. Thử tìm sản phẩm có slug trùng khớp với đường dẫn trên URL
-    try {
-      const slugQuery = query(collection(db, "products"), where("slug", "==", route.params.id), limit(1))
-      const slugSnap = await getDocs(slugQuery)
-      if (!slugSnap.empty) {
-        docSnap = slugSnap.docs[0]
-        resolvedDocId = docSnap.id
-      }
-    } catch (slugError) {
-      console.error("Lỗi tìm sản phẩm theo Slug:", slugError)
-    }
+    const [slugResult, idResult] = await Promise.allSettled([
+      getDocs(query(collection(db, "products"), where("slug", "==", route.params.id), limit(1))),
+      getDoc(doc(db, "products", route.params.id))
+    ])
 
-    // 2. Nếu không tìm thấy theo Slug, quay về cách cũ: coi route.params.id là ID Firestore trực tiếp
-    if (!docSnap) {
-      const docRef = doc(db, "products", route.params.id)
-      const fallbackSnap = await getDoc(docRef)
-      if (fallbackSnap.exists()) {
-        docSnap = fallbackSnap
-        resolvedDocId = fallbackSnap.id
-      }
+    // Ưu tiên kết quả tìm theo Slug (đúng nghiệp vụ cũ: Slug SEO được ưu tiên trước ID)
+    if (slugResult.status === 'fulfilled' && !slugResult.value.empty) {
+      docSnap = slugResult.value.docs[0]
+      resolvedDocId = docSnap.id
+    } else if (idResult.status === 'fulfilled' && idResult.value.exists()) {
+      // Chỉ dùng kết quả tra theo ID nếu tra theo Slug thất bại/rỗng
+      docSnap = idResult.value
+      resolvedDocId = idResult.value.id
     }
 
     if (docSnap && docSnap.exists()) {
@@ -1103,12 +1139,17 @@ onMounted(async () => {
       }
 
       if (product.value.image) activeImage.value = product.value.image
+
+      // ⚡ UPDATE MỚI: KHÔNG await ở đây nữa — cho fetchRelatedProducts chạy ngầm phía sau,
+      // không chặn việc hiện trang chi tiết sản phẩm chính (xem giải thích chi tiết ở trên)
       const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
-      if (targetCategory) await fetchRelatedProducts(targetCategory)
+      if (targetCategory) fetchRelatedProducts(targetCategory)
     }
   } catch (error) {
     console.error("Lỗi kết nối:", error)
   } finally {
+    // ⚡ UPDATE MỚI: loading tắt ngay sau khi có dữ liệu sản phẩm chính, không còn phải
+    // đợi fetchRelatedProducts (đã chạy ngầm ở trên) nữa -> trang hiện ra nhanh hơn
     loading.value = false
   }
 })
