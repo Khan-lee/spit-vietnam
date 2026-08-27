@@ -22,7 +22,35 @@ const isSearchFocused = ref(false)
 const user = ref(null) 
 
 const selectedIndex = ref(-1)
-const dynamicLogo = ref(logoImg)
+
+// =========================================================================
+// ⚡ UPDATE MỚI: KHẮC PHỤC HIỆN TƯỢNG LOGO "NHÁY ĐỔI" GÂY HOANG MANG KHÁCH HÀNG
+// -------------------------------------------------------------------------
+// NGUYÊN NHÂN CŨ: dynamicLogo khởi tạo bằng ảnh logo SPIT tĩnh (noBG_logo.png) ngay từ
+// đầu, trong lúc chờ Firestore trả logo thật ("Vật Tư Vô Cực") về (mất vài trăm ms tới
+// vài giây tùy mạng) -> khách nhìn thấy logo SPIT hiện trước rồi bị "nháy" đổi sang logo
+// đúng, gây hoang mang thấy 2 thương hiệu khác nhau ngay lần đầu vào trang.
+//
+// GIẢI PHÁP:
+// 1. Lưu lại URL logo thật vào localStorage mỗi khi tải thành công (xem hàm fetchLogo).
+// 2. Lần truy cập SAU: đọc thẳng từ localStorage để hiện ĐÚNG logo NGAY LẬP TỨC,
+//    không cần đợi Firestore trả lời -> hết nháy hoàn toàn cho khách đã từng ghé site.
+// 3. Lần truy cập ĐẦU TIÊN (chưa có cache): dynamicLogo để là "null" thay vì ảnh SPIT
+//    tĩnh -> template sẽ hiện 1 khung xám loading nhẹ nhàng thay vì nhầm sang logo khác,
+//    tránh gây hiểu lầm thương hiệu. Ảnh SPIT tĩnh (logoImg) chỉ còn dùng làm phương án
+//    dự phòng CUỐI CÙNG nếu Firestore lỗi hẳn (xem catch trong fetchLogo).
+// =========================================================================
+const CACHED_LOGO_KEY = 'vtvc_cached_logo_url'
+
+const getCachedLogo = () => {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage.getItem(CACHED_LOGO_KEY) : null
+  } catch (e) {
+    return null // Trình duyệt chặn localStorage (VD chế độ ẩn danh nghiêm ngặt) -> bỏ qua an toàn
+  }
+}
+
+const dynamicLogo = ref(getCachedLogo()) // null nếu chưa từng cache -> template hiện khung loading
 const categoryDocs = ref([]) // Lưu danh mục từ Firestore
 const defaultAvatar = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/anonymous.png'
 
@@ -55,9 +83,27 @@ const fetchLogo = async () => {
     const docSnap = await getDoc(docRef)
     if (docSnap.exists() && docSnap.data().url) {
       dynamicLogo.value = docSnap.data().url
+      // ⚡ UPDATE MỚI: Lưu cache logo thật vào localStorage để lần truy cập SAU hiện đúng
+      // ngay lập tức, không cần đợi Firestore nữa (xem giải thích chi tiết ở khai báo dynamicLogo)
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(CACHED_LOGO_KEY, docSnap.data().url)
+        }
+      } catch (e) {
+        // Bỏ qua an toàn nếu trình duyệt chặn localStorage
+      }
+    } else if (!dynamicLogo.value) {
+      // ⚡ UPDATE MỚI: Firestore không có dữ liệu logo -> dùng ảnh SPIT tĩnh làm phương án
+      // dự phòng CUỐI CÙNG, còn hơn để trống khung loading mãi mãi
+      dynamicLogo.value = logoImg
     }
   } catch (error) {
     console.error("Lỗi khi tải logo động:", error)
+    // ⚡ UPDATE MỚI: Nếu gọi Firestore lỗi hẳn và chưa có cache nào -> vẫn phải hiện được
+    // 1 logo gì đó thay vì để trống mãi, nên fallback về ảnh SPIT tĩnh lúc này
+    if (!dynamicLogo.value) {
+      dynamicLogo.value = logoImg
+    }
   }
 }
 
@@ -263,7 +309,10 @@ const navigateMobile = (path) => {
       <!-- LOGO -->
       <RouterLink to="/" class="flex items-center shrink-0 group">
         <div class="transition-colors flex items-center justify-center rounded-xl overflow-hidden">
-          <img :src="dynamicLogo" alt="Logo" class="h-10 md:h-12 w-auto max-w-45 object-contain transition-transform group-hover:scale-105" />
+          <!-- ⚡ UPDATE MỚI: Hiện khung xám loading nếu dynamicLogo chưa có giá trị (chưa có cache,
+               chưa tải xong Firestore) thay vì hiện nhầm logo SPIT gây hoang mang thương hiệu -->
+          <div v-if="!dynamicLogo" class="h-10 md:h-12 w-24 rounded-lg bg-white/20 animate-pulse"></div>
+          <img v-else :src="dynamicLogo" alt="Logo" class="h-10 md:h-12 w-auto max-w-45 object-contain transition-transform group-hover:scale-105" />
         </div>
       </RouterLink>
 
@@ -421,7 +470,9 @@ const navigateMobile = (path) => {
         <!-- DRAWER HEADER -->
         <div class="flex justify-between items-center pb-4 border-b border-slate-100">
           <div class="flex items-center gap-2">
-            <img :src="dynamicLogo" class="h-7 w-auto object-contain" />
+            <!-- ⚡ UPDATE MỚI: Đồng bộ khung loading với logo chính, tránh nháy sai logo -->
+            <div v-if="!dynamicLogo" class="h-7 w-16 rounded bg-slate-200 animate-pulse"></div>
+            <img v-else :src="dynamicLogo" class="h-7 w-auto object-contain" />
             <span class="text-xs font-black uppercase tracking-wider text-slate-400">Menu chức năng</span>
           </div>
           <button @click="isMobileMenuOpen = false" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100">

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import { collection, doc, onSnapshot } from 'firebase/firestore'
+import { collection, doc, onSnapshot, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
@@ -48,6 +48,9 @@ const promotions = ref([])
 const categoryDocs = ref([])
 const mainBanners = ref([])
 const isLoading = ref(true)
+// ⚡ UPDATE MỚI: Biến loading RIÊNG cho khối Danh mục — dùng để hiện khung skeleton
+// (khung xám giả lập) khi danh mục chưa tải xong, thay vì để trống hoàn toàn như trước
+const isCategoriesLoading = ref(true)
 const currentTime = ref(new Date()) 
 
 const dynamicHotSaleBanner = ref('https://via.placeholder.com/300x500/dc2626/ffffff?text=HOT+SALE')
@@ -182,14 +185,32 @@ const listenToData = () => {
     checkLoading()
   }, (e) => console.error("Lỗi realtime promotions:", e))
 
-  // 3. Danh mục (Realtime)
-  const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
+  // 3. Danh mục
+  // =========================================================================
+  // ⚡ UPDATE MỚI: ĐỔI "DANH MỤC" TỪ LẮNG NGHE REAL-TIME (onSnapshot) SANG GỌI 1 LẦN (getDocs)
+  // -------------------------------------------------------------------------
+  // NGUYÊN NHÂN GÂY CHẬM/TRỐNG KHUNG "DANH MỤC" LÚC MỚI VÀO TRANG: onSnapshot phải giữ 1
+  // kết nối "sống" liên tục với Firestore để chờ dữ liệu, nặng hơn nhiều so với gọi 1 lần
+  // rồi thôi. Trong khi đó, Danh mục là dữ liệu HIẾM KHI THAY ĐỔI (chỉ đổi khi Admin vào
+  // "Quản lý danh mục" sửa tay) -> không cần thiết phải lắng nghe real-time. Đổi sang
+  // getDocs giúp giảm số kết nối đồng thời mở tới Firestore lúc mới vào trang, tải nhanh
+  // hơn đáng kể. isCategoriesLoading dùng để tắt khung skeleton (xem phần template).
+  // =========================================================================
+  getDocs(collection(db, "categories")).then((snapshot) => {
     categoryDocs.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    isCategoriesLoading.value = false
     checkLoading()
-  }, (e) => console.error("Lỗi realtime categories:", e))
+  }).catch((e) => {
+    console.error("Lỗi lấy dữ liệu categories:", e)
+    isCategoriesLoading.value = false
+    checkLoading()
+  })
 
-  // 4. Banners (Realtime)
-  const unsubBanners = onSnapshot(collection(db, "banners"), (snapshot) => {
+  // 4. Banners
+  // ⚡ UPDATE MỚI: ĐỔI "BANNERS" TỪ LẮNG NGHE REAL-TIME (onSnapshot) SANG GỌI 1 LẦN (getDocs)
+  // Cùng lý do như Danh mục ở trên: Banner trang chủ cũng hiếm khi đổi (chỉ đổi khi Admin
+  // tự tay cập nhật), không cần giữ kết nối real-time liên tục.
+  getDocs(collection(db, "banners")).then((snapshot) => {
     const fetchedBanners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     if (fetchedBanners.length > 0) {
       fetchedBanners.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
@@ -199,9 +220,15 @@ const listenToData = () => {
       mainBanners.value = fallbackMainBanners
     }
     checkLoading()
-  }, (e) => console.error("Lỗi realtime banners:", e))
+  }).catch((e) => {
+    console.error("Lỗi lấy dữ liệu banners:", e)
+    mainBanners.value = fallbackMainBanners
+    checkLoading()
+  })
 
-  unsubscribers.push(unsubProducts, unsubPromos, unsubCats, unsubBanners)
+  // ⚡ UPDATE MỚI: Chỉ còn products & promotions dùng onSnapshot (cần real-time thật sự vì
+  // giá/tồn kho/khuyến mãi có thể đổi liên tục) -> chỉ 2 unsubscribe function này cần lưu lại
+  unsubscribers.push(unsubProducts, unsubPromos)
 }
 
 onMounted(() => {
@@ -582,6 +609,15 @@ const getCategoryBanner = (catName) => {
 
   <!-- Danh sách các danh mục chính -->
   <ul class="divide-y divide-slate-50 my-1 grow">
+    <!-- ⚡ UPDATE MỚI: Hiện khung skeleton (giả lập nội dung đang tải) khi danh mục CHƯA
+         tải xong, thay vì để trống hoàn toàn như trước -> cảm giác "mượt" hơn nhiều dù
+         thời gian tải thực tế không đổi -->
+    <template v-if="isCategoriesLoading">
+      <li v-for="n in 7" :key="'skeleton-cat-' + n" class="px-3 py-2.5">
+        <div class="h-3.5 bg-slate-100 rounded-full animate-pulse" :style="{ width: (50 + (n % 4) * 10) + '%' }"></div>
+      </li>
+    </template>
+    <template v-else>
     <li 
       v-for="cat in categories" 
       :key="cat"
@@ -605,6 +641,7 @@ const getCategoryBanner = (catName) => {
         <span class="text-slate-300 group-hover:text-red-600 transition-transform duration-300 group-hover:translate-x-1">&rsaquo;</span>
       </router-link>
     </li>
+    </template>
   </ul>
 
   <!-- MEGA MENU FLYOUT -->
