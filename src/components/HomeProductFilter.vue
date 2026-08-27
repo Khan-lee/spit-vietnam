@@ -1,5 +1,10 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+// ⚡ UPDATE MỚI: Import useRouter để xử lý nút "Xem tất cả danh mục" (điều hướng thẳng
+// về /products không kèm ?category=..., thoát khỏi chế độ sidebar thu gọn)
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
   products: {
@@ -9,6 +14,26 @@ const props = defineProps({
   categories: {
     type: Array,
     default: () => []
+  },
+  // ⚡ UPDATE MỚI: Prop MỚI "categoryDocs" — nhận dữ liệu THÔ của danh mục (đầy đủ id, name_vi,
+  // parentId, order...), khác với prop "categories" cũ (chỉ là mảng TÊN CHUỖI phẳng, không đủ
+  // thông tin để component này tự biết đâu là Danh mục cha, đâu là Danh mục con). Prop này là
+  // TÙY CHỌN (default mảng rỗng) — nếu file cha (HomeView.vue/ProductsView.vue) CHƯA kịp truyền
+  // vào, component tự động rơi về hiển thị PHẲNG như cũ (xem categoryTree bên dưới), không bao
+  // giờ bị "trắng trơn" không hiện gì.
+  categoryDocs: {
+    type: Array,
+    default: () => []
+  },
+  // ⚡ UPDATE MỚI: Prop MỚI "focusCategoryName" — khi file cha (hiện tại là ProductsView.vue)
+  // truyền vào tên 1 Danh mục đang được xem (lấy từ ?category=... trên URL), sidebar sẽ TỰ
+  // ĐỘNG THU GỌN lại, chỉ hiện đúng Danh mục CHA liên quan + các Danh mục CON anh em của nó
+  // (giống đúng kiểu thietbi247.vn: bấm vào 1 danh mục con thì sidebar chỉ còn thấy các danh
+  // mục con khác CÙNG CHA, không hiện lẫn lộn các nhóm cha khác không liên quan). Để trống
+  // (mặc định) = hiện đầy đủ cây Cha/Con như bình thường (không đổi hành vi cũ).
+  focusCategoryName: {
+    type: String,
+    default: ''
   }
 })
 
@@ -120,6 +145,81 @@ const categoryOptions = computed(() => {
 })
 
 // =========================================================================
+// ⚡ UPDATE MỚI: XÂY DỰNG CÂY DANH MỤC CHA/CON (categoryTree) + TRẠNG THÁI ACCORDION
+// -------------------------------------------------------------------------
+// Dùng "categoryDocs" (dữ liệu thô có parentId) để gom thành từng nhóm Cha kèm mảng
+// "children" (Danh mục con thuộc về nó) — y hệt cách đã làm ở AdminCategoryTab.vue.
+// Nếu file cha CHƯA truyền categoryDocs (mảng rỗng) -> tự động rơi về hiển thị PHẲNG,
+// mỗi "nhóm" chỉ có đúng 1 phần tử là chính nó, không có con -> giao diện hoạt động y
+// hệt bản cũ trước khi có phân cấp, không phá vỡ gì cả.
+// =========================================================================
+const categoryTree = computed(() => {
+  if (!props.categoryDocs || props.categoryDocs.length === 0) {
+    return categoryOptions.value.map(name => ({ id: name, name, children: [] }))
+  }
+
+  const activeDocs = props.categoryDocs.filter(c => c.isActive !== false)
+  const parents = activeDocs
+    .filter(c => !c.parentId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+  return parents.map(parent => ({
+    id: parent.id,
+    name: parent.name_vi,
+    children: activeDocs
+      .filter(c => c.parentId === parent.id)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map(c => ({ id: c.id, name: c.name_vi }))
+  }))
+})
+
+// Trạng thái đóng/mở từng nhóm Danh mục cha (accordion) — mặc định MỞ hết (undefined !== false),
+// khách có thể tự bấm thu gọn nhóm không quan tâm để nhìn gọn gàng hơn
+const expandedCategoryGroups = ref({})
+const toggleCategoryGroup = (groupId) => {
+  expandedCategoryGroups.value[groupId] = expandedCategoryGroups.value[groupId] === false ? true : false
+}
+
+// =========================================================================
+// ⚡ UPDATE MỚI: XÁC ĐỊNH NHÓM CHA CẦN "THU GỌN VỀ" KHI ĐANG XEM 1 DANH MỤC CỤ THỂ
+// -------------------------------------------------------------------------
+// Nếu props.focusCategoryName trùng tên 1 Danh mục CHA -> dùng thẳng nhóm đó.
+// Nếu props.focusCategoryName trùng tên 1 Danh mục CON -> tìm ngược lên nhóm CHA chứa nó.
+// Nếu không tìm thấy gì khớp (hoặc focusCategoryName để trống) -> trả về null, sidebar hiện
+// đầy đủ cây như bình thường (không có gì thay đổi so với trước).
+// =========================================================================
+const focusedGroup = computed(() => {
+  if (!props.focusCategoryName) return null
+  const asParent = categoryTree.value.find(g => g.name === props.focusCategoryName)
+  if (asParent) return asParent
+  return categoryTree.value.find(g => g.children.some(c => c.name === props.focusCategoryName)) || null
+})
+
+// Bấm "Xem tất cả danh mục" -> điều hướng về /products (bỏ hẳn ?category=...) để thoát
+// khỏi chế độ sidebar thu gọn, quay lại xem đầy đủ cây Cha/Con
+// ⚡ UPDATE MỚI: Đóng luôn Drawer Mobile nếu đang mở, tiện khách xem kết quả ngay
+const clearCategoryFocus = () => {
+  router.push('/products')
+  isOpenMobile.value = false
+}
+
+// ⚡ UPDATE MỚI: Mở rộng danh sách tên Danh mục ĐANG CHỌN ra thành tập hợp cần khớp khi lọc —
+// nếu 1 tên đang chọn là Danh mục CHA, mở rộng thành chính nó + tên TẤT CẢ Danh mục CON thuộc
+// về nó (vì sản phẩm luôn được gán cho danh mục con cụ thể, không gán trực tiếp cho danh mục
+// cha). Đồng bộ đúng nguyên tắc đã áp dụng ở ProductsView.vue (hàm expandCategoryNames).
+const expandSelectedCategoryNames = (names) => {
+  const expanded = new Set()
+  names.forEach(name => {
+    expanded.add(name)
+    const group = categoryTree.value.find(g => g.name === name)
+    if (group) {
+      group.children.forEach(child => expanded.add(child.name))
+    }
+  })
+  return expanded
+}
+
+// =========================================================================
 // ⚡ UPDATE MỚI: Tách riêng logic xác định "Danh mục đang active" (activeCategory)
 // ra thành 1 computed dùng chung, thay vì tính lại bên trong needsOptions như cũ.
 // Lý do: giờ cần biết CHÍNH XÁC category nào đang active để lồng khối
@@ -127,6 +227,15 @@ const categoryOptions = computed(() => {
 // (thay vì hiển thị thành 1 khối tách biệt phía dưới toàn bộ danh sách danh mục).
 // =========================================================================
 const activeCategoryForNeeds = computed(() => {
+  // ⚡ UPDATE MỚI: Ưu tiên props.focusCategoryName nếu nó là 1 Danh mục CON hợp lệ (đang xem
+  // qua URL) — vì trong chế độ sidebar thu gọn, danh mục con anh em giờ là LINK ĐIỀU HƯỚNG
+  // (không còn dùng checkbox nội bộ selectedFilters.categories để chọn nữa, xem giải thích
+  // ở khối template "focusedGroup"), nên cần lấy trực tiếp từ URL để khối "Tính năng/Nhu
+  // cầu" vẫn hiện đúng dưới danh mục con đang xem.
+  if (props.focusCategoryName && categoryTree.value.some(g => g.children.some(c => c.name === props.focusCategoryName))) {
+    return props.focusCategoryName
+  }
+
   if (!props.products || props.products.length === 0) return null
 
   if (selectedFilters.categories.length === 1) {
@@ -235,7 +344,10 @@ const filteredProducts = computed(() => {
     const finalPrice = product.salePrice || product.price || 0
 
     if (selectedFilters.categories.length > 0) {
-      if (!selectedFilters.categories.includes(product.category_vi)) return false
+      // ⚡ UPDATE MỚI: So khớp với TẬP HỢP tên đã mở rộng (gồm cả con nếu chọn danh mục cha),
+      // thay vì chỉ so khớp === với đúng 1 tên duy nhất như trước
+      const expandedNames = expandSelectedCategoryNames(selectedFilters.categories)
+      if (!expandedNames.has(product.category_vi)) return false
     }
 
     if (selectedFilters.brands.length > 0) {
@@ -370,35 +482,57 @@ watch(filteredProducts, (newVal) => {
 
     <!-- 
       KHỐI 2: DANH MỤC
-      ⚡ UPDATE MỚI: Lồng khối "Tính năng / Nhu cầu" NGAY DƯỚI đúng dòng danh mục đang được
-      chọn (thay vì tách thành 1 khối riêng nằm dưới toàn bộ danh sách danh mục như bản trước).
-      Cách làm: gộp cả 2 phần vào chung 1 vòng lặp <template v-for="c in categoryOptions">,
-      sau mỗi dòng checkbox danh mục "c", kiểm tra nếu "c" chính là danh mục đang active
-      (c === activeCategoryForNeeds) thì "sổ ra" ngay bên dưới dòng đó khối Tính năng/Nhu cầu
-      thụt lề vào, có viền trái đỏ nhạt để phân biệt rõ đây là bộ lọc con của danh mục "c".
+      ⚡ UPDATE MỚI: ĐỔI SANG HIỂN THỊ DẠNG CÂY CHA/CON VỚI ACCORDION MƯỢT MÀ
+      -----------------------------------------------------------------------
+      Mỗi Danh mục CHA là 1 hàng bấm được (mũi tên xoay 90° khi mở/đóng), bên dưới là các
+      Danh mục CON thụt lề — dùng kỹ thuật CSS "grid-rows 0fr -> 1fr" để animate chiều cao
+      mượt mà khi mở/đóng (không cần đo chiều cao bằng JS, mượt và nhẹ). Khối "Tính năng /
+      Nhu cầu" vẫn được lồng ngay dưới đúng Danh mục con đang chọn như trước, không đổi.
+      Nếu 1 nhóm cha KHÔNG có danh mục con nào (chưa kịp phân cấp) -> hiển thị như 1 dòng
+      checkbox bình thường, không có accordion, y hệt hành vi cũ.
     -->
-    <div v-if="categoryOptions.length > 0" class="flex flex-col gap-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-[11px] font-bold uppercase text-slate-400">Loại hàng / Danh mục</h3>
+    <!-- 
+      ⚡ UPDATE MỚI: KHI ĐANG XEM 1 DANH MỤC CỤ THỂ (focusedGroup có giá trị) — CHỈ HIỆN
+      ĐÚNG NHÓM CHA LIÊN QUAN + CÁC CON ANH EM CỦA NÓ, giống đúng kiểu thietbi247.vn, thay vì
+      hiện lẫn lộn cả 3 nhóm cha như trước gây rối mắt. Có nút "Xem tất cả danh mục" để thoát
+      ra xem lại đầy đủ cây khi cần.
+      
+      ⚡ UPDATE MỚI (2) — SỬA LỖI "0 SẢN PHẨM" KHI BẤM SANG DANH MỤC CON KHÁC:
+      Trước đây các danh mục con anh em ở đây là CHECKBOX (dùng chung selectedFilters.categories
+      với chế độ lọc thông thường). Nhưng ProductsView.vue có 1 bộ lọc "BẮT BUỘC" riêng dựa
+      trên URL (?category=...) luôn ép kết quả chỉ được thuộc ĐÚNG 1 danh mục trên URL. Khi
+      tick thêm checkbox 1 danh mục con KHÁC (VD "MŨI KHOAN" trong lúc URL vẫn là "DAO PHAY"),
+      2 điều kiện lọc "chỏi nhau" (giao rỗng) -> luôn ra 0 sản phẩm.
+      CÁCH SỬA: đổi các danh mục con anh em ở đây thành LINK ĐIỀU HƯỚNG THẲNG (router-link)
+      tới ?category=<tên con đó> thay vì checkbox lọc thêm — bấm vào là CHUYỂN HẲN URL sang
+      danh mục mới, không còn 2 bộ lọc xung đột nữa. Đúng y hệt cách thietbi247.vn làm (danh
+      mục con anh em của họ cũng là link trơn, không phải checkbox).
+    -->
+    <div v-if="focusedGroup" class="flex flex-col gap-1">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-[11px] font-bold uppercase text-red-600 truncate">{{ focusedGroup.name }}</h3>
+        <button 
+          type="button" 
+          @click="clearCategoryFocus" 
+          class="text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
+        >
+          Xem tất cả
+        </button>
       </div>
-      <div class="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        <template v-for="c in categoryOptions" :key="c">
-          <label 
-            class="flex items-center gap-3 group cursor-pointer"
+      <div class="flex flex-col gap-1 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <template v-for="child in focusedGroup.children" :key="child.id">
+          <router-link
+            :to="{ path: '/products', query: { category: child.name } }"
+            class="flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors truncate"
+            :class="child.name === focusCategoryName ? 'bg-red-50 text-red-600 font-black' : 'text-slate-700 font-medium hover:bg-slate-50 hover:text-red-600'"
           >
-            <input 
-              type="checkbox" 
-              :checked="selectedFilters.categories.includes(c)" 
-              @change="toggleFilterItem('categories', c)" 
-              class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-            />
-            <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ c }}</span>
-          </label>
+            <span class="truncate">{{ child.name }}</span>
+          </router-link>
 
-          <!-- ⚡ UPDATE MỚI: Khối "Tính năng / Nhu cầu" lồng ngay dưới đúng danh mục "c" đang active -->
+          <!-- Khối "Tính năng / Nhu cầu" vẫn lồng ngay dưới đúng danh mục con đang active -->
           <div 
-            v-if="c === activeCategoryForNeeds && needsOptions.length > 0" 
-            class="flex flex-col gap-2 pl-7 py-1 border-l-2 border-red-100 ml-1.5"
+            v-if="child.name === activeCategoryForNeeds && needsOptions.length > 0" 
+            class="flex flex-col gap-2 pl-6 py-1 border-l-2 border-red-100 ml-3"
           >
             <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
             <label 
@@ -419,7 +553,91 @@ watch(filteredProducts, (newVal) => {
       </div>
     </div>
 
-    <div v-if="categoryOptions.length > 0" class="w-full h-px bg-slate-100 mt-1"></div>
+    <!-- Cây đầy đủ (accordion) — chỉ hiện khi KHÔNG đang thu gọn theo focusedGroup -->
+    <div v-else-if="categoryTree.length > 0" class="flex flex-col gap-1">
+      <h3 class="text-[11px] font-bold uppercase text-slate-400 mb-2">Loại hàng / Danh mục</h3>
+      <div class="flex flex-col gap-1 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <div v-for="group in categoryTree" :key="group.id" class="flex flex-col">
+
+          <!-- Trường hợp nhóm cha CHƯA có con -> checkbox thường, không accordion -->
+          <label v-if="group.children.length === 0" class="flex items-center gap-3 group cursor-pointer py-1.5">
+            <input 
+              type="checkbox" 
+              :checked="selectedFilters.categories.includes(group.name)" 
+              @change="toggleFilterItem('categories', group.name)" 
+              class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+            />
+            <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ group.name }}</span>
+          </label>
+
+          <!-- Trường hợp nhóm cha CÓ con -> hàng tiêu đề bấm mở/đóng (accordion) -->
+          <template v-else>
+            <button
+              type="button"
+              @click="toggleCategoryGroup(group.id)"
+              class="flex items-center justify-between gap-2 py-1.5 w-full text-left cursor-pointer group/head"
+            >
+              <span class="text-xs font-black text-slate-800 uppercase tracking-wide group-hover/head:text-red-600 transition-colors truncate">
+                {{ group.name }}
+              </span>
+              <svg 
+                class="w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-300 ease-in-out" 
+                :class="expandedCategoryGroups[group.id] === false ? '' : 'rotate-90'"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <!-- ⚡ Khung animate mở/đóng bằng kỹ thuật CSS Grid (0fr <-> 1fr), mượt & nhẹ -->
+            <div 
+              class="grid transition-all duration-300 ease-in-out"
+              :class="expandedCategoryGroups[group.id] === false ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
+            >
+              <div class="overflow-hidden">
+                <div class="flex flex-col gap-2 pl-4 border-l-2 border-slate-100 ml-1 pb-2 pt-1">
+                  <template v-for="child in group.children" :key="child.id">
+                    <label class="flex items-center gap-3 group cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        :checked="selectedFilters.categories.includes(child.name)" 
+                        @change="toggleFilterItem('categories', child.name)" 
+                        class="w-3.5 h-3.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                      />
+                      <span class="text-xs font-medium text-slate-700 group-hover:text-red-600 transition-colors truncate">{{ child.name }}</span>
+                    </label>
+
+                    <!-- Khối "Tính năng / Nhu cầu" lồng ngay dưới đúng danh mục con đang active -->
+                    <div 
+                      v-if="child.name === activeCategoryForNeeds && needsOptions.length > 0" 
+                      class="flex flex-col gap-2 pl-6 py-1 border-l-2 border-red-100 ml-1"
+                    >
+                      <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
+                      <label 
+                        v-for="need in needsOptions" 
+                        :key="need"
+                        class="flex items-start gap-2.5 group cursor-pointer"
+                      >
+                        <input 
+                          type="checkbox" 
+                          :checked="selectedFilters.needs.includes(need)"
+                          @change="toggleFilterItem('needs', need)"
+                          class="w-3.5 h-3.5 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                        />
+                        <span class="text-[11px] font-medium text-slate-600 group-hover:text-red-600 transition-colors leading-relaxed">{{ need }}</span>
+                      </label>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⚡ UPDATE MỚI: Dòng phân cách hiện được cho cả 2 trường hợp (thu gọn theo focusedGroup HOẶC cây đầy đủ) -->
+    <div v-if="focusedGroup || categoryTree.length > 0" class="w-full h-px bg-slate-100 mt-1"></div>
 
     <!-- KHỐI 3: MỨC GIÁ -->
     <div class="flex flex-col gap-3">
@@ -561,30 +779,40 @@ watch(filteredProducts, (newVal) => {
 
         <!-- 
           Danh mục
-          ⚡ UPDATE MỚI: Lồng khối "Tính năng / Nhu cầu" NGAY DƯỚI đúng dòng danh mục đang chọn
-          (đồng bộ với cách làm ở bản Desktop phía trên), thay vì tách khối riêng như bản trước.
+          ⚡ UPDATE MỚI: Đồng bộ dạng cây cha/con + accordion mượt mà với bản Desktop ở trên,
+          kèm chế độ thu gọn theo focusedGroup khi đang xem 1 danh mục cụ thể.
         -->
-        <div v-if="categoryOptions.length > 0" class="flex flex-col gap-3">
-          <h3 class="text-[11px] font-bold uppercase text-slate-400">Loại hàng / Danh mục</h3>
-          <div class="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-            <template v-for="c in categoryOptions" :key="'m-cat-' + c">
-              <label class="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  :checked="selectedFilters.categories.includes(c)" 
-                  @change="toggleFilterItem('categories', c)" 
-                  class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
-                />
-                <span class="text-xs font-medium text-slate-700 truncate">{{ c }}</span>
-              </label>
-
-              <!-- ⚡ UPDATE MỚI: Khối "Tính năng / Nhu cầu" lồng ngay dưới đúng danh mục "c" đang active -->
+        <div v-if="focusedGroup" class="flex flex-col gap-1">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-[11px] font-bold uppercase text-red-600 truncate">{{ focusedGroup.name }}</h3>
+            <button 
+              type="button" 
+              @click="clearCategoryFocus" 
+              class="text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
+            >
+              Xem tất cả
+            </button>
+          </div>
+          <!-- ⚡ UPDATE MỚI: Đổi checkbox -> router-link điều hướng thẳng (giải thích chi tiết
+               ở bản Desktop phía trên) — sửa lỗi "0 sản phẩm" khi bấm sang danh mục con khác.
+               Có thêm @click đóng luôn Drawer Mobile sau khi điều hướng, tiện tay khách xem
+               kết quả ngay không cần tự bấm nút đóng. -->
+          <div class="flex flex-col gap-1 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            <template v-for="child in focusedGroup.children" :key="'m-focus-' + child.id">
+              <router-link
+                :to="{ path: '/products', query: { category: child.name } }"
+                @click="isOpenMobile = false"
+                class="flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors truncate"
+                :class="child.name === focusCategoryName ? 'bg-red-50 text-red-600 font-black' : 'text-slate-700 font-medium hover:bg-slate-50 hover:text-red-600'"
+              >
+                <span class="truncate">{{ child.name }}</span>
+              </router-link>
               <div 
-                v-if="c === activeCategoryForNeeds && needsOptions.length > 0" 
-                class="flex flex-col gap-2 pl-7 py-1 border-l-2 border-red-100 ml-1.5"
+                v-if="child.name === activeCategoryForNeeds && needsOptions.length > 0" 
+                class="flex flex-col gap-2 pl-5 py-1 border-l-2 border-red-100 ml-2"
               >
                 <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
-                <label v-for="need in needsOptions" :key="'m-need-' + need" class="flex items-start gap-2.5 cursor-pointer">
+                <label v-for="need in needsOptions" :key="'m-focus-need-' + need" class="flex items-start gap-2.5 cursor-pointer">
                   <input 
                     type="checkbox" 
                     :checked="selectedFilters.needs.includes(need)"
@@ -598,7 +826,84 @@ watch(filteredProducts, (newVal) => {
           </div>
         </div>
 
-        <div v-if="categoryOptions.length > 0" class="w-full h-px bg-slate-100"></div>
+        <div v-else-if="categoryTree.length > 0" class="flex flex-col gap-1">
+          <h3 class="text-[11px] font-bold uppercase text-slate-400 mb-2">Loại hàng / Danh mục</h3>
+          <div class="flex flex-col gap-1 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            <div v-for="group in categoryTree" :key="'m-' + group.id" class="flex flex-col">
+
+              <!-- Trường hợp nhóm cha CHƯA có con -> checkbox thường, không accordion -->
+              <label v-if="group.children.length === 0" class="flex items-center gap-3 cursor-pointer py-1.5">
+                <input 
+                  type="checkbox" 
+                  :checked="selectedFilters.categories.includes(group.name)" 
+                  @change="toggleFilterItem('categories', group.name)" 
+                  class="w-4 h-4 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                />
+                <span class="text-xs font-medium text-slate-700 truncate">{{ group.name }}</span>
+              </label>
+
+              <!-- Trường hợp nhóm cha CÓ con -> hàng tiêu đề bấm mở/đóng (accordion) -->
+              <template v-else>
+                <button
+                  type="button"
+                  @click="toggleCategoryGroup(group.id)"
+                  class="flex items-center justify-between gap-2 py-1.5 w-full text-left cursor-pointer"
+                >
+                  <span class="text-xs font-black text-slate-800 uppercase tracking-wide truncate">
+                    {{ group.name }}
+                  </span>
+                  <svg 
+                    class="w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-300 ease-in-out" 
+                    :class="expandedCategoryGroups[group.id] === false ? '' : 'rotate-90'"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <div 
+                  class="grid transition-all duration-300 ease-in-out"
+                  :class="expandedCategoryGroups[group.id] === false ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
+                >
+                  <div class="overflow-hidden">
+                    <div class="flex flex-col gap-2 pl-4 border-l-2 border-slate-100 ml-1 pb-2 pt-1">
+                      <template v-for="child in group.children" :key="'m-' + child.id">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            :checked="selectedFilters.categories.includes(child.name)" 
+                            @change="toggleFilterItem('categories', child.name)" 
+                            class="w-3.5 h-3.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                          />
+                          <span class="text-xs font-medium text-slate-700 truncate">{{ child.name }}</span>
+                        </label>
+
+                        <div 
+                          v-if="child.name === activeCategoryForNeeds && needsOptions.length > 0" 
+                          class="flex flex-col gap-2 pl-6 py-1 border-l-2 border-red-100 ml-1"
+                        >
+                          <span class="text-[10px] font-bold uppercase text-slate-400">Tính năng / Nhu cầu</span>
+                          <label v-for="need in needsOptions" :key="'m-need-' + need" class="flex items-start gap-2.5 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              :checked="selectedFilters.needs.includes(need)"
+                              @change="toggleFilterItem('needs', need)"
+                              class="w-3.5 h-3.5 mt-0.5 rounded border-slate-300 accent-red-600 focus:ring-red-500 cursor-pointer shrink-0" 
+                            />
+                            <span class="text-[11px] font-medium text-slate-600 leading-relaxed">{{ need }}</span>
+                          </label>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⚡ UPDATE MỚI: Dòng phân cách hiện được cho cả 2 trường hợp (thu gọn HOẶC cây đầy đủ) -->
+        <div v-if="focusedGroup || categoryTree.length > 0" class="w-full h-px bg-slate-100"></div>
 
         <!-- Khoảng giá -->
         <div class="flex flex-col gap-3">

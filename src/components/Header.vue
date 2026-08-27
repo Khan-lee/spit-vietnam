@@ -176,9 +176,14 @@ const suggestions = computed(() => {
   const rawQuery = (props.searchQuery || searchStore.searchQuery || '').trim()
   if (!rawQuery) return []
   
-  const productList = (Array.isArray(props.products) && props.products.length > 0)
+  const productList = ((Array.isArray(props.products) && props.products.length > 0)
     ? props.products
-    : (searchStore.products || [])
+    : (searchStore.products || []))
+    // ⚡ UPDATE MỚI: Lọc bỏ sản phẩm đã bị Admin ẨN (isActive === false) khỏi gợi ý tìm
+    // kiếm — đồng bộ với HomeView.vue/ProductsView.vue. Lọc ngay tại đây (không phụ thuộc
+    // props.products hay searchStore.products đã lọc sẵn hay chưa) để chắc chắn không bao
+    // giờ gợi ý nhầm sản phẩm đang ẩn, dù dữ liệu đến từ nguồn nào.
+    .filter(p => p && p.isActive !== false)
 
   if (!productList.length) return []
   

@@ -53,9 +53,13 @@
 
         <!-- CỘT TRÁI: BỘ LỌC SIDEBAR (DESKTOP) -->
 <aside class="hidden lg:block w-72 shrink-0 sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1 custom-sidebar-scroll">
+  <!-- ⚡ UPDATE MỚI: Truyền "focus-category-name" = tên danh mục đang xem trên URL, giúp
+       sidebar tự thu gọn chỉ hiện đúng nhóm cha liên quan + các con anh em của nó -->
   <HomeProductFilter 
     :products="products" 
     :categories="categories" 
+    :category-docs="categoryDocs"
+    :focus-category-name="route.query.category || ''"
     @update:filteredProducts="handleFilteredProducts"
     @update:isFiltering="handleFilterState" 
   />
@@ -78,9 +82,12 @@
               </button>
             </div>
             
+            <!-- ⚡ UPDATE MỚI: Truyền "focus-category-name" giống bản Desktop ở trên -->
             <HomeProductFilter 
               :products="products" 
               :categories="categories" 
+              :category-docs="categoryDocs"
+              :focus-category-name="route.query.category || ''"
               @update:filteredProducts="handleFilteredProducts"
               @update:isFiltering="handleFilterState" 
             />
@@ -496,7 +503,16 @@ const fetchData = async () => {
       getDocs(collection(db, "categories"))
     ])
 
-    products.value = prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    // =========================================================================
+    // ⚡ UPDATE MỚI: LỌC BỎ SẢN PHẨM BỊ ẨN + SẮP XẾP THEO "SỐ THỨ TỰ HIỂN THỊ" (order)
+    // Đồng bộ đúng với 2 trường mới "order"/"isActive" đã thêm ở AdminView.vue, và cách
+    // làm đã áp dụng cho HomeView.vue — sản phẩm cũ chưa có "isActive" mặc định coi là
+    // VẪN HIỆN (isActive !== false), sản phẩm chưa có "order" xếp cuối (999999).
+    // =========================================================================
+    products.value = prodSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999))
     promotions.value = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     categoryDocs.value = catSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
@@ -521,6 +537,37 @@ const categories = computed(() => {
     })
   return [...new Set(activeCats)]
 })
+// ⚡ UPDATE MỚI: "categories" ở trên VẪN giữ nguyên hành vi cũ (liệt kê phẳng, không phân
+// cấp) — dùng làm phương án DỰ PHÒNG cho <HomeProductFilter>. Component đó giờ đã được sửa
+// để tự dựng cây cha/con, nhưng KHÔNG dựa vào biến "categories" (mảng tên chuỗi phẳng) này
+// nữa, mà dựa vào prop MỚI "category-docs" (dữ liệu thô có parentId, xem chỗ gọi
+// <HomeProductFilter> bên dưới) — "categories" chỉ còn tác dụng làm fallback hiển thị phẳng
+// nếu vì lý do gì đó categoryDocs chưa kịp tải xong.
+
+// =========================================================================
+// ⚡ UPDATE MỚI: HÀM "MỞ RỘNG" 1 TÊN DANH MỤC RA THÀNH TẬP HỢP TÊN CẦN KHỚP
+// -------------------------------------------------------------------------
+// Sản phẩm KHÔNG BAO GIỜ được gán trực tiếp cho 1 Danh mục CHA (VD "DỤNG CỤ CẮT GỌT"),
+// mà luôn gán cho Danh mục CON cụ thể nhất (VD "Dao Phay"). Từ khi sidebar HomeView.vue
+// đổi sang chỉ liệt kê Danh mục CHA, link "?category=DỤNG CỤ CẮT GỌT" gửi qua trang này
+// sẽ không khớp được sản phẩm nào nếu so khớp chính xác tuyệt đối như code cũ -> trả về
+// RỖNG. Hàm này giải quyết: nếu catName truyền vào là 1 Danh mục CHA, mở rộng ra thành
+// mảng gồm chính nó + tên TẤT CẢ Danh mục CON thuộc về nó, để so khớp "hoặc" (OR) với bất
+// kỳ tên nào trong mảng đó. Nếu catName là 1 Danh mục CON (hoặc danh mục "mồ côi" cũ chưa
+// từng được phân cấp cha/con), trả về mảng chỉ có đúng 1 phần tử là chính nó — hành vi
+// giống hệt code cũ, không phá vỡ gì đang hoạt động.
+// =========================================================================
+const expandCategoryNames = (catName) => {
+  if (!catName) return []
+  const catDoc = categoryDocs.value.find(c => c.name_vi === catName || c.name_en === catName)
+  if (catDoc && !catDoc.parentId) {
+    const childNames = categoryDocs.value
+      .filter(c => c.parentId === catDoc.id)
+      .flatMap(c => [c.name_vi, c.name_en].filter(Boolean))
+    return [catName, ...childNames]
+  }
+  return [catName]
+}
 
 // LOGIC GIẢM GIÁ & TÍNH GIÁ (CHUẨN 100% HOMEVIEW)
 const getActivePromo = (product) => {
@@ -587,9 +634,12 @@ const applyInitialUrlFilter = () => {
   if (urlCategory) {
     hasFilter = true
     const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+    // ⚡ UPDATE MỚI: Mở rộng urlCategory ra thành mảng (chính nó + con nếu là danh mục cha),
+    // rồi so khớp "hoặc" (includes) thay vì so khớp === 1-1 như trước
+    const matchNames = expandCategoryNames(urlCategory)
     result = result.filter(p => {
       const pCat = p[catField] || p.category || p.category_name
-      return pCat === urlCategory || p.category_vi === urlCategory || p.category_en === urlCategory || p.category === urlCategory
+      return matchNames.includes(pCat) || matchNames.includes(p.category_vi) || matchNames.includes(p.category_en) || matchNames.includes(p.category)
     })
   }
 
@@ -638,15 +688,17 @@ const filteredProducts = computed(() => {
   // 2. LỌC BẮT BUỘC THEO CATEGORY TRÊN URL (Nếu URL có ?category=...)
   const urlCategory = route.query.category
   if (urlCategory) {
-    const targetCat = urlCategory.toString().trim().toLowerCase()
+    // ⚡ UPDATE MỚI: Mở rộng urlCategory ra thành mảng (chính nó + con nếu là danh mục cha)
+    // trước khi so khớp — đồng bộ với logic ở applyInitialUrlFilter phía trên
+    const targetCats = expandCategoryNames(urlCategory).map(n => n.toString().trim().toLowerCase())
     
     list = list.filter(p => {
       const catVi = (p.category_vi || '').toString().trim().toLowerCase()
       const catEn = (p.category_en || '').toString().trim().toLowerCase()
       const catRaw = (p.category || p.category_name || '').toString().trim().toLowerCase()
 
-      // So sánh chính xác không phân biệt hoa thường
-      return catVi === targetCat || catEn === targetCat || catRaw === targetCat
+      // So sánh chính xác không phân biệt hoa thường, khớp với BẤT KỲ tên nào trong targetCats
+      return targetCats.includes(catVi) || targetCats.includes(catEn) || targetCats.includes(catRaw)
     })
   }
 

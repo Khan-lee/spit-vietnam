@@ -174,8 +174,23 @@ const listenToData = () => {
   }
 
   // 1. Sản phẩm (Realtime)
+  // =========================================================================
+  // ⚡ UPDATE MỚI: LỌC BỎ SẢN PHẨM BỊ ẨN + SẮP XẾP THEO "SỐ THỨ TỰ HIỂN THỊ" (order)
+  // -------------------------------------------------------------------------
+  // Đồng bộ với 2 trường mới "order" và "isActive" vừa thêm ở AdminView.vue. Đây là điểm
+  // fetch dữ liệu sản phẩm DUY NHẤT của trang chủ — mọi khối khác (Top bán chạy, HOT SALE,
+  // từng Danh mục, kết quả tìm kiếm...) đều tự động dùng lại "products.value" này, nên chỉ
+  // cần lọc + sắp xếp đúng 1 chỗ này là toàn bộ trang chủ tự động hiển thị đúng thứ tự Admin
+  // đã cấu hình, và không còn hiện sản phẩm đã bị ẩn nữa — không cần sửa từng khối riêng lẻ.
+  // Sản phẩm CŨ chưa từng có field "isActive" mặc định coi là VẪN HIỆN (isActive !== false,
+  // không phải === true) để không vô tình ẩn nhầm hàng loạt sản phẩm cũ. Sản phẩm chưa có
+  // "order" thì xếp cuối cùng (coi như 999999).
+  // =========================================================================
   const unsubProducts = onSnapshot(collection(db, "products"), (snapshot) => {
-    products.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    products.value = allProducts
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999))
     checkLoading()
   }, (e) => console.error("Lỗi realtime products:", e))
 
@@ -407,9 +422,17 @@ const getCountdown = (endDate) => {
   return `${hh}:${mm}:${ss}`;
 };
 
+// =========================================================================
+// ⚡ UPDATE MỚI: "categories" GIỜ CHỈ LẤY DANH MỤC CHA (không lấy phẳng tất cả như trước)
+// -------------------------------------------------------------------------
+// Từ khi "Quản lý danh mục" hỗ trợ Danh mục cha/con, collection "categories" chứa cả
+// danh mục cha lẫn con lẫn lộn (phân biệt qua parentId). Sidebar trang chủ giờ chỉ nên
+// hiển thị các NHÓM CHA (VD: "DỤNG CỤ CẮT GỌT"), còn danh mục con (VD: "Dao Phay") sẽ
+// hiện ra trong Mega Menu khi hover vào nhóm cha — đúng kiểu bố cục 2 cấp đã thống nhất.
+// =========================================================================
 const categories = computed(() => {
   const activeCats = categoryDocs.value
-    .filter(c => c.isActive === true)
+    .filter(c => c.isActive === true && !c.parentId) // ⚡ chỉ lấy danh mục KHÔNG có parentId (danh mục cha)
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map(c => {
       const catField = locale.value === 'vi' ? 'name_vi' : 'name_en'
@@ -519,19 +542,52 @@ const hotProducts = computed(() => {
   return hots.slice(0, 4)
 })
 
+// =========================================================================
+// ⚡ UPDATE MỚI: getProductsByCategory GIỜ HIỂU ĐƯỢC QUAN HỆ CHA-CON
+// -------------------------------------------------------------------------
+// Sản phẩm KHÔNG BAO GIỜ được gán trực tiếp cho 1 Danh mục CHA (VD "DỤNG CỤ CẮT GỌT"),
+// mà luôn gán cho Danh mục CON cụ thể nhất (VD "Dao Phay"). Nếu hàm này nhận vào tên 1
+// Danh mục cha mà không tự "gom" thêm sản phẩm của toàn bộ con nó, kết quả trả về sẽ
+// LUÔN RỖNG (vì không sản phẩm nào có category_vi = "DỤNG CỤ CẮT GỌT" cả) -> hỏng cả
+// Mega Menu lẫn Khối tổng hợp theo danh mục ở cuối trang. Hàm dưới đây tự phát hiện: nếu
+// catName truyền vào là 1 Danh mục cha -> gom sản phẩm của MỌI danh mục con thuộc về nó.
+// Vẫn giữ nguyên khả năng hoạt động bình thường nếu truyền vào tên 1 Danh mục con (hoặc
+// 1 danh mục "mồ côi" cũ chưa từng được phân cấp cha/con) — không phá vỡ gì đã có.
+// =========================================================================
 const getProductsByCategory = (catName) => {
   const catField = locale.value === 'vi' ? 'category_vi' : 'category_en'
+  const nameField = locale.value === 'vi' ? 'name_vi' : 'name_en'
+
   const catDoc = categoryDocs.value.find(c => {
-    const nameField = locale.value === 'vi' ? 'name_vi' : 'name_en'
     return (c[nameField] || c.name || c.category || c.id) === catName
   })
+
+  // Nếu catDoc là 1 Danh mục CHA (không có parentId), lấy thêm toàn bộ danh mục CON của nó
+  const childCatDocs = (catDoc && !catDoc.parentId)
+    ? categoryDocs.value.filter(c => c.parentId === catDoc.id)
+    : []
+  const childCatNames = childCatDocs.map(c => c[nameField] || c.name_vi)
 
   return products.value.filter(p => {
     const pCat = p[catField] || p.category || p.category_name
     if (pCat === catName) return true
+    if (childCatNames.includes(pCat)) return true
     if (catDoc && (p.categoryId === catDoc.id || p.category_id === catDoc.id)) return true
+    if (childCatDocs.some(cd => p.categoryId === cd.id || p.category_id === cd.id)) return true
     return false
   })
+}
+
+// ⚡ UPDATE MỚI: Hàm lấy danh sách TÊN các Danh mục CON thuộc về 1 Danh mục CHA — dùng để
+// hiển thị nhóm "Danh mục con" trong Mega Menu (sidebar) và ở đầu mỗi khối sản phẩm cuối trang
+const getSubCategories = (parentName) => {
+  const nameField = locale.value === 'vi' ? 'name_vi' : 'name_en'
+  const parentDoc = categoryDocs.value.find(c => (c[nameField] || c.name || c.category || c.id) === parentName)
+  if (!parentDoc) return []
+  return categoryDocs.value
+    .filter(c => c.parentId === parentDoc.id && c.isActive === true)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map(c => c[nameField] || c.name_vi)
 }
 
 // ⚡ UPDATE MỚI: Hàm tạo đường dẫn tới trang chi tiết sản phẩm — ưu tiên dùng Slug SEO thân thiện
@@ -655,6 +711,28 @@ const getCategoryBanner = (catName) => {
           <h3 class="text-sm font-black uppercase text-red-600 tracking-wider mb-3 border-b border-red-100 pb-2 flex items-center gap-2">
             {{ activeHoverCategory }}
           </h3>
+
+          <!-- 
+            ⚡ UPDATE MỚI: KHỐI "DANH MỤC CON" TRONG MEGA MENU
+            Hiển thị các Danh mục con thuộc về Danh mục cha đang hover (VD hover
+            "DỤNG CỤ CẮT GỌT" -> hiện "Dao Phay", "Dao Tiện", "Mũi Khoan", "Mũi Taro"...).
+            Bấm vào 1 danh mục con sẽ điều hướng thẳng tới trang sản phẩm đã lọc đúng
+            danh mục con đó — dùng lại đúng cú pháp { path, query } (Vue Router tự encode
+            an toàn ký tự đặc biệt) giống hệt cách sidebar chính đang làm.
+          -->
+          <div v-if="getSubCategories(activeHoverCategory).length > 0" class="mb-4">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">Danh mục con</p>
+            <div class="flex flex-wrap gap-2">
+              <router-link
+                v-for="sub in getSubCategories(activeHoverCategory)"
+                :key="sub"
+                :to="{ path: '/products', query: { category: sub } }"
+                class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm"
+              >
+                {{ sub }}
+              </router-link>
+            </div>
+          </div>
           
           <div class="flex items-center justify-between mb-2">
             <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Thương hiệu hàng đầu</p>
@@ -1012,9 +1090,13 @@ const getCategoryBanner = (catName) => {
         <HomeProductFilter 
           :products="products" 
           :categories="categories" 
+          :category-docs="categoryDocs"
           @update:filteredProducts="handleFilteredProducts"
           @update:isFiltering="isFiltering = $event" 
         />
+        <!-- ⚡ UPDATE MỚI: Truyền thêm prop "category-docs" (dữ liệu thô danh mục có parentId)
+             để HomeProductFilter.vue tự dựng được cây Cha/Con — không đụng gì tới prop
+             "categories" cũ, chỉ bổ sung thêm -->
 
         <!-- CỘT PHẢI: KẾT QUẢ VÀ CÁC KHỐI DANH MỤC -->
         <div class="flex-1 w-full min-w-0 space-y-6">
@@ -1294,6 +1376,22 @@ const getCategoryBanner = (catName) => {
                     {{ cat }}
                   </h2>
                 </div>
+              </div>
+
+              <!-- 
+                ⚡ UPDATE MỚI: Hàng "Danh mục con" ngay dưới tiêu đề mỗi khối — giúp khách
+                (đặc biệt trên di động, nơi không hover được sidebar) vẫn thấy và bấm thẳng
+                vào đúng danh mục con mình cần mà không phải cuộn tìm/mở bộ lọc riêng.
+              -->
+              <div v-if="getSubCategories(cat).length > 0" class="flex flex-wrap gap-2 -mt-1">
+                <router-link
+                  v-for="sub in getSubCategories(cat)"
+                  :key="sub"
+                  :to="{ path: '/products', query: { category: sub } }"
+                  class="text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all"
+                >
+                  {{ sub }}
+                </router-link>
               </div>
 
               <!-- Bố cục Khối: Banner Đại Diện bên trái + Lưới Sản Phẩm bên phải -->

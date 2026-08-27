@@ -111,6 +111,17 @@ const original_price_piece = ref(0)                  // Giá hiển thị niêm 
 const original_price = ref(0)                        // Đồng bộ với original_price_piece tương thích ngược
 
 const stock = ref(0)
+
+// =========================================================================
+// ⚡ UPDATE MỚI: 2 TRƯỜNG MỚI CHO SẢN PHẨM — "SỐ THỨ TỰ HIỂN THỊ" & "HIỆN/ẨN SẢN PHẨM"
+// -------------------------------------------------------------------------
+// Áp dụng đúng nguyên tắc y hệt "Quản lý danh mục" đang làm (categories có sẵn field
+// order + isActive) — cho phép Admin sắp xếp thứ tự sản phẩm xuất hiện trên trang chủ
+// (số càng nhỏ càng ưu tiên hiện trước), và tạm ẨN 1 sản phẩm khỏi web công khai (VD hết
+// hàng lâu ngày, hoặc chưa muốn công bố) MÀ KHÔNG CẦN XÓA HẲN dữ liệu sản phẩm đó.
+// =========================================================================
+const productOrder = ref(1)       // Số thứ tự hiển thị — số càng nhỏ càng ưu tiên hiện trước
+const productIsActive = ref(true) // true = Hiện trên Web, false = Tạm ẩn khỏi Web
 const image = ref('')
 const imageFile = ref(null)
 
@@ -440,6 +451,32 @@ const fetchCategories = async () => {
   }
 }
 
+// =========================================================================
+// ⚡ UPDATE MỚI: GOM DANH MỤC THEO NHÓM CHA/CON ĐỂ HIỂN THỊ DROPDOWN CHỌN DANH MỤC SẢN PHẨM
+// -------------------------------------------------------------------------
+// Từ khi "Quản lý danh mục" hỗ trợ Danh mục cha/con (AdminCategoryTab.vue), collection
+// "categories" giờ chứa CẢ danh mục cha lẫn danh mục con lẫn lộn (phân biệt qua parentId).
+// Nếu vẫn hiển thị phẳng như cũ, Admin dễ CHỌN NHẦM danh mục cha (VD "DỤNG CỤ CẮT GỌT")
+// làm danh mục của 1 sản phẩm cụ thể, trong khi đáng lẽ phải chọn đúng danh mục con
+// (VD "Dao Phay"). Computed này gom lại thành từng nhóm theo Danh mục cha (dùng <optgroup>
+// - tính năng có sẵn của HTML <select>, không cần thêm thư viện gì) để:
+//   - Nếu 1 Danh mục cha ĐÃ có danh mục con -> CHỈ liệt kê các con của nó cho Admin chọn
+//     (không cho chọn thẳng danh mục cha, ép Admin luôn chọn đúng danh mục cụ thể nhất).
+//   - Nếu 1 Danh mục cha CHƯA có con nào (chưa kịp phân chia) -> vẫn cho chọn thẳng chính
+//     nó, để không bị "bí" không chọn được gì (giữ tương thích ngược, không phá vỡ luồng
+//     làm việc cũ khi danh mục chưa được phân cấp).
+// =========================================================================
+const categoryOptionsGrouped = computed(() => {
+  const parents = categories.value.filter(c => !c.parentId)
+  return parents.map(parent => {
+    const children = categories.value.filter(c => c.parentId === parent.id)
+    return {
+      label: parent.name_vi,
+      options: children.length > 0 ? children : [parent]
+    }
+  })
+})
+
 const handleCategorySelectChange = () => {
   const selected = categories.value.find(c => c.id === categoryId.value)
   if (selected) {
@@ -551,7 +588,13 @@ const groupedFilteredProducts = computed(() => {
       if (orderA !== orderB) return orderA - orderB
       return a.localeCompare(b)
     })
-    .map(catName => ({ catName, items: groups[catName] }))
+    .map(catName => ({ 
+      catName, 
+      // ⚡ UPDATE MỚI: Sắp xếp sản phẩm TRONG mỗi nhóm theo "Số thứ tự hiển thị" (order) tăng
+      // dần — để Admin nhìn thấy đúng thứ tự sản phẩm sẽ xuất hiện ngoài trang chủ, không
+      // phải đoán mò. Sản phẩm chưa có order coi như 999999 (xếp cuối cùng).
+      items: [...groups[catName]].sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999))
+    }))
 })
 
 // UPDATE MỚI: Chọn file từ máy sẽ làm mới ô nhập link
@@ -624,6 +667,11 @@ const resetForm = () => {
   price_box.value = 0
   price.value = 0
   stock.value = 0
+
+  // ⚡ UPDATE MỚI: Reset Số thứ tự về cuối danh sách hiện có (gợi ý hợp lý cho sản phẩm mới),
+  // và mặc định Hiện trên Web (đúng hành vi trực quan nhất khi thêm mới)
+  productOrder.value = products.value.length + 1
+  productIsActive.value = true
   
   image.value = ''
   imageFile.value = null
@@ -700,6 +748,11 @@ const handleSubmit = async () => {
       original_price: Number(original_price_piece.value) || Number(price_piece.value) || 0,
 
       stock: Number(stock.value),
+
+      // ⚡ UPDATE MỚI: Lưu Số thứ tự hiển thị & Trạng thái hiện/ẩn vào Firestore
+      order: Number(productOrder.value) || 999999,
+      isActive: productIsActive.value,
+
       image: finalImageUrl || 'https://via.placeholder.com/200',
       sub_images: finalSubImageUrls,
       custom_url: custom_url.value.trim(), 
@@ -833,6 +886,13 @@ const startEdit = (p) => {
   image.value = p.image || ''
   imageFile.value = null
 
+  // ⚡ UPDATE MỚI: Nạp lại Số thứ tự & Trạng thái hiện/ẩn khi nhấn "Chỉnh sửa". Sản phẩm CŨ
+  // chưa từng có 2 field này (isActive/order) mặc định coi là "Hiện trên Web" (isActive !==
+  // false, không phải === true, để tương thích ngược không vô tình ẩn nhầm sản phẩm cũ) và
+  // Số thứ tự tạm gán về cuối danh sách hiện có.
+  productOrder.value = p.order !== undefined ? p.order : (products.value.length + 1)
+  productIsActive.value = p.isActive !== false
+
   custom_url.value = p.custom_url || ''
   catalog_link.value = p.catalog_link || ''
 
@@ -870,6 +930,19 @@ const startEditBrand = (b) => {
   brandDescription.value = b.description
   brandLink.value = b.link || '' 
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ⚡ UPDATE MỚI: Bật/tắt NHANH trạng thái Hiện/Ẩn ngay tại bảng danh sách, không cần mở
+// form "Sửa" đầy đủ — tiện dùng khi chỉ cần ẩn/hiện gấp 1 sản phẩm nào đó
+const toggleProductVisibility = async (p) => {
+  try {
+    const newValue = !(p.isActive !== false) // Đảo ngược trạng thái hiện tại (coi undefined = true)
+    await updateDoc(doc(db, "products", p.id), { isActive: newValue })
+    p.isActive = newValue // Cập nhật ngay trên giao diện, không cần chờ fetchProducts() chạy lại
+  } catch (e) {
+    console.error("Lỗi cập nhật trạng thái hiển thị sản phẩm:", e)
+    alert("Có lỗi xảy ra khi cập nhật trạng thái hiển thị!")
+  }
 }
 
 const confirmDelete = async (id, pName) => {
@@ -1066,9 +1139,13 @@ const resetBrandForm = () => {
                         class="w-full p-3 bg-slate-50 rounded-xl outline-none text-xs font-bold border border-transparent focus:border-blue-200 cursor-pointer"
                       >
                         <option value="">-- Chọn Danh Mục * --</option>
-                        <option v-for="c in categories" :key="c.id" :value="c.id">
-                          {{ c.name_vi?.toUpperCase() }}
-                        </option>
+                        <!-- ⚡ UPDATE MỚI: Hiển thị theo nhóm Danh mục cha (optgroup), bên trong liệt kê
+                             đúng các Danh mục con thuộc về nhóm đó -> tránh chọn nhầm danh mục cha -->
+                        <optgroup v-for="group in categoryOptionsGrouped" :key="group.label" :label="group.label">
+                          <option v-for="c in group.options" :key="c.id" :value="c.id">
+                            {{ c.name_vi?.toUpperCase() }}
+                          </option>
+                        </optgroup>
                       </select>
                       <input v-model="category_en" readonly placeholder="Category (EN) - Tự động điền" class="w-full p-2 bg-slate-100/50 rounded-lg outline-none text-[10px] italic text-slate-400 cursor-not-allowed" />
                     </div>
@@ -1300,6 +1377,36 @@ const resetBrandForm = () => {
                     <input v-model="stock" type="number" placeholder="Kho" class="p-3 bg-slate-50 rounded-xl outline-none text-sm font-black text-blue-600" @wheel="$event.target.blur()" />
                   </div>
 
+                  <!-- 
+                    ⚡ UPDATE MỚI: KHỐI "SỐ THỨ TỰ HIỂN THỊ" & "HIỆN/ẨN SẢN PHẨM"
+                    Đặt ngay sau khối Giá/Tồn kho, trước khối Khuyến mãi — cho Admin sắp xếp
+                    thứ tự sản phẩm xuất hiện trên trang chủ và tạm ẩn/hiện sản phẩm tùy ý.
+                  -->
+                  <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="space-y-1">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Số thứ tự hiển thị</label>
+                      <input 
+                        v-model.number="productOrder" 
+                        type="number" 
+                        min="1" 
+                        placeholder="1" 
+                        class="w-full p-2.5 bg-white rounded-xl outline-none text-xs font-bold border border-slate-200 focus:border-blue-400 text-center" 
+                        @wheel="$event.target.blur()"
+                      />
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[9px] font-black uppercase text-slate-400 ml-1">Trạng thái hiển thị</label>
+                      <button
+                        type="button"
+                        @click="productIsActive = !productIsActive"
+                        :class="productIsActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'"
+                        class="w-full p-2.5 rounded-xl text-xs font-black uppercase transition-colors cursor-pointer"
+                      >
+                        {{ productIsActive ? '● Đang hiện' : '● Đang ẩn' }}
+                      </button>
+                    </div>
+                  </div>
+
                   <div class="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <div class="flex items-center gap-3">
                       <input type="checkbox" v-model="hasPromotion" id="promo" class="w-4 h-4 accent-blue-600" />
@@ -1524,6 +1631,8 @@ const resetBrandForm = () => {
                       <td class="p-5 flex items-center gap-4">
                         <div class="relative">
                           <img :src="p.image" class="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-100 p-1 shadow-sm group-hover:scale-110 transition-transform" />
+                          <!-- ⚡ UPDATE MỚI: Badge Số thứ tự hiển thị, góc trên-trái ảnh sản phẩm -->
+                          <span class="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-slate-800 text-white text-[9px] font-black flex items-center justify-center shadow-sm">{{ p.order ?? '?' }}</span>
                           <div v-if="p.displayPromoValue && p.displayPromoValue !== '0'" 
                                class="absolute -top-1 -right-1 text-white text-[7px] font-black px-1 rounded-md shadow-sm"
                                :class="p.isCampaign ? 'bg-orange-500' : 'bg-red-500'">
@@ -1548,6 +1657,16 @@ const resetBrandForm = () => {
                              <span v-else-if="p.sales_type === 'cai'" class="text-[8px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase">Bán Cái</span>
                              <span v-else-if="p.sales_type === 'piece'" class="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">Bán Mảnh</span>
                              <span v-else-if="p.sales_type === 'box'" class="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Bán Hộp ({{ p.box_qty || 10 }}c)</span>
+
+                             <!-- ⚡ UPDATE MỚI: Nút bật/tắt NHANH trạng thái Hiện/Ẩn sản phẩm ngay tại bảng danh sách -->
+                             <button 
+                               type="button"
+                               @click.stop="toggleProductVisibility(p)" 
+                               :class="p.isActive !== false ? 'text-green-700 bg-green-100 hover:bg-green-200' : 'text-red-600 bg-red-100 hover:bg-red-200'"
+                               class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider transition-colors cursor-pointer"
+                             >
+                               {{ p.isActive !== false ? '● Đang hiện' : '● Đang ẩn' }}
+                             </button>
                           </div>
                         </div>
                       </td>

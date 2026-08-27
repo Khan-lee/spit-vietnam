@@ -6,6 +6,22 @@
     </div>
   </div>
 
+  <!-- 
+    ⚡ UPDATE MỚI: Trạng thái "Không tìm thấy sản phẩm" — trước đây file này KHÔNG có khối
+    này, nếu product.value là null (sản phẩm không tồn tại HOẶC đã bị Admin ẨN) thì trang
+    sẽ hiện TRẮNG TRƠN không có gì cả. Giờ hiện thông báo rõ ràng + nút quay về trang chủ.
+  -->
+  <div v-else-if="!product" class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div class="flex flex-col items-center gap-4 text-center max-w-md">
+      <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl">🔍</div>
+      <h1 class="text-lg font-black text-slate-800 uppercase">Không tìm thấy sản phẩm</h1>
+      <p class="text-sm text-slate-500">Sản phẩm này hiện không khả dụng — có thể đã ngừng kinh doanh hoặc đường dẫn không còn chính xác.</p>
+      <router-link to="/products" class="mt-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-colors">
+        Xem tất cả sản phẩm
+      </router-link>
+    </div>
+  </div>
+
   <div class="min-h-screen bg-[#f8fafc] font-sans antialiased text-slate-900 selection:bg-red-100" v-else-if="product">
     
     <!-- TOAST NOTIFICATION -->
@@ -1125,25 +1141,40 @@ onMounted(async () => {
     }
 
     if (docSnap && docSnap.exists()) {
-      product.value = { id: resolvedDocId, ...docSnap.data() }
-      
-      if (isVienOnlyMode.value) {
-        selectedUnit.value = 'vien'
-      } else if (isCaiOnlyMode.value) {
-        // ⚡ UPDATE MỚI: Gán selectedUnit = 'cai' khi sản phẩm ở chế độ "Chỉ bán Cái"
-        selectedUnit.value = 'cai'
-      } else if (isBoxOnlyMode.value) {
-        selectedUnit.value = 'box'
+      const productData = { id: resolvedDocId, ...docSnap.data() }
+
+      // =========================================================================
+      // ⚡ UPDATE MỚI: ĐỒNG BỘ TRƯỜNG "isActive" (ADMIN DÙNG ĐỂ ẨN/HIỆN SẢN PHẨM)
+      // -------------------------------------------------------------------------
+      // Nếu sản phẩm đã bị Admin ẨN (isActive === false), coi như KHÔNG TÌM THẤY — không
+      // gán vào product.value — để tránh trường hợp khách vẫn xem được sản phẩm đã ẩn chỉ
+      // vì còn giữ link cũ (VD: đã lưu link, chia sẻ từ trước, hay tìm thấy qua Google chưa
+      // kịp cập nhật). Sản phẩm CŨ chưa từng có trường "isActive" mặc định coi là VẪN HIỆN
+      // (isActive !== false, không phải === true) để không vô tình ẩn nhầm sản phẩm cũ.
+      // =========================================================================
+      if (productData.isActive === false) {
+        product.value = null
       } else {
-        selectedUnit.value = 'piece'
+        product.value = productData
+
+        if (isVienOnlyMode.value) {
+          selectedUnit.value = 'vien'
+        } else if (isCaiOnlyMode.value) {
+          // ⚡ UPDATE MỚI: Gán selectedUnit = 'cai' khi sản phẩm ở chế độ "Chỉ bán Cái"
+          selectedUnit.value = 'cai'
+        } else if (isBoxOnlyMode.value) {
+          selectedUnit.value = 'box'
+        } else {
+          selectedUnit.value = 'piece'
+        }
+
+        if (product.value.image) activeImage.value = product.value.image
+
+        // ⚡ UPDATE MỚI: KHÔNG await ở đây nữa — cho fetchRelatedProducts chạy ngầm phía sau,
+        // không chặn việc hiện trang chi tiết sản phẩm chính (xem giải thích chi tiết ở trên)
+        const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
+        if (targetCategory) fetchRelatedProducts(targetCategory)
       }
-
-      if (product.value.image) activeImage.value = product.value.image
-
-      // ⚡ UPDATE MỚI: KHÔNG await ở đây nữa — cho fetchRelatedProducts chạy ngầm phía sau,
-      // không chặn việc hiện trang chi tiết sản phẩm chính (xem giải thích chi tiết ở trên)
-      const targetCategory = product.value.category || product.value.category_vi || product.value.category_en
-      if (targetCategory) fetchRelatedProducts(targetCategory)
     }
   } catch (error) {
     console.error("Lỗi kết nối:", error)
