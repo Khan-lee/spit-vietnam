@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ============================================================= -->
+  <!-- SEO META TAGS                                                  -->
+  <!-- Server-render this file as-is (static HTML = instant SSR).     -->
+  <!-- ============================================================= -->
+  <title>Vật Tư Vô Cực – Vật tư cố định &amp; khoan cắt chính hãng SPIT | vattuvocuc.com.vn</title>
+  <meta name="description" content="Vật Tư Vô Cực (vattuvocuc.com.vn) – nhà phân phối vật tư cố định, khoan cắt, hóa chất xây dựng chính hãng SPIT. Báo giá 15 phút, giao 24 giờ, xuất hóa đơn VAT. Phục vụ nhà thầu lớn và khách mua lẻ." />
+  <meta name="keywords" content="vật tư SPIT, tắc kê nở, keo cấy thép, vật tư cố định, khoan bê tông, hóa chất xây dựng, vattuvocuc, vật tư công trình, M&E" />
+  <meta name="author" content="Vật Tư Vô Cực" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://vattuvocuc.com.vn/" />
+  <meta name="theme-color" content="#FFC125" />
+
+  <!-- Open Graph / Facebook / Zalo -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Vật Tư Vô Cực" />
+  <meta property="og:locale" content="vi_VN" />
+  <meta property="og:url" content="https://vattuvocuc.com.vn/" />
+  <meta property="og:title" content="Vật tư đến trước, tiến độ không trễ – Vật Tư Vô Cực" />
+  <meta property="og:description" content="Nhà phân phối vật tư cố định, khoan cắt và hóa chất xây dựng chính hãng SPIT. Báo giá 15 phút, giao tận công trình trong 24 giờ." />
+  <meta property="og:image" content="https://vattuvocuc.com.vn/og-image.jpg" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Vật tư đến trước, tiến độ không trễ – Vật Tư Vô Cực" />
+  <meta name="twitter:description" content="Vật tư cố định, khoan cắt, hóa chất xây dựng chính hãng SPIT. Báo giá 15 phút, giao 24 giờ." />
+  <meta name="twitter:image" content="https://vattuvocuc.com.vn/og-image.jpg" />
+
+  <!-- Structured data: Organization + Store -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HardwareStore",
+    "name": "Vật Tư Vô Cực",
+    "url": "https://vattuvocuc.com.vn/",
+    "image": "https://vattuvocuc.com.vn/og-image.jpg",
+    "description": "Nhà phân phối vật tư cố định, khoan cắt và hóa chất xây dựng chính hãng SPIT cho nhà thầu và khách lẻ.",
+    "priceRange": "$$",
+    "telephone": "+84-28-1234-5678",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Lô A1, KCN Tân Bình",
+      "addressLocality": "TP. Hồ Chí Minh",
+      "addressCountry": "VN"
+    },
+    "openingHours": "Mo-Sa 08:00-17:30",
+    "paymentAccepted": "Chuyển khoản, QR VietQR, Tiền mặt, Thẻ",
+    "areaServed": "VN"
+  }
+  </script>
+
+  <!-- ============================================================= -->
+  <!-- FONTS – Google Fonts CDN (Be Vietnam Pro: full Vietnamese)     -->
+  <!-- ============================================================= -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- ============================================================= -->
+  <!-- TAILWIND CSS – CDN (only external dependency)                  -->
+  <!-- Brand tokens registered so we use core-style utilities only.  -->
+  <!-- ============================================================= -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              amber: '#FFC125',   // Primary
+              orange: '#FF4500',  // Secondary
+              ink: '#0B0F19'      // Near-black for text / dark sections
+            }
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Minimal base CSS: accessible focus ring + reduced-motion + hero glow -->
+  <style>
+    :focus-visible { outline: 3px solid #FF4500; outline-offset: 3px; border-radius: 4px; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    }
+    .hero-glow {
+      background:
+        radial-gradient(60% 60% at 20% 15%, rgba(255,193,37,.22), transparent 60%),
+        radial-gradient(50% 50% at 90% 20%, rgba(255,69,0,.20), transparent 60%);
+    }
+  </style>
+</head>
+
+<body class="font-sans bg-white text-slate-800 antialiased">
+
+  <!-- Skip link for keyboard / screen-reader users -->
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-3 focus:left-3 focus:bg-brand-ink focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
+    Bỏ qua và tới nội dung chính
+  </a>
+
+  <!-- ============================================================= -->
+  <!-- HEADER / STICKY NAV                                            -->
+  <!-- <details> powers the mobile menu = zero JS, fully keyboard OK  -->
+  <!-- ============================================================= -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <a href="#top" class="flex items-center gap-2" aria-label="Vật Tư Vô Cực – trang chủ">
+        <span aria-hidden="true" class="grid h-9 w-9 place-items-center rounded-lg bg-brand-ink text-brand-amber font-extrabold">∞</span>
+        <span class="text-lg font-extrabold tracking-tight text-brand-ink">VẬT TƯ VÔ CỰC</span>
+      </a>
+
+      <!-- Desktop nav -->
+      <nav aria-label="Điều hướng chính" class="hidden items-center gap-8 md:flex">
+        <a href="#giai-phap" class="text-sm font-semibold text-slate-600 hover:text-brand-ink">Giải pháp</a>
+        <a href="#cach-hoat-dong" class="text-sm font-semibold text-slate-600 hover:text-brand-ink">Cách hoạt động</a>
+        <a href="#danh-gia" class="text-sm font-semibold text-slate-600 hover:text-brand-ink">Đánh giá</a>
+        <a href="#bao-gia" class="rounded-lg bg-brand-amber px-4 py-2 text-sm font-bold text-brand-ink shadow-sm hover:brightness-95">
+          Nhận báo giá
+        </a>
+      </nav>
+
+      <!-- Mobile nav -->
+      <details class="relative md:hidden">
+        <summary class="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-lg border border-slate-300 text-brand-ink" aria-label="Mở menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </summary>
+        <nav aria-label="Điều hướng di động" class="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+          <a href="#giai-phap" class="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Giải pháp</a>
+          <a href="#cach-hoat-dong" class="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cách hoạt động</a>
+          <a href="#danh-gia" class="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Đánh giá</a>
+          <a href="#bao-gia" class="mt-1 block rounded-lg bg-brand-amber px-3 py-2 text-center text-sm font-bold text-brand-ink">Nhận báo giá</a>
+        </nav>
+      </details>
+    </div>
+  </header>
+
+  <main id="main">
+    <span id="top"></span>
+
+    <!-- ============================================================= -->
+    <!-- 1. HERO                                                       -->
+    <!-- Headline = outcome (giữ tiến độ), not feature (bán tắc kê)    -->
+    <!-- ============================================================= -->
+    <section class="relative overflow-hidden bg-brand-ink text-white">
+      <div class="hero-glow absolute inset-0" aria-hidden="true"></div>
+      <div class="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-8 lg:py-24 lg:px-8">
+
+        <div>
+          <p class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-amber">
+            <span class="h-2 w-2 rounded-full bg-brand-orange"></span>
+            Đặt trước 15:00 – nhận hàng trong ngày
+          </p>
+
+          <!-- Headline: 7 words, active voice, outcome-focused -->
+          <h1 class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+            Vật tư đến trước,<br />
+            <span class="text-brand-amber">tiến độ không trễ</span>
+          </h1>
+
+          <!-- Subheadline: clarifies the value proposition -->
+          <p class="mt-6 max-w-xl text-lg text-slate-300">
+            Nhà phân phối vật tư cố định, khoan cắt và hóa chất xây dựng chính hãng
+            <strong class="text-white">SPIT</strong> – báo giá trong 15 phút, giao tận công trình
+            trong 24 giờ, phục vụ cả nhà thầu lớn lẫn khách mua lẻ.
+          </p>
+
+          <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+            <!-- Primary CTA -->
+            <a href="#bao-gia" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-amber px-6 py-3.5 text-base font-extrabold text-brand-ink shadow-lg shadow-brand-amber/20 transition hover:brightness-95">
+              Nhận báo giá trong 15 phút
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <!-- Secondary CTA -->
+            <a href="#giai-phap" class="inline-flex items-center justify-center rounded-xl border-2 border-white/25 px-6 py-3.5 text-base font-bold text-white transition hover:bg-white/10">
+              Xem danh mục vật tư
+            </a>
+          </div>
+
+          <!-- Trust strip -->
+          <dl class="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-white/10 pt-6 text-center">
+            <div><dt class="text-2xl font-extrabold text-brand-amber">12+</dt><dd class="text-xs text-slate-400">năm kinh nghiệm</dd></div>
+            <div><dt class="text-2xl font-extrabold text-brand-amber">50.000+</dt><dd class="text-xs text-slate-400">mã hàng tồn kho</dd></div>
+            <div><dt class="text-2xl font-extrabold text-brand-amber">24h</dt><dd class="text-xs text-slate-400">giao nội thành</dd></div>
+          </dl>
+        </div>
+
+        <!-- Hero visual: placeholder frame (swap for a real worksite photo).
+             role="img" + aria-label keeps it meaningful without a real asset. -->
+        <div class="relative">
+          <div role="img" aria-label="Ảnh minh họa: kỹ sư trên công trường sử dụng máy khoan và vật tư cố định SPIT"
+               class="aspect-[4/3] w-full rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-900 p-6">
+            <div class="flex h-full flex-col justify-between rounded-xl border border-dashed border-white/15 p-5">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>KHO VẬT TƯ VÔ CỰC</span><span>SPIT • HILTI-COMPAT • DEWALT</span>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="rounded-lg bg-brand-amber/90 p-3 text-center text-xs font-bold text-brand-ink">Tắc kê nở</div>
+                <div class="rounded-lg bg-white/10 p-3 text-center text-xs font-bold text-white">Keo cấy thép</div>
+                <div class="rounded-lg bg-brand-orange/90 p-3 text-center text-xs font-bold text-white">Mũi khoan SDS</div>
+                <div class="rounded-lg bg-white/10 p-3 text-center text-xs font-bold text-white">Bu lông neo</div>
+                <div class="rounded-lg bg-white/10 p-3 text-center text-xs font-bold text-white">Đĩa cắt</div>
+                <div class="rounded-lg bg-white/10 p-3 text-center text-xs font-bold text-white">Súng bắn đinh</div>
+              </div>
+              <p class="text-xs text-slate-400">Ảnh sản phẩm thực tế sẽ hiển thị tại đây trên bản chạy chính thức.</p>
+            </div>
+          </div>
+          <div class="absolute -bottom-4 -left-4 hidden rounded-xl bg-white p-4 text-brand-ink shadow-xl sm:block">
+            <p class="text-xs font-semibold text-slate-500">Giao đúng hẹn</p>
+            <p class="text-2xl font-extrabold">98,6%</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Client logo bar (social proof, above the fold-ish) -->
+    <section aria-label="Khách hàng tiêu biểu" class="border-b border-slate-200 bg-slate-50">
+      <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <p class="text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+          Được tin dùng bởi nhà thầu &amp; nhà máy trên toàn quốc
+        </p>
+        <ul class="mt-5 grid grid-cols-2 items-center gap-6 opacity-70 sm:grid-cols-3 lg:grid-cols-6">
+          <!-- Replace each <li> with a real client logo <img> + alt text -->
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">COTECCONS</li>
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">HÒA BÌNH</li>
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">REE M&amp;E</li>
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">SEAREFICO</li>
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">DELTA GROUP</li>
+          <li class="text-center text-sm font-extrabold tracking-tight text-slate-500">NEWTECON</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 2. PROBLEM – nói bằng ngôn ngữ của người thi công             -->
+    <!-- Urgency: mỗi giờ dừng việc = tiền                             -->
+    <!-- ============================================================= -->
+    <section id="van-de" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div class="mx-auto max-w-2xl text-center">
+        <p class="text-sm font-bold uppercase tracking-widest text-brand-orange">Vấn đề</p>
+        <h2 class="mt-3 text-3xl font-extrabold tracking-tight text-brand-ink sm:text-4xl">
+          Cả công trình dừng vì thiếu một con bu lông
+        </h2>
+        <p class="mt-4 text-lg text-slate-600">
+          Đội thi công đã sẵn sàng, máy móc đã lên, nhưng vật tư thì chưa tới.
+          Mỗi giờ chờ đợi là tiền nhân công và tiền thuê thiết bị trôi đi.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Each pain point: relatable, concrete -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          </div>
+          <h3 class="font-bold text-brand-ink">Báo giá chờ cả ngày</h3>
+          <p class="mt-1 text-sm text-slate-600">Gửi yêu cầu buổi sáng, chiều vẫn chưa có giá để trình duyệt.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/></svg>
+          </div>
+          <h3 class="font-bold text-brand-ink">Hàng trôi nổi, khó nghiệm thu</h3>
+          <p class="mt-1 text-sm text-slate-600">Không CO/CQ, tư vấn giám sát trả hồ sơ, phải mua lại từ đầu.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+          </div>
+          <h3 class="font-bold text-brand-ink">Thiếu hàng giữa chừng</h3>
+          <p class="mt-1 text-sm text-slate-600">Nhà cung cấp hết tồn kho đúng lúc cao điểm, tiến độ vỡ kế hoạch.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+          </div>
+          <h3 class="font-bold text-brand-ink">Mua lẻ không ai tư vấn</h3>
+          <p class="mt-1 text-sm text-slate-600">Chọn sai chủng loại tắc kê, khoan xong không đạt tải, làm lại tốn gấp đôi.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 3. SOLUTION – benefits hướng kết quả, không phải tính năng    -->
+    <!-- ============================================================= -->
+    <section id="giai-phap" class="bg-slate-50 py-16 lg:py-24">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-sm font-bold uppercase tracking-widest text-brand-orange">Giải pháp</p>
+          <h2 class="mt-3 text-3xl font-extrabold tracking-tight text-brand-ink sm:text-4xl">
+            Một nhà cung cấp lo trọn phần vật tư
+          </h2>
+          <p class="mt-4 text-lg text-slate-600">
+            Vật Tư Vô Cực gộp kho hàng sâu, hàng chính hãng và tư vấn kỹ thuật vào một đầu mối –
+            để bạn chỉ việc thi công.
+          </p>
+        </div>
+
+        <div class="mt-12 grid gap-6 md:grid-cols-2">
+          <!-- Benefit 1 -->
+          <article class="flex gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+            <div class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-amber text-brand-ink" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-brand-ink">Không còn cảnh dừng công trình</h3>
+              <p class="mt-1 text-slate-600">Tồn kho hơn 50.000 mã hàng, xe giao trong 24 giờ nội thành và 48–72 giờ toàn quốc.</p>
+            </div>
+          </article>
+          <!-- Benefit 2 -->
+          <article class="flex gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+            <div class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-amber text-brand-ink" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l8 4v5c0 5-3.4 8.5-8 9.9C7.4 20.5 4 17 4 12V7l8-4Z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-brand-ink">Nghiệm thu trơn tru ngay lần đầu</h3>
+              <p class="mt-1 text-slate-600">100% hàng chính hãng SPIT, đầy đủ CO/CQ và hồ sơ kỹ thuật đi kèm mỗi lô.</p>
+            </div>
+          </article>
+          <!-- Benefit 3 -->
+          <article class="flex gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+            <div class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-amber text-brand-ink" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-brand-ink">Cắt chi phí ẩn do chọn sai</h3>
+              <p class="mt-1 text-slate-600">Kỹ sư ứng dụng tính tải, chọn đúng chủng loại và định mức – giảm hao hụt tới 15%.</p>
+            </div>
+          </article>
+          <!-- Benefit 4 -->
+          <article class="flex gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+            <div class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-amber text-brand-ink" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-brand-ink">Mua 1 con hay 10 pallet đều như nhau</h3>
+              <p class="mt-1 text-slate-600">Khách lẻ và khách dự án dùng chung một quy trình: giá rõ ràng, xuất VAT, đổi trả 7 ngày.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 4. SOCIAL PROOF – số liệu + lời chứng thực + logo             -->
+    <!-- ============================================================= -->
+    <section id="danh-gia" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+      <div class="mx-auto max-w-2xl text-center">
+        <p class="text-sm font-bold uppercase tracking-widest text-brand-orange">Bằng chứng</p>
+        <h2 class="mt-3 text-3xl font-extrabold tracking-tight text-brand-ink sm:text-4xl">
+          3.500+ đội thi công đặt hàng mỗi tháng
+        </h2>
+      </div>
+
+      <!-- Metrics -->
+      <dl class="mt-12 grid grid-cols-2 gap-6 rounded-2xl bg-brand-ink p-8 text-center text-white lg:grid-cols-4">
+        <div><dt class="text-3xl font-extrabold text-brand-amber sm:text-4xl">3.500+</dt><dd class="mt-1 text-sm text-slate-300">khách hàng doanh nghiệp</dd></div>
+        <div><dt class="text-3xl font-extrabold text-brand-amber sm:text-4xl">98,6%</dt><dd class="mt-1 text-sm text-slate-300">đơn giao đúng hẹn</dd></div>
+        <div><dt class="text-3xl font-extrabold text-brand-amber sm:text-4xl">15 phút</dt><dd class="mt-1 text-sm text-slate-300">thời gian ra báo giá</dd></div>
+        <div><dt class="text-3xl font-extrabold text-brand-amber sm:text-4xl">4,9/5</dt><dd class="mt-1 text-sm text-slate-300">điểm hài lòng (1.200 đánh giá)</dd></div>
+      </dl>
+
+      <!-- Testimonials -->
+      <div class="mt-10 grid gap-6 md:grid-cols-3">
+        <figure class="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6">
+          <blockquote class="flex-1 text-slate-700">
+            "Trước đây chờ báo giá cả ngày. Giờ gửi bảng khối lượng buổi sáng, trưa đã có giá và lịch giao. Tiến độ phần cơ điện không còn phụ thuộc vào vật tư nữa."
+          </blockquote>
+          <figcaption class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <span aria-hidden="true" class="grid h-10 w-10 place-items-center rounded-full bg-brand-amber font-bold text-brand-ink">A</span>
+            <span><span class="block font-bold text-brand-ink">Anh Tuấn</span><span class="block text-xs text-slate-500">Chỉ huy trưởng, nhà thầu M&amp;E</span></span>
+          </figcaption>
+        </figure>
+        <figure class="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6">
+          <blockquote class="flex-1 text-slate-700">
+            "Nhà máy bên mình cần hồ sơ CO/CQ cho mọi lô vật tư cố định. Vật Tư Vô Cực gửi đủ chứng từ kèm đơn, kế toán không phải hỏi lại lần nào."
+          </blockquote>
+          <figcaption class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <span aria-hidden="true" class="grid h-10 w-10 place-items-center rounded-full bg-brand-amber font-bold text-brand-ink">H</span>
+            <span><span class="block font-bold text-brand-ink">Chị Hằng</span><span class="block text-xs text-slate-500">Phòng Mua hàng, nhà máy FDI</span></span>
+          </figcaption>
+        </figure>
+        <figure class="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6">
+          <blockquote class="flex-1 text-slate-700">
+            "Mình chỉ mua vài hộp tắc kê và ít mũi khoan nhưng vẫn được tư vấn chọn đúng loại, thanh toán quét QR là xong. Hôm sau có hàng tận nhà."
+          </blockquote>
+          <figcaption class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <span aria-hidden="true" class="grid h-10 w-10 place-items-center rounded-full bg-brand-amber font-bold text-brand-ink">D</span>
+            <span><span class="block font-bold text-brand-ink">Anh Dũng</span><span class="block text-xs text-slate-500">Khách mua lẻ, thợ lắp đặt</span></span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 5. HOW IT WORKS – 3 bước, luồng trực quan                     -->
+    <!-- Bao gồm bước thanh toán QR theo yêu cầu                       -->
+    <!-- ============================================================= -->
+    <section id="cach-hoat-dong" class="bg-slate-50 py-16 lg:py-24">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-sm font-bold uppercase tracking-widest text-brand-orange">Cách hoạt động</p>
+          <h2 class="mt-3 text-3xl font-extrabold tracking-tight text-brand-ink sm:text-4xl">
+            Đặt hàng chỉ trong 3 bước
+          </h2>
+        </div>
+
+        <ol class="mt-12 grid gap-8 md:grid-cols-3">
+          <li class="relative rounded-2xl border border-slate-200 bg-white p-6">
+            <span class="grid h-11 w-11 place-items-center rounded-full bg-brand-ink text-lg font-extrabold text-brand-amber">1</span>
+            <h3 class="mt-4 text-lg font-bold text-brand-ink">Chọn hàng &amp; gửi nhu cầu</h3>
+            <p class="mt-1 text-slate-600">
+              Thêm sản phẩm vào giỏ hoặc tải lên bảng khối lượng. Đăng ký email để nhận bảng giá và
+              chương trình ưu đãi cho lần mua sau.
+            </p>
+          </li>
+          <li class="relative rounded-2xl border border-slate-200 bg-white p-6">
+            <span class="grid h-11 w-11 place-items-center rounded-full bg-brand-ink text-lg font-extrabold text-brand-amber">2</span>
+            <h3 class="mt-4 text-lg font-bold text-brand-ink">Nhận báo giá &amp; thanh toán QR</h3>
+            <p class="mt-1 text-slate-600">
+              Nhận báo giá trong 15 phút. Điền thông tin xuất hóa đơn, xác nhận đơn, rồi thanh toán
+              bằng mã QR VietQR hoặc phương thức bạn chọn.
+            </p>
+          </li>
+          <li class="relative rounded-2xl border border-slate-200 bg-white p-6">
+            <span class="grid h-11 w-11 place-items-center rounded-full bg-brand-ink text-lg font-extrabold text-brand-amber">3</span>
+            <h3 class="mt-4 text-lg font-bold text-brand-ink">Nhận hàng tận công trình</h3>
+            <p class="mt-1 text-slate-600">
+              Xe giao trong 24 giờ nội thành kèm hóa đơn VAT và hồ sơ CO/CQ. Đổi trả trong 7 ngày nếu
+              sai chủng loại.
+            </p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 6. FINAL CTA – nhắc lại hành động chính, gỡ rào cản           -->
+    <!-- Email signup + nút mua hàng                                   -->
+    <!-- ============================================================= -->
+    <section id="bao-gia" class="relative overflow-hidden bg-brand-ink py-16 text-white lg:py-24">
+      <div class="hero-glow absolute inset-0" aria-hidden="true"></div>
+      <div class="relative mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+        <h2 class="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Sẵn sàng cho đơn hàng đầu tiên?
+        </h2>
+        <p class="mt-4 text-lg text-slate-300">
+          Để lại email để nhận bảng giá vật tư SPIT mới nhất và báo giá nhanh cho công trình của bạn.
+        </p>
+
+        <!-- Email signup form. action="#" – nối vào API/CRM khi triển khai.
+             aria-live vùng thông báo cho screen reader. -->
+        <form id="signup-form" action="#" method="post" novalidate
+              class="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row">
+          <label for="email" class="sr-only">Địa chỉ email của bạn</label>
+          <input id="email" name="email" type="email" required autocomplete="email"
+                 placeholder="ban@congty.com"
+                 class="w-full rounded-xl border-0 px-4 py-3.5 text-brand-ink placeholder:text-slate-400 focus:ring-2 focus:ring-brand-amber" />
+          <button type="submit"
+                  class="inline-flex items-center justify-center rounded-xl bg-brand-amber px-6 py-3.5 text-base font-extrabold text-brand-ink transition hover:brightness-95">
+            Nhận bảng giá
+          </button>
+        </form>
+        <p id="form-status" role="status" aria-live="polite" class="mt-3 min-h-5 text-sm font-semibold text-brand-amber"></p>
+
+        <div class="mt-4">
+          <a href="https://vattuvocuc.com.vn/san-pham"
+             class="inline-flex items-center justify-center rounded-xl border-2 border-white/25 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+            Hoặc mua ngay trên cửa hàng
+          </a>
+        </div>
+
+        <!-- Friction removers -->
+        <ul class="mx-auto mt-8 flex max-w-xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-amber" aria-hidden="true">✓</span> Không cần trả trước</li>
+          <li class="flex items-center gap-2"><span class="text-brand-amber" aria-hidden="true">✓</span> Xuất hóa đơn VAT</li>
+          <li class="flex items-center gap-2"><span class="text-brand-amber" aria-hidden="true">✓</span> Đổi trả trong 7 ngày</li>
+          <li class="flex items-center gap-2"><span class="text-brand-amber" aria-hidden="true">✓</span> Thanh toán QR / chuyển khoản / tiền mặt</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================= -->
+  <!-- FOOTER                                                         -->
+  <!-- ============================================================= -->
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span aria-hidden="true" class="grid h-8 w-8 place-items-center rounded-lg bg-brand-ink text-brand-amber font-extrabold">∞</span>
+            <span class="font-extrabold tracking-tight text-brand-ink">VẬT TƯ VÔ CỰC</span>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">
+            Nhà phân phối vật tư cố định, khoan cắt &amp; hóa chất xây dựng chính hãng SPIT tại Việt Nam.
+          </p>
+        </div>
+        <nav aria-label="Danh mục">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Danh mục</h3>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li><a href="#giai-phap" class="hover:text-brand-ink">Vật tư cố định</a></li>
+            <li><a href="#giai-phap" class="hover:text-brand-ink">Keo cấy thép &amp; hóa chất</a></li>
+            <li><a href="#giai-phap" class="hover:text-brand-ink">Mũi khoan &amp; đĩa cắt</a></li>
+            <li><a href="#giai-phap" class="hover:text-brand-ink">Súng bắn đinh bê tông</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Hỗ trợ">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Hỗ trợ</h3>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li><a href="#cach-hoat-dong" class="hover:text-brand-ink">Cách đặt hàng</a></li>
+            <li><a href="#bao-gia" class="hover:text-brand-ink">Yêu cầu báo giá</a></li>
+            <li><a href="#van-de" class="hover:text-brand-ink">Chính sách đổi trả</a></li>
+            <li><a href="#danh-gia" class="hover:text-brand-ink">Đánh giá khách hàng</a></li>
+          </ul>
+        </nav>
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Liên hệ</h3>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li>Hotline: <a href="tel:+842812345678" class="font-semibold text-brand-ink hover:underline">028 1234 5678</a></li>
+            <li>Email: <a href="mailto:sales@vattuvocuc.com.vn" class="font-semibold text-brand-ink hover:underline">sales@vattuvocuc.com.vn</a></li>
+            <li>Lô A1, KCN Tân Bình, TP.HCM</li>
+          </ul>
+          <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Thanh toán</p>
+          <div class="mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+            <span class="rounded border border-slate-200 px-2 py-1">QR VietQR</span>
+            <span class="rounded border border-slate-200 px-2 py-1">Chuyển khoản</span>
+            <span class="rounded border border-slate-200 px-2 py-1">Tiền mặt</span>
+            <span class="rounded border border-slate-200 px-2 py-1">Thẻ</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-10 flex flex-col items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500 sm:flex-row">
+        <p>© <span id="year">2026</span> Vật Tư Vô Cực – vattuvocuc.com.vn. Đã đăng ký kinh doanh.</p>
+        <a href="#top" class="font-semibold text-brand-ink hover:underline">Về đầu trang ↑</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================= -->
+  <!-- Minimal vanilla JS (no framework): năm hiện tại + phản hồi form -->
+  <!-- Trang vẫn hoạt động đầy đủ nếu JS bị tắt (progressive enhancement) -->
+  <!-- ============================================================= -->
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    var form = document.getElementById('signup-form');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = document.getElementById('email');
+        var status = document.getElementById('form-status');
+        if (!email.value || !email.checkValidity()) {
+          status.textContent = 'Vui lòng nhập email hợp lệ để nhận bảng giá.';
+          email.focus();
+          return;
+        }
+        status.textContent = 'Cảm ơn bạn! Bảng giá sẽ được gửi tới ' + email.value + ' trong ít phút.';
+        form.reset();
+      });
+    }
+  </script>
+</body>
+</html>

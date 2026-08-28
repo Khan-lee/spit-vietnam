@@ -804,7 +804,42 @@ const openCompareModal = () => {
   }
 }
 
+// =========================================================================
 // --- HÀM BÓC TÁCH THÔNG SỐ KỸ THUẬT ---
+// ⚡ UPDATE MỚI: Bổ sung khả năng đọc THÔNG SỐ DẠNG BẢNG (<table>).
+// -------------------------------------------------------------------------
+// Lý do: phần Admin giờ cho phép dán bảng thông số từ Word (thẻ <table><tr><td>).
+// Hàm cũ chỉ hiểu kiểu "Khoá: Giá trị" mỗi dòng -> khi gặp bảng, các ô bị dán
+// dính vào nhau, không có dấu ":" nên hoặc bị bỏ qua hoàn toàn, hoặc tách khoá
+// sai (VD ra khoá "Lớp phủ/ GradeJC8050 — PVD | ISO").
+//
+// Cách xử lý: nếu nội dung có <table> -> đọc theo HÀNG, lấy:
+//     cột 1 = Tên thông số  |  cột 2 = Giá trị   (cột 3 "Ý nghĩa" nếu có thì bỏ qua)
+// Tự bỏ hàng tiêu đề và hàng không có giá trị. Các sản phẩm dữ liệu kiểu cũ
+// (không có <table>) vẫn chạy đúng nhánh bóc tách cũ bên dưới — GIỮ NGUYÊN.
+// =========================================================================
+
+// Danh sách nhãn ở ô đầu tiên được coi là HÀNG TIÊU ĐỀ (đã bỏ dấu để so khớp)
+const SPEC_HEADER_LABELS = [
+  'thong so', 'thong so ky thuat', 'thong so va dac tinh', 'ten thong so',
+  'dac tinh', 'chi tieu', 'thuoc tinh', 'parameter', 'parameters',
+  'specification', 'specifications', 'property', 'item', 'stt',
+]
+
+// Bỏ dấu tiếng Việt để so khớp không phân biệt hoa/thường/dấu
+const stripDiacritics = (s = '') =>
+  s.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd')
+
+// Lấy text sạch từ 1 ô của bảng (giữ cách xử lý ký tự giống nhánh cũ)
+const getCellText = (el) =>
+  (el?.innerHTML || '')
+    .replace(/<br\s*\/?>/gi, ' / ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const getParsedSpecs = (item) => {
   if (!item) return {}
   if (item.specs && typeof item.specs === 'object' && !Array.isArray(item.specs)) {
@@ -814,6 +849,43 @@ const getParsedSpecs = (item) => {
   const rawText = item[`specifications_${locale.value}`] || item.specifications || item[`features_${locale.value}`] || item.features || ''
   if (!rawText) return {}
 
+  // ---- NHÁNH MỚI: nội dung có <table> -> bóc tách theo hàng/cột ----
+  if (/<table[\s>]/i.test(rawText)) {
+    try {
+      const parsedDoc = new DOMParser().parseFromString(rawText, 'text/html')
+      const rows = Array.from(parsedDoc.querySelectorAll('table tr'))
+      const tableResult = {}
+
+      rows.forEach((tr, rowIndex) => {
+        const cells = Array.from(tr.querySelectorAll('td, th'))
+        if (cells.length < 2) return // hàng chỉ có 1 ô -> bỏ (không phải cặp khoá/giá trị)
+
+        const key = getCellText(cells[0])
+        const val = getCellText(cells[1])
+        if (!key || key.length > 60) return
+
+        // Bỏ hàng tiêu đề (VD: "Thông số và đặc tính | Giá trị | Ý nghĩa").
+        // Nhãn tiêu đề rất đặc trưng nên kiểm ở MỌI hàng cho chắc (không chỉ hàng đầu).
+        const keyNorm = stripDiacritics(key).toLowerCase().trim()
+        const valNorm = stripDiacritics(val).toLowerCase().trim()
+        if (SPEC_HEADER_LABELS.includes(keyNorm) || (rowIndex === 0 && ['gia tri', 'value'].includes(valNorm))) return
+
+        // Bỏ hàng chưa điền giá trị
+        if (!val || val === '-' || val === '—') return
+
+        tableResult[key] = val
+      })
+
+      // Có <table> thì luôn dùng kết quả của bảng (kể cả rỗng) — KHÔNG rơi xuống
+      // nhánh cũ để tránh tách khoá sai. Rỗng -> template tự fallback hiển thị
+      // nguyên bảng bằng v-html.
+      return tableResult
+    } catch (e) {
+      console.warn('Không đọc được bảng thông số, dùng cách bóc tách cũ:', e)
+    }
+  }
+
+  // ---- NHÁNH CŨ (GIỮ NGUYÊN): kiểu "Khoá: Giá trị" trên mỗi dòng ----
   let cleaned = rawText
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
