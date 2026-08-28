@@ -5,8 +5,11 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth'
 import { db, auth } from '../firebase' 
 import AdminSidebar from '../components/AdminSidebar.vue'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
+// ⚡ UPDATE MỚI: DOMPurify (đã có sẵn trong dependencies) — dùng để làm sạch HTML bảng dán từ Word
+import DOMPurify from 'dompurify'
 
 // --- CẤU HÌNH CLOUDINARY ---
 const CLOUD_NAME = 'hwwcmq1i'
@@ -87,9 +90,97 @@ const category_vi = ref('')
 const category_en = ref('')
 const description_vi = ref('')
 const description_en = ref('')
-const specifications_vi = ref('') 
-const specifications_en = ref('') 
+const specifications_vi = ref('')
+const specifications_en = ref('')
 const gift_vi = ref('')
+
+// =========================================================================
+// ⚡ UPDATE MỚI: HỖ TRỢ DÁN BẢNG TỪ WORD VÀO Ô SOẠN THẢO (Mô tả & Thông số)
+// -------------------------------------------------------------------------
+// Vấn đề cũ: Quill mặc định KHÔNG hiểu thẻ <table>. Khi copy bảng từ Word dán
+// thẳng vào ô soạn thảo, Quill bóc sạch viền + gộp mọi ô thành từng dòng chữ
+// rời -> "mất bảng, nội dung nhảy lung tung".
+//
+// Giải pháp (2 lớp, KHÔNG đổi thư viện, KHÔNG phá code cũ):
+//   1) Bật sẵn module "table" của Quill 2 cho tất cả ô soạn thảo (quillEditorOptions
+//      bên dưới) -> dán bảng ĐƠN GIẢN (không gộp ô) trực tiếp vẫn giữ được.
+//   2) Nút "Dán bảng từ Word": mở 1 hộp thoại có vùng dán thuần của trình duyệt
+//      (giữ nguyên bảng 100%), ta LÀM SẠCH HTML rồi chèn vào đúng ô -> dùng cho
+//      những bảng Word "bẩn" mà cách (1) vẫn lỗi.
+// =========================================================================
+
+// (1) Bật module table cho <QuillEditor> — truyền qua prop :options
+const quillEditorOptions = { modules: { table: true } }
+
+// (2) Trạng thái hộp thoại "Dán bảng từ Word"
+const wordPaste = ref({ open: false, targetField: null, html: '' })
+
+// Map tên trường -> ref nội dung tương ứng (chỉ 4 ô soạn thảo có bảng/mô tả)
+const EDITOR_FIELD_REFS = {
+  description_vi,
+  description_en,
+  specifications_vi,
+  specifications_en,
+}
+
+const openWordPaste = (fieldKey) => {
+  wordPaste.value = { open: true, targetField: fieldKey, html: '' }
+}
+const closeWordPaste = () => {
+  wordPaste.value.open = false
+}
+
+// Ghi lại HTML mỗi khi người dùng dán/gõ vào vùng contenteditable của hộp thoại
+const onWordPasteAreaInput = (e) => {
+  wordPaste.value.html = e.currentTarget.innerHTML
+}
+
+// Làm sạch HTML bảng dán từ Word: chỉ giữ khung bảng + định dạng chữ cơ bản,
+// bỏ toàn bộ style/thuộc tính rác (mso-*, class, width, bgcolor...).
+const cleanPastedTableHtml = (rawHtml) => {
+  if (!rawHtml) return ''
+
+  // Bước 1: DOMPurify — whitelist thẻ dựng bảng, xoá sạch mọi thuộc tính
+  const safe = DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'b', 'strong', 'i', 'em', 'u', 'p'],
+    ALLOWED_ATTR: [],
+  })
+
+  // Bước 2: Chuẩn hoá bằng DOM — gỡ <p> trong ô thành text + <br>, bỏ hàng rỗng
+  const parsed = new DOMParser().parseFromString(safe, 'text/html')
+  const table = parsed.querySelector('table')
+  if (!table) return ''
+
+  table.querySelectorAll('td, th').forEach((cell) => {
+    cell.innerHTML = cell.innerHTML
+      .replace(/<\/p>\s*<p[^>]*>/gi, '<br>')
+      .replace(/<\/?p[^>]*>/gi, '')
+      .replace(/(\s|&nbsp;|<br>)+$/i, '')
+      .trim()
+  })
+  table.querySelectorAll('tr').forEach((tr) => {
+    const hasContent = Array.from(tr.children).some((c) => c.textContent.trim() !== '')
+    if (!hasContent) tr.remove()
+  })
+
+  return table.outerHTML
+}
+
+// Chèn bảng đã làm sạch vào CUỐI nội dung ô đang chọn (không ghi đè phần đang soạn)
+const confirmWordPaste = () => {
+  const cleaned = cleanPastedTableHtml(wordPaste.value.html)
+  if (!cleaned) {
+    alert('Không tìm thấy bảng trong nội dung vừa dán. Hãy bôi đen đúng vùng bảng trong Word rồi copy lại.')
+    return
+  }
+  const targetRef = EDITOR_FIELD_REFS[wordPaste.value.targetField]
+  if (targetRef) {
+    const current = (targetRef.value || '').trim()
+    targetRef.value = current ? `${current}<p><br></p>${cleaned}` : cleaned
+  }
+  closeWordPaste()
+}
+
 const gift_en = ref('')
 
 const brand = ref('')
@@ -753,7 +844,7 @@ const handleSubmit = async () => {
       order: Number(productOrder.value) || 999999,
       isActive: productIsActive.value,
 
-      image: finalImageUrl || 'https://via.placeholder.com/200',
+      image: finalImageUrl || PLACEHOLDER_IMG,
       sub_images: finalSubImageUrls,
       custom_url: custom_url.value.trim(), 
       catalog_link: catalog_link.value.trim(), 
@@ -1530,59 +1621,72 @@ const resetBrandForm = () => {
 
                   <input v-model="image" placeholder="Link ảnh (Hoặc tự cập nhật khi chọn file)" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-[10px]" />
 
+                  <!--
+                    ⚡ UPDATE MỚI: mỗi <QuillEditor> được thêm :options="quillEditorOptions"
+                    (bật module bảng của Quill) + 1 nút "Dán bảng từ Word" ở thanh tiêu đề
+                    để chèn bảng Word đã được làm sạch. Phần còn lại giữ NGUYÊN như cũ.
+                  -->
                   <div class="space-y-4">
                     <!-- Ô soạn thảo Tiếng Việt (Mô tả) -->
                     <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
-                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
-                        Mô tả chi tiết (VI)
+                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 flex items-center justify-between gap-2">
+                        <span>Mô tả chi tiết (VI)</span>
+                        <button type="button" @click="openWordPaste('description_vi')" class="normal-case font-bold text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 bg-white rounded-lg px-2 py-1 transition-colors cursor-pointer">📋 Dán bảng từ Word</button>
                       </div>
-                      <QuillEditor 
-                        v-model:content="description_vi" 
-                        contentType="html" 
-                        theme="snow" 
-                        placeholder="Viết bài, chèn hình ảnh minh họa tiếng Việt tại đây..." 
+                      <QuillEditor
+                        v-model:content="description_vi"
+                        contentType="html"
+                        theme="snow"
+                        :options="quillEditorOptions"
+                        placeholder="Viết bài, chèn hình ảnh minh họa tiếng Việt tại đây..."
                         class="min-h-62.5 bg-white text-sm"
                       />
                     </div>
 
                     <!-- Ô soạn thảo Tiếng Anh (Mô tả) -->
                     <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
-                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
-                        Technical Description (EN)
+                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic flex items-center justify-between gap-2">
+                        <span>Technical Description (EN)</span>
+                        <button type="button" @click="openWordPaste('description_en')" class="not-italic normal-case font-bold text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 bg-white rounded-lg px-2 py-1 transition-colors cursor-pointer">📋 Paste table from Word</button>
                       </div>
-                      <QuillEditor 
-                        v-model:content="description_en" 
-                        contentType="html" 
-                        theme="snow" 
-                        placeholder="Write detailed technical description and insert images here..." 
+                      <QuillEditor
+                        v-model:content="description_en"
+                        contentType="html"
+                        theme="snow"
+                        :options="quillEditorOptions"
+                        placeholder="Write detailed technical description and insert images here..."
                         class="min-h-62.5 bg-white/80 text-sm italic"
                       />
                     </div>
 
                     <!-- Ô soạn thảo Thông số Tiếng Việt -->
                     <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
-                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
-                        Thông số kỹ thuật (VI)
+                      <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 flex items-center justify-between gap-2">
+                        <span>Thông số kỹ thuật (VI)</span>
+                        <button type="button" @click="openWordPaste('specifications_vi')" class="normal-case font-bold text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 bg-white rounded-lg px-2 py-1 transition-colors cursor-pointer">📋 Dán bảng từ Word</button>
                       </div>
-                      <QuillEditor 
-                        v-model:content="specifications_vi" 
-                        contentType="html" 
-                        theme="snow" 
-                        placeholder="Nhập thông số kỹ thuật, bảng dữ liệu bằng tiếng Việt tại đây..." 
+                      <QuillEditor
+                        v-model:content="specifications_vi"
+                        contentType="html"
+                        theme="snow"
+                        :options="quillEditorOptions"
+                        placeholder="Nhập thông số kỹ thuật, bảng dữ liệu bằng tiếng Việt tại đây..."
                         class="min-h-62.5 bg-white text-sm"
                       />
                     </div>
 
                     <!-- Ô soạn thảo Thông số Tiếng Anh -->
                     <div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 focus-within:border-blue-400 transition-colors">
-                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic">
-                        Technical Specifications (EN)
+                      <div class="p-2 bg-slate-200/50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 italic flex items-center justify-between gap-2">
+                        <span>Technical Specifications (EN)</span>
+                        <button type="button" @click="openWordPaste('specifications_en')" class="not-italic normal-case font-bold text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 bg-white rounded-lg px-2 py-1 transition-colors cursor-pointer">📋 Paste table from Word</button>
                       </div>
-                      <QuillEditor 
-                        v-model:content="specifications_en" 
-                        contentType="html" 
-                        theme="snow" 
-                        placeholder="Enter detailed technical specifications here..." 
+                      <QuillEditor
+                        v-model:content="specifications_en"
+                        contentType="html"
+                        theme="snow"
+                        :options="quillEditorOptions"
+                        placeholder="Enter detailed technical specifications here..."
                         class="min-h-62.5 bg-white/80 text-sm italic"
                       />
                     </div>
@@ -1819,10 +1923,83 @@ const resetBrandForm = () => {
         </div>
       </Transition>
     </div>
+
+    <!-- =====================================================================
+         ⚡ UPDATE MỚI: HỘP THOẠI "DÁN BẢNG TỪ WORD"
+         Teleport ra <body> để không bị cắt bởi overflow-hidden của layout admin.
+         Người dùng dán (Ctrl+V) bảng Word vào vùng bên dưới -> bấm "Chèn vào ô soạn thảo".
+    ====================================================================== -->
+    <Teleport to="body">
+      <div v-if="wordPaste.open" class="fixed inset-0 z-[100000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeWordPaste"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 flex flex-col max-h-[85vh]">
+          <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-black uppercase tracking-wider text-slate-700">📋 Dán bảng từ Word</h3>
+            <button type="button" @click="closeWordPaste" class="text-slate-400 hover:text-red-500 font-black text-lg leading-none cursor-pointer">✕</button>
+          </div>
+          <div class="p-4 space-y-3 overflow-y-auto">
+            <p class="text-[11px] text-slate-500 leading-relaxed">
+              Bôi đen bảng trong file Word → nhấn <b>Ctrl + C</b>, sau đó bấm vào ô bên dưới và nhấn
+              <b>Ctrl + V</b>. Hệ thống sẽ tự làm sạch định dạng thừa và giữ lại đúng bảng.
+            </p>
+            <div
+              contenteditable="true"
+              @input="onWordPasteAreaInput"
+              class="word-paste-area min-h-40 max-h-72 overflow-auto border-2 border-dashed border-slate-300 focus:border-blue-400 rounded-xl p-3 text-sm outline-none bg-slate-50"
+              data-placeholder="Dán bảng của bạn vào đây..."
+            ></div>
+          </div>
+          <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
+            <button type="button" @click="closeWordPaste" class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 cursor-pointer">Hủy</button>
+            <button type="button" @click="confirmWordPaste" class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider bg-slate-900 text-white hover:bg-blue-600 transition-colors cursor-pointer">Chèn vào ô soạn thảo</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .page-fade-enter-active, .page-fade-leave-active { transition: opacity 0.25s ease; }
 .page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
+
+/* =======================================================================
+   ⚡ UPDATE MỚI: Kẻ viền bảng NGAY TRONG ô soạn thảo Quill
+   Quill không tự kẻ viền <table> -> nếu không có CSS này, bảng vừa dán
+   trông "trong suốt" y như lỗi cũ. :deep() để xuyên qua scoped style
+   (cùng cách đang dùng ở AdminAboutView.vue).
+   ======================================================================= */
+:deep(.ql-editor table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+:deep(.ql-editor td),
+:deep(.ql-editor th) {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  vertical-align: top;
+  min-width: 40px;
+}
+:deep(.ql-editor th) {
+  background: #f1f5f9;
+  font-weight: 700;
+  text-align: left;
+}
+
+/* Placeholder cho vùng contenteditable của hộp thoại "Dán bảng từ Word" */
+.word-paste-area:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
+.word-paste-area table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.word-paste-area td,
+.word-paste-area th {
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+}
 </style>

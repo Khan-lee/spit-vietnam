@@ -5,7 +5,8 @@ import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import NewsSection from '../components/NewsSection.vue' 
 import BrandMarquee from '../components/BrandMarquee.vue'
-import HomeProductFilter from '../components/HomeProductFilter.vue' 
+import HomeProductFilter from '../components/HomeProductFilter.vue'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 import { useSearchStore } from '../stores/search' 
 
 // Import Swiper Vue.js components & modules
@@ -53,7 +54,7 @@ const isLoading = ref(true)
 const isCategoriesLoading = ref(true)
 const currentTime = ref(new Date()) 
 
-const dynamicHotSaleBanner = ref('https://via.placeholder.com/300x500/dc2626/ffffff?text=HOT+SALE')
+const dynamicHotSaleBanner = ref(PLACEHOLDER_IMG)
 
 // Lắng nghe cấu hình trang chủ realtime
 const listenToSettings = () => {

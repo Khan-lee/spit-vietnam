@@ -92,9 +92,14 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
         const matchedDocs = [];
         snapshot.forEach(doc => {
           const docData = doc.data();
-          const { embedding, ...cleanData } = docData; 
-          matchedDocs.push(cleanData);
+          const { embedding, ...cleanData } = docData;
+          // Giữ lại doc.id để dựng link sản phẩm khi sản phẩm chưa có slug
+          matchedDocs.push({ id: doc.id, ...cleanData });
         });
+
+        // Domain + đường dẫn phải khớp với route thật của web (/product/:id)
+        // và với SITE_DOMAIN dùng ở AdminView.vue / ProductDetail.vue.
+        const PRODUCT_URL_BASE = process.env.PRODUCT_URL_BASE || 'https://www.vattuvocuc.com.vn/product/';
 
         if (matchedDocs.length > 0) {
           matchedContext = matchedDocs.map((prod, index) => {
@@ -103,7 +108,9 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
             const category = prod.category_vi || 'N/A';
             const desc = prod.description_vi || prod.description || 'Không có mô tả';
             const price = prod.price ? `${prod.price.toLocaleString('vi-VN')} VND` : 'Liên hệ';
-            const slug = prod.custom_url || (prod.slug ? `https://spit.com.vn/san-pham/${prod.slug}` : 'Liên hệ nhân viên');
+            const urlSegment = prod.slug || prod.id;
+            const link = prod.custom_url
+              || (urlSegment ? `${PRODUCT_URL_BASE}${urlSegment}` : 'Liên hệ nhân viên');
 
             return `[SẢN PHẨM ${index + 1}]:
 - Tên: ${name}
@@ -111,7 +118,7 @@ exports.askSPITAssistant = onRequest({ cors: true, memory: "2GiB", timeoutSecond
 - Danh mục: ${category}
 - Giá: ${price}
 - Mô tả: ${desc}
-- Link mua hàng: ${slug}
+- Link mua hàng: ${link}
 -----------------------`;
           }).join("\n");
         }

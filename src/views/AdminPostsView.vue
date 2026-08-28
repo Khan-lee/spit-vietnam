@@ -5,6 +5,7 @@ import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc, serverTime
 import { uploadToCloudinary } from '../utils/cloudinary'
 import Editor from '@tinymce/tinymce-vue'
 import slugify from 'slugify'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 
 // --- TRẠNG THÁI FORM ---
 const newPost = ref({
@@ -593,7 +594,7 @@ onMounted(fetchPosts)
           <h3 class="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest">Đã xuất bản gần đây</h3>
           <div class="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
             <div v-for="post in posts" :key="post.id" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100">
-              <img :src="post.image || 'https://via.placeholder.com/80'" class="w-12 h-12 rounded-xl object-cover shadow-sm shrink-0" />
+              <img :src="post.image || PLACEHOLDER_IMG" class="w-12 h-12 rounded-xl object-cover shadow-sm shrink-0" />
               <div class="flex-1 min-w-0">
                 <h4 class="font-bold text-slate-800 text-xs truncate">{{ post.title }}</h4>
                 <div class="flex items-center gap-2 mt-1">

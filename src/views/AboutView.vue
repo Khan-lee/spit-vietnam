@@ -317,7 +317,7 @@ onMounted(() => {
       aboutData.value = {
         title: 'Sài Gòn Precision Industrial Tool',
         content: '<p>Chào mừng bạn đến với SPIT. Chúng tôi cung cấp các giải pháp công cụ công nghiệp chính xác hoàn hảo...</p>',
-        imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070}'
+        imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070'
       }
     }
     loading.value = false

@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { db } from '../firebase'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
-import { useI18n } from 'vue-i18n' 
+import { useI18n } from 'vue-i18n'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 
 const { t, locale } = useI18n() 
 const allPosts = ref([])
@@ -159,7 +160,7 @@ onMounted(fetchAllPosts)
             class="group bg-white border border-slate-100 rounded-3xl p-5 flex flex-col hover:shadow-xl hover:border-slate-200/80 transition-all duration-300"
           >
             <div class="relative overflow-hidden rounded-2xl mb-5 aspect-video bg-slate-50 border border-slate-100">
-              <img :src="post.image || 'https://via.placeholder.com/800'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" :alt="post.title">
+              <img :src="post.image || PLACEHOLDER_IMG" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" :alt="post.title">
               
               <div class="absolute top-4 left-4">
                 <span class="bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-bold uppercase px-3 py-1 rounded-md tracking-wider shadow-sm">

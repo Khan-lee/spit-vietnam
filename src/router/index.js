@@ -1,11 +1,14 @@
-import BrandAdminView from '../views/BrandAdminView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { getAuth, onAuthStateChanged } from "firebase/auth"
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
-import PolicyDetail from '../views/PolicyDetail.vue'
-import StatsView from '../views/admin/StatsView.vue' // Import trang Thống kê
+import { isAdminEmail } from '../config/admins'
+
+// ⚡ Các view ít truy cập được tải động (lazy) để không phình bundle chính.
+const BrandAdminView = () => import('../views/BrandAdminView.vue')
+const PolicyDetail = () => import('../views/PolicyDetail.vue')
+const StatsView = () => import('../views/admin/StatsView.vue') // Trang Thống kê
 
 // Cấu hình NProgress
 NProgress.configure({ showSpinner: false, speed: 500 });
@@ -17,11 +20,14 @@ const router = createRouter({
       path: '/admin/brands',
       name: 'BrandAdmin',
       component: BrandAdminView,
+      meta: { requiresAuth: true }
     },
     { path: '/', name: 'home', component: HomeView },
     { path: '/products', name: 'products', component: () => import('../views/ProductsView.vue') },
     { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue') },
-    { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
+    // Giỏ hàng là drawer trượt trong App.vue, không phải trang riêng.
+    // Giữ /cart như một lối tắt: chuyển hướng về trang chủ (mở giỏ bằng nút trên Header).
+    { path: '/cart', redirect: '/' },
     {
       path: '/spit-system-manager/policies',
       name: 'AdminPolicies',
@@ -116,7 +122,8 @@ const router = createRouter({
     {
       path: '/spit-system-manager/logos',
       name: 'AdminLogos',
-      component: () => import('../views/admin/LogoManager.vue')
+      component: () => import('../views/admin/LogoManager.vue'),
+      meta: { requiresAuth: true }
     },
     { 
       path: '/spit-system-manager/settings', 
@@ -160,19 +167,14 @@ const getCurrentUser = () => {
   });
 };
 
-const ADMIN_EMAILS = [
-  'spitsaigon@gmail.com',
-  'p.tri@spit.vn',
-];
-
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
 
   // 1. Kiểm tra Route yêu cầu quyền ADMIN
   if (to.meta.requiresAuth) {
     const user = await getCurrentUser();
-    
-    if (user && ADMIN_EMAILS.includes(user.email)) {
+
+    if (user && isAdminEmail(user.email)) {
       next();
     } else {
       next({ name: 'admin-login' });

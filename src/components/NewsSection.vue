@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { db } from '../firebase'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { useI18n } from 'vue-i18n'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 
 const { t, locale } = useI18n()
 
@@ -76,7 +77,7 @@ onMounted(fetchLatestPosts)
         >
           <div class="relative overflow-hidden rounded-2xl mb-5 aspect-video bg-slate-50 border border-slate-100">
             <img 
-              :src="post.image || 'https://via.placeholder.com/800'" 
+              :src="post.image || PLACEHOLDER_IMG"
               class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               alt="SPIT Technical Post"
             >

@@ -221,7 +221,7 @@
 
                 <!-- Khung Ảnh Sản Phẩm -->
                 <div class="h-32 sm:h-36 w-full flex items-center justify-center p-2 mb-2 bg-slate-50 rounded-xl group-hover:bg-red-50/20 transition-colors">
-                  <img :src="p.image || p.imageUrl || 'https://via.placeholder.com/150'" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                  <img :src="p.image || p.imageUrl || PLACEHOLDER_IMG" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
                 </div>
 
                 <div>
@@ -331,7 +331,7 @@
                   <span v-if="getDiscountPercent(p) > 0" class="absolute top-1 left-1 bg-red-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black z-10">
                     -{{ getDiscountPercent(p) }}%
                   </span>
-                  <img :src="p.image || p.imageUrl || 'https://via.placeholder.com/150'" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
+                  <img :src="p.image || p.imageUrl || PLACEHOLDER_IMG" :alt="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
                 </div>
 
                 <div class="space-y-1 flex-1">
@@ -454,6 +454,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import { PLACEHOLDER_IMG } from '../utils/placeholder'
 import HomeProductFilter from '../components/HomeProductFilter.vue'
 import { useSearchStore } from '../stores/search'
 

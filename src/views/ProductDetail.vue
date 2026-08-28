@@ -1190,3 +1190,38 @@ onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer)
 })
 </script>
+
+<!--
+  ⚡ UPDATE MỚI: CSS hiển thị BẢNG trong phần Mô tả / Đặc tính & Thông số.
+  Nội dung này được đổ ra bằng v-html vào các <div class="raw-html-content">.
+  Trước đây file này KHÔNG có <style> nên bảng (dán từ Word qua Admin) hiển thị
+  mất viền, các cột dồn vào nhau. Khối dưới chỉ thêm style cho bảng, KHÔNG đụng
+  tới bất kỳ phần nào khác của trang.
+-->
+<style scoped>
+:deep(.raw-html-content) {
+  overflow-x: auto;
+}
+:deep(.raw-html-content table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 13px;
+}
+:deep(.raw-html-content td),
+:deep(.raw-html-content th) {
+  border: 1px solid #cbd5e1;
+  padding: 8px 12px;
+  vertical-align: top;
+  text-align: left;
+}
+:deep(.raw-html-content th) {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+/* Hàng đầu tiên coi như hàng tiêu đề (Word thường không xuất <th>) */
+:deep(.raw-html-content table tr:first-child > td) {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+</style>

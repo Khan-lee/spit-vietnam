@@ -39,8 +39,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
+import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth"
 import { useRouter } from 'vue-router'
+import { isAdminEmail } from '../config/admins'
 
 const email = ref('')
 const password = ref('')
@@ -48,8 +49,6 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
 
-// Danh sách email Admin
-const ADMIN_EMAILS = ['spitsaigon@gmail.com', 'p.tri@spit.vn']
 const handleAdminLogin = async () => {
   isLoading.value = true
   errorMessage.value = ''
@@ -60,7 +59,7 @@ const handleAdminLogin = async () => {
     const loggedInEmail = userCredential.user.email
 
     // KIỂM TRA: Nếu không phải Email Admin -> Đăng xuất luôn!
-    if (!ADMIN_EMAILS.includes(loggedInEmail)) {
+    if (!isAdminEmail(loggedInEmail)) {
       await signOut(auth) // Đăng xuất lập tức
       errorMessage.value = 'Tài khoản này là tài khoản Khách hàng, không có quyền truy cập Admin!'
       return

@@ -11,13 +11,21 @@ const chromium = chromiumModule.default || chromiumModule;
 initializeApp();
 
 // Cấu hình Email gửi đi của công ty SPIT
+// ⚡ Thông tin đăng nhập được đọc từ biến môi trường (functions/.env — đã .gitignore),
+// KHÔNG hardcode trong mã nguồn nữa. Xem functions/.env.example để biết các khóa cần khai báo.
+const EMAIL_HOST = process.env.EMAIL_HOST || "smtp.gmail.com";
+const EMAIL_PORT = Number(process.env.EMAIL_PORT) || 465;
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_FROM = process.env.EMAIL_FROM || `"SPIT Vietnam Sales" <${EMAIL_USER}>`;
+
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, 
+    host: EMAIL_HOST,
+    port: EMAIL_PORT,
+    secure: EMAIL_PORT === 465,
     auth: {
-        user: "adminspit@gmail.com",
-        pass: "zqlg ecfq nnnj khmg"
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
     }
 });
 
@@ -43,14 +51,18 @@ exports.syncOrderToLark = onDocumentCreated({
     const shippingAddress = orderData.customer?.address || orderData.shippingAddress?.address || orderData.shippingAddress || orderData.address || "";
     const companyAddress = orderData.customer?.companyAddress || orderData.companyAddress || orderData.vatInfo?.companyAddress || "";
 
-    // Config Lark
-    const APP_ID = 'cli_aaadcb1242b8de15';
-    const APP_SECRET = '8Q8x69CNvdvPusNRfHiB5fhGpkjfDIpl'; 
-    const APP_TOKEN = 'SqIMbhBRcayfowsxOZ1jGddppKe';
-    const TABLE_ID = 'tbl9MnuanDRg5mU3';
+    // Config Lark — đọc từ biến môi trường (functions/.env), không hardcode
+    const APP_ID = process.env.LARK_APP_ID;
+    const APP_SECRET = process.env.LARK_APP_SECRET;
+    const APP_TOKEN = process.env.LARK_APP_TOKEN;
+    const TABLE_ID = process.env.LARK_TABLE_ID;
 
     // --- LUỒNG 1: ĐỒNG BỘ SANG LARK BASE ---
     try {
+        if (!APP_ID || !APP_SECRET || !APP_TOKEN || !TABLE_ID) {
+            console.warn("⚠️ Thiếu biến môi trường LARK_* — bỏ qua bước đồng bộ Lark.");
+            throw new Error("LARK_ENV_MISSING");
+        }
         const authRes = await axios.post('https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal', {
             app_id: APP_ID,
             app_secret: APP_SECRET
@@ -99,6 +111,10 @@ exports.syncOrderToLark = onDocumentCreated({
         const targetEmail = email; // Sử dụng biến email đã gom ở trên
         if (!targetEmail) {
             console.error("❌ Không tìm thấy email khách hàng để gửi báo giá.");
+            return;
+        }
+        if (!EMAIL_USER || !EMAIL_PASS) {
+            console.error("❌ Thiếu biến môi trường EMAIL_USER / EMAIL_PASS — không thể gửi báo giá.");
             return;
         }
 
@@ -252,7 +268,7 @@ exports.syncOrderToLark = onDocumentCreated({
 
             // 3. Đính kèm file PDF và gửi Mail đi
             const mailOptions = {
-                from: '"SPIT Vietnam Sales" <adminspit@gmail.com>',
+                from: EMAIL_FROM,
                 to: targetEmail,
                 subject: `[SPIT VIET-NAM] Báo giá đơn hàng thương mại #${orderId.substring(0, 8).toUpperCase()}`,
                 html: `
