@@ -800,14 +800,22 @@ const getCategoryBanner = (catName) => {
 
       <!-- Banner phải trong Mega Menu -->
       <div class="col-span-1 border-l border-slate-100 pl-5 flex flex-col h-full">
-        <div class="relative rounded-xl overflow-hidden h-full min-h-55 bg-slate-900 group/banner shadow-inner">
+        <!-- 
+          ⚡ UPDATE MỚI: Gắn link cho Banner Mega Menu — bấm vào sẽ dẫn thẳng tới trang sản
+          phẩm của đúng Danh mục đang hover, dùng cú pháp { path, query } (Vue Router tự
+          encode an toàn ký tự đặc biệt) giống hệt các link danh mục khác trong file này.
+        -->
+        <router-link 
+          :to="{ path: '/products', query: { category: activeHoverCategory } }"
+          class="relative rounded-xl overflow-hidden h-full min-h-55 bg-slate-900 group/banner shadow-inner block"
+        >
           <img :src="getCategoryBanner(activeHoverCategory)" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/banner:scale-110 group-hover/banner:opacity-70 transition-all duration-500 ease-out" />
           <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
           <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
             <span class="inline-block bg-yellow-400 text-slate-900 text-[9px] font-black uppercase px-2 py-0.5 rounded w-max mb-1.5">Nổi bật</span>
             <p class="text-sm font-black leading-snug mb-3 line-clamp-2 drop-shadow-md">{{ activeHoverCategory }}</p>
           </div>
-        </div>
+        </router-link>
       </div>
     </div>
   </Transition>
@@ -1399,14 +1407,22 @@ const getCategoryBanner = (catName) => {
               <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4">
                 
                 <!-- Banner nhỏ bên trái của danh mục (Ẩn trên Mobile) -->
-                <div class="hidden lg:block lg:col-span-1 relative rounded-2xl overflow-hidden border border-slate-200/60 group bg-slate-900 min-h-80">
+                <!-- 
+                  ⚡ UPDATE MỚI: Gắn link cho Banner từng Danh mục — bấm vào sẽ dẫn thẳng tới
+                  trang sản phẩm của đúng Danh mục "cat" đó, đồng bộ cách làm với Banner Mega
+                  Menu ở trên.
+                -->
+                <router-link 
+                  :to="{ path: '/products', query: { category: cat } }"
+                  class="hidden lg:block lg:col-span-1 relative rounded-2xl overflow-hidden border border-slate-200/60 group bg-slate-900 min-h-80"
+                >
                   <img :src="getCategoryBanner(cat)" :alt="cat" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
                   <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                   <div class="relative z-10 h-full p-4 flex flex-col justify-end text-white">
                     <h3 class="font-black text-base uppercase text-white mb-1">{{ cat }}</h3>
                     <p class="text-[10px] text-slate-300 mb-3">Giải pháp công nghệ chính xác hàng đầu</p>
                   </div>
-                </div>
+                </router-link>
 
                 <!-- Lưới Sản phẩm thuộc Danh mục (Mobile: 2 cột - PC: 4 cột) -->
                 <div class="lg:col-span-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">

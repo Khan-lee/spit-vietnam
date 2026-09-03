@@ -204,8 +204,11 @@
   </transition>
 </Teleport>
 
-    <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM -->
-    <div class="container mx-auto max-w-6xl py-10 md:py-16 px-4 sm:px-6">
+    <!-- CONTAINER TRANG CHI TIẾT SẢN PHẨM
+         ⚡ UPDATE MỚI (gom trang trên 1 màn hình): giảm padding dọc để nội dung dồn lên,
+         hạn chế phải cuộn. Bố cục cũ giữ nguyên, chỉ siết khoảng cách + gộp Mô tả/Thông số
+         vào ngay cột thông tin (xem bên dưới). -->
+    <div class="container mx-auto max-w-6xl py-5 md:py-8 px-4 sm:px-6">
 
       <!-- 
         ⚡ UPDATE MỚI: THANH ĐIỀU HƯỚNG BREADCRUMB
@@ -234,10 +237,11 @@
         <span class="text-slate-800 truncate max-w-40 sm:max-w-none">{{ product[`name_${locale}`] || product.name }}</span>
       </nav>
       
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start bg-white p-6 sm:p-10 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-10">
-        
+      <!-- ⚡ UPDATE MỚI: cột thông tin rộng hơn cột ảnh 1 chút (1fr / 1.1fr), khoảng cách & padding gọn lại -->
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-7 lg:gap-10 items-start bg-white p-5 sm:p-7 md:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100/50 mb-6">
+
         <!-- Cột hình ảnh -->
-        <div class="lg:sticky lg:top-24 space-y-5 w-full">
+        <div class="lg:sticky lg:top-6 space-y-4 w-full">
           <div class="relative rounded-4xl flex items-center justify-center aspect-square overflow-hidden group">
             <img 
               :src="activeImage" 
@@ -259,7 +263,7 @@
         </div>
         
         <!-- Cột thông tin sản phẩm -->
-        <div class="space-y-6 min-w-0">
+        <div class="space-y-4 min-w-0">
           <div>
             <div class="flex flex-wrap gap-2 items-center mb-4">
               <span class="inline-block bg-slate-900 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{{ product.brand || 'SPIT' }}</span>
@@ -274,11 +278,11 @@
               </span>
             </div>
 
-            <!-- Tên sản phẩm -->
-            <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 uppercase leading-tight tracking-tight mb-2 wrap-break-word">
+            <!-- Tên sản phẩm — ⚡ UPDATE MỚI: cỡ chữ gọn hơn 1 nấc để tiết kiệm chiều cao -->
+            <h1 class="text-xl sm:text-2xl md:text-[26px] font-black text-slate-950 uppercase leading-tight tracking-tight mb-2 wrap-break-word">
               {{ product[`name_${locale}`] || product.name }}
             </h1>
-            <p class="text-red-600 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-100 pb-4">
+            <p class="text-red-600 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-100 pb-3">
               {{ product[`category_${locale}`] || product.category }}
             </p>
           </div>
@@ -379,8 +383,8 @@
             </div>
           </div>
 
-          <!-- KHỐI GIÁ SẢN PHẨM -->
-          <div class="p-6 sm:p-8 rounded-4xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10 space-y-3">
+          <!-- KHỐI GIÁ SẢN PHẨM — ⚡ UPDATE MỚI: padding gọn lại -->
+          <div class="p-5 sm:p-6 rounded-3xl border transition-all duration-500 bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10 space-y-3">
             <div class="flex items-center justify-between gap-2">
               <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 ĐƠN GIÁ THEO {{ displayUnitLabel }}:
@@ -392,8 +396,8 @@
 
             <!-- Giá hiển thị nổi bật -->
             <div class="flex flex-wrap items-baseline gap-3">
-              <div class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-baseline gap-1.5 text-white">
-                {{ currentUnitPrice.toLocaleString('vi-VN') }} 
+              <div class="text-3xl sm:text-4xl font-black tracking-tight flex items-baseline gap-1.5 text-white">
+                {{ currentUnitPrice.toLocaleString('vi-VN') }}
                 <span class="text-xs sm:text-sm font-extrabold opacity-50 uppercase shrink-0">
                   VNĐ / {{ displayUnitLabel }}
                 </span>
