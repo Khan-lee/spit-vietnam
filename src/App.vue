@@ -181,10 +181,16 @@ onUnmounted(() => {
     </transition>
 
     <main class="grow">
+      <!-- ⚡ UPDATE MỚI: BỎ <transition name="fade" mode="out-in"> bọc RouterView.
+           NGUYÊN NHÂN LỖI: hầu hết route được nạp động (lazy import). Kết hợp
+           mode="out-in" + <component :is> + component async -> transition "out-in"
+           chờ hiệu ứng rời trang kết thúc rồi mới dựng trang mới, nhưng khi trang
+           mới còn đang tải chunk thì trạng thái transition bị KẸT: URL đổi mà nội
+           dung KHÔNG đổi (phần tử dính cứng class fade-enter-from + fade-leave-active).
+           Đã kiểm chứng bằng click thật trên dev server. Bỏ transition -> chuyển
+           trang tức thì, không còn kẹt. (NProgress vẫn hiện thanh loading như cũ.) -->
       <RouterView v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" :key="route.fullPath" />
-        </transition>
+        <component :is="Component" :key="route.fullPath" />
       </RouterView>
     </main>
 

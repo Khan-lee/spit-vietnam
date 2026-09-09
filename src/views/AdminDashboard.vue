@@ -98,6 +98,22 @@ const downloadBlueprint = async (url, customerName) => {
   }
 }
 
+// =========================================================================
+// ⚡ UPDATE MỚI: XÁC ĐỊNH ĐƠN "ĐÃ THANH TOÁN" THEO HÌNH THỨC THANH TOÁN
+// -------------------------------------------------------------------------
+//  - QR / chuyển khoản (paymentMethod === 'transfer'): khách trả TRƯỚC khi
+//    tạo đơn -> LUÔN coi là đã thanh toán ngay từ đầu (hiện nhãn "ĐÃ THANH TOÁN").
+//  - COD (thanh toán khi nhận hàng): CHỈ tính là đã thanh toán khi đơn đã
+//    "Hoàn tất" (completed) — tức admin bấm nút "Đã thanh toán" ở BƯỚC CUỐI
+//    lúc giao hàng.
+//  (Trước đây code coi mọi đơn khác 'pending' là đã trả tiền -> sai với COD.)
+// =========================================================================
+const isOrderPaid = (order) => {
+  if (!order) return false
+  if (order.paymentMethod === 'transfer') return true
+  return order.status === 'completed'
+}
+
 // --- BỘ LỌC & THỐNG KÊ (GIỮ LOGIC CŨ + UPDATE TÌM KIẾM CHO CẤU TRÚC CUSTOMER MỚI) ---
 const filteredOrders = computed(() => {
   return orders.value.filter(order => {
@@ -111,8 +127,8 @@ const filteredOrders = computed(() => {
                         
     const matchStatus = statusFilter.value === 'all' || order.status === statusFilter.value;
     
-    // THÊM MỚI: Điều kiện lọc thanh toán (không ảnh hưởng matchStatus cũ)
-    const isPaid = order.status !== 'pending';
+    // THÊM MỚI: Điều kiện lọc thanh toán — dùng chung hàm isOrderPaid (QR = trả trước, COD = trả khi hoàn tất)
+    const isPaid = isOrderPaid(order);
     const matchPayment = paymentFilter.value === 'all' || 
                          (paymentFilter.value === 'unpaid' && !isPaid) || 
                          (paymentFilter.value === 'paid' && isPaid);
@@ -551,7 +567,11 @@ onMounted(fetchData)
                                      order.paymentMethod === 'transfer' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600']">
                         {{ order.paymentMethod === 'transfer' ? 'QR' : 'COD' }}
                       </span>
-                      <span v-if="order.status === 'pending'" class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA TRẢ TIỀN</span>
+                      <!-- ⚡ UPDATE MỚI: Nhãn trạng thái thanh toán.
+                           QR/chuyển khoản -> "ĐÃ THANH TOÁN" hiện ngay từ đầu.
+                           COD -> "CHƯA THANH TOÁN" cho tới khi đơn Hoàn tất. -->
+                      <span v-if="isOrderPaid(order)" class="text-[7px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">ĐÃ THANH TOÁN</span>
+                      <span v-else class="text-[7px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse">CHƯA THANH TOÁN</span>
                     </div>
                     <!-- HỖ TRỢ ĐỌC SỐ ĐIỆN THOẠI TỪ CẢ CẤU TRÚC MỚI VÀ CŨ -->
                     <p class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">
@@ -564,13 +584,21 @@ onMounted(fetchData)
                     <div class="text-sm font-black text-red-600">{{ Number(order.totalPrice || 0).toLocaleString() }}đ</div>
                   </div>
                   <div class="flex gap-2 justify-end">
-                    <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')" 
+                    <!-- ⚡ UPDATE MỚI: Bước 1 giờ chỉ là "Xác nhận đơn" (không còn ngầm hiểu là đã nhận tiền).
+                         Với COD, tiền chỉ được ghi nhận ở BƯỚC CUỐI qua nút "Đã thanh toán". -->
+                    <button v-if="order.status === 'pending'" @click.stop="updateStatus(order.id, 'confirmed')"
                             class="text-[9px] font-black bg-red-600 text-white uppercase px-6 py-2 rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-all scale-110">
-                      Đã nhận tiền 💰
+                      Xác nhận đơn ✓
                     </button>
 
                     <button v-if="order.status === 'confirmed'" @click.stop="updateStatus(order.id, 'shipping')" class="text-[9px] font-black text-purple-600 uppercase border border-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-600 hover:text-white transition-colors">Giao</button>
-                    <button v-if="order.status === 'shipping'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Xong</button>
+
+                    <!-- ⚡ UPDATE MỚI: BƯỚC CUỐI.
+                         - COD: nút "Đã thanh toán 💰" (ghi nhận đã nhận tiền lúc giao hàng) -> Hoàn tất.
+                         - QR/chuyển khoản: đã trả trước rồi nên chỉ là "Hoàn tất ✓". -->
+                    <button v-if="order.status === 'shipping' && order.paymentMethod !== 'transfer'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black bg-emerald-600 text-white uppercase border border-emerald-600 px-4 py-1.5 rounded-lg hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-200">Đã thanh toán 💰</button>
+                    <button v-if="order.status === 'shipping' && order.paymentMethod === 'transfer'" @click.stop="updateStatus(order.id, 'completed')" class="text-[9px] font-black text-emerald-600 uppercase border border-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition-colors">Hoàn tất ✓</button>
+
                     <button @click.stop="deleteOrder(order.id, order.customer?.name || order.customerName)" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">🗑️</button>
                   </div>
                 </div>

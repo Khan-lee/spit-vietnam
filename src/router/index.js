@@ -143,11 +143,20 @@ const router = createRouter({
       component: () => import('../views/admin/AdminCategoriesView.vue'),
       meta: { requiresAuth: true }
     },
-    { 
-      path: '/spit-system-manager/about', 
+    {
+      path: '/spit-system-manager/about',
       name: 'AdminAbout',
       component: () => import('../views/admin/AdminAboutView.vue'),
-      meta: { requiresAuth: true } 
+      meta: { requiresAuth: true }
+    },
+
+    // ⚡ UPDATE MỚI: Route BẮT-TẤT-CẢ (catch-all) cho URL không khớp -> trang 404.
+    // Trước đây thiếu route này nên URL sai cho ra trang trắng (chỉ Header/Footer).
+    // PHẢI đặt CUỐI CÙNG trong mảng routes.
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFoundView.vue')
     }
   ],
   scrollBehavior() { return { top: 0 } }

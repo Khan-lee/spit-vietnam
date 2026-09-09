@@ -290,7 +290,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../../firebase' // Kiểm tra đúng đường dẫn tới file firebase.js của bạn
 import { 
   collection, 
@@ -319,14 +319,21 @@ const form = ref({
 })
 
 // 1. Lắng nghe Realtime dữ liệu từ Firestore collection 'policies'
+// ⚡ UPDATE MỚI: lưu hàm huỷ + dọn ở onUnmounted (trước đây listener không được
+// huỷ -> mỗi lần vào lại trang này lại tạo thêm 1 listener Firestore).
+let unsubPolicies = null
 onMounted(() => {
-  onSnapshot(collection(db, 'policies'), (snapshot) => {
+  unsubPolicies = onSnapshot(collection(db, 'policies'), (snapshot) => {
     const items = []
     snapshot.forEach((docSnap) => {
       items.push({ id: docSnap.id, ...docSnap.data() })
     })
     policies.value = items
   })
+})
+
+onUnmounted(() => {
+  if (unsubPolicies) unsubPolicies()
 })
 
 // Lọc & sắp xếp danh sách

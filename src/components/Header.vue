@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue' 
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router' 
 import { auth, googleProvider, db } from '../firebase' 
@@ -107,10 +107,18 @@ const fetchLogo = async () => {
   }
 }
 
+// ⚡ UPDATE MỚI: Header bị unmount/remount mỗi khi vào/ra trang /login, /admin...
+// (do v-if="!isHideLayout" ở App.vue). Trước đây onSnapshot / onAuthStateChanged
+// KHÔNG được huỷ -> mỗi lần remount lại thêm 1 listener Firestore -> rò rỉ, tốn
+// lượt đọc. Nay lưu hàm huỷ và dọn ở onUnmounted.
+let unsubWebsite = null
+let unsubCategories = null
+let unsubAuth = null
+
 // Lắng nghe dữ liệu cấu hình website thời gian thực (Realtime)
 const listenToWebsiteSettings = () => {
   const docRef = doc(db, 'settings', 'website')
-  onSnapshot(docRef, (docSnap) => {
+  unsubWebsite = onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       websiteSettings.value = { ...websiteSettings.value, ...docSnap.data() }
     }
@@ -122,7 +130,7 @@ const listenToWebsiteSettings = () => {
 // Lắng nghe danh mục sản phẩm thời gian thực (Realtime)
 const listenToCategories = () => {
   const colRef = collection(db, 'categories')
-  onSnapshot(colRef, (snapshot) => {
+  unsubCategories = onSnapshot(colRef, (snapshot) => {
     categoryDocs.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   }, (error) => {
     console.error("Lỗi khi kết nối tới categories:", error)
@@ -143,13 +151,20 @@ const getCategoryName = (cat) => {
 }
 
 onMounted(() => {
-  onAuthStateChanged(auth, (currentUser) => {
+  unsubAuth = onAuthStateChanged(auth, (currentUser) => {
     user.value = currentUser
   })
   fetchLogo()
   listenToWebsiteSettings()
   listenToCategories()
   searchStore.fetchProducts()
+})
+
+// ⚡ UPDATE MỚI: dọn sạch listener khi Header bị gỡ khỏi DOM
+onUnmounted(() => {
+  if (unsubWebsite) unsubWebsite()
+  if (unsubCategories) unsubCategories()
+  if (unsubAuth) unsubAuth()
 })
 
 // 1. HÀM XÓA DẤU TIẾNG VIỆT CHUẨN

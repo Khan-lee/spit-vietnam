@@ -1,0 +1,90 @@
+rules_version = '2';
+
+// =============================================================================
+//  FIRESTORE SECURITY RULES  — Cửa Hàng Vật Tư Vô Cực / SPIT
+// -----------------------------------------------------------------------------
+//  ⚡ FILE ĐỀ XUẤT (mới thêm). Trước đây rules được chỉnh trực tiếp trong Firebase
+//  Console nên repo không có file này -> khó rà soát.
+//
+//  LÝ DO CẦN SỬA: Rules hiện tại đang CHẶN khách CHƯA ĐĂNG NHẬP đọc collection
+//  `policies` (log lỗi: "Missing or insufficient permissions"). Vì vậy phần
+//  "Chính sách bán hàng" / "Hỗ trợ khách hàng" ở FOOTER (và trang /chinh-sach/:slug)
+//  không tải được khi khách vãng lai vào web -> footer trông "tào lao".
+//  Cũng chặn luôn `daily_visits` khiến bộ đếm lượt truy cập lỗi.
+//
+//  Nguyên tắc ở dưới:
+//    - Nội dung công khai của web (sản phẩm, bài viết, chính sách, cấu hình,
+//      banner, thương hiệu, danh mục)         -> AI CŨNG ĐỌC ĐƯỢC, chỉ admin GHI.
+//    - Dữ liệu do khách gửi lên (đơn hàng, form liên hệ, đếm truy cập)
+//                                             -> khách được TẠO, chỉ admin đọc/sửa.
+//    - `users`                                -> mỗi người tự đọc/ghi hồ sơ của mình.
+//    - Còn lại                                -> khoá.
+//
+//  ⚠️ TRƯỚC KHI DEPLOY: mở Firebase Console → Firestore → Rules, đối chiếu với
+//  rules đang chạy (đề phòng có collection nội bộ khác chưa liệt kê ở đây).
+//  Deploy: firebase deploy --only firestore:rules
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Danh sách email quản trị (khớp với ADMIN_EMAILS trong mã nguồn) -------
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'spitsaigon@gmail.com',
+          'p.tri@spit.vn'
+        ];
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // === NỘI DUNG CÔNG KHAI: ai cũng đọc, chỉ admin ghi =======================
+    match /products/{id}    { allow read: if true;  allow write: if isAdmin(); }
+    match /posts/{id}       { allow read: if true;  allow write: if isAdmin(); }
+    match /promotions/{id}  { allow read: if true;  allow write: if isAdmin(); }
+    match /policies/{id}    { allow read: if true;  allow write: if isAdmin(); }
+    match /brands/{id}      { allow read: if true;  allow write: if isAdmin(); }
+    match /categories/{id}  { allow read: if true;  allow write: if isAdmin(); }
+    match /banners/{id}     { allow read: if true;  allow write: if isAdmin(); }
+
+    // settings/website, settings/home_config, settings/about, settings/logo ...
+    match /settings/{id}    { allow read: if true;  allow write: if isAdmin(); }
+
+    // === DỮ LIỆU KHÁCH GỬI LÊN ===============================================
+    // Đơn hàng: khách (kể cả chưa đăng nhập) được tạo; khách đã đăng nhập đọc
+    // đơn của chính mình; admin toàn quyền.
+    match /orders/{id} {
+      allow create: if true;
+      allow read:   if isAdmin()
+                    || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Form liên hệ: ai cũng gửi được; chỉ admin xem/xử lý.
+    match /contacts/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Đếm lượt truy cập theo ngày (trackVisit.js dùng setDoc merge + increment).
+    match /daily_visits/{day} {
+      allow read: if isAdmin();
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // === HỒ SƠ NGƯỜI DÙNG ===================================================
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isAdmin();
+    }
+
+    // === CÒN LẠI: KHOÁ =====================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
