@@ -5,7 +5,8 @@ import { RouterLink, useRouter } from 'vue-router'
 import { auth, googleProvider, db } from '../firebase' 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth' 
 import { doc, getDoc, onSnapshot, collection } from 'firebase/firestore'
-import { useSearchStore } from '../stores/search' 
+import { useSearchStore } from '../stores/search'
+import { isSyntheticEmail, prettyPhone } from '../utils/authHelpers'
 
 import logoImg from '../assets/noBG_logo.png'
 
@@ -75,6 +76,16 @@ const userShortName = computed(() => {
   if (!userDisplayName.value) return ''
   const parts = userDisplayName.value.trim().split(' ')
   return parts[parts.length - 1]
+})
+
+// ⚡ UPDATE MỚI: hiển thị liên hệ — nếu là email "ảo" (đăng nhập bằng SĐT) thì hiện SĐT
+const userContact = computed(() => {
+  if (!user.value) return ''
+  const email = user.value.email || ''
+  if (email && !isSyntheticEmail(email)) return email
+  if (user.value.phoneNumber) return prettyPhone(user.value.phoneNumber)
+  if (isSyntheticEmail(email)) return prettyPhone(email.split('@')[0])
+  return ''
 })
 
 const fetchLogo = async () => {
@@ -436,10 +447,11 @@ const navigateMobile = (path) => {
 
         <!-- ĐĂNG NHẬP / TÀI KHOẢN -->
         <div class="flex items-center">
-          <button v-if="!user" @click="loginWithGoogle" class="flex items-center gap-1.5 bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm">
+          <!-- ⚡ UPDATE MỚI: nút Đăng nhập mở trang /login (SĐT hoặc Email), không popup Google trực tiếp -->
+          <RouterLink v-if="!user" to="/login" class="flex items-center gap-1.5 bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="hidden sm:inline">Đăng nhập</span>
-          </button>
+          </RouterLink>
 
           <div v-else class="group relative flex items-center cursor-pointer">
             <div class="flex items-center gap-1.5 bg-red-700/60 hover:bg-red-800 px-2 py-1 rounded-xl border border-white/10">
@@ -507,7 +519,7 @@ const navigateMobile = (path) => {
               <img :src="user.photoURL || defaultAvatar" class="w-10 h-10 rounded-full border border-white shadow-sm object-cover" />
               <div class="overflow-hidden">
                 <p class="text-xs font-black uppercase truncate text-slate-800">{{ userDisplayName }}</p>
-                <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
+                <p class="text-[10px] text-slate-400 truncate">{{ userContact }}</p>
               </div>
             </div>
             <div class="flex gap-2 pt-2 border-t border-slate-200/60">
@@ -515,10 +527,10 @@ const navigateMobile = (path) => {
               <button @click="handleLogout" class="px-3 text-[10px] text-red-600 font-bold uppercase hover:bg-red-50 rounded-xl">Đăng xuất</button>
             </div>
           </div>
-          <button v-else @click="loginWithGoogle(); isMobileMenuOpen = false" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md flex items-center justify-center gap-2">
+          <RouterLink v-else to="/login" @click="isMobileMenuOpen = false" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            Đăng nhập bằng Google
-          </button>
+            Đăng nhập / Đăng ký
+          </RouterLink>
         </div>
 
         <!-- MOBILE NAVIGATION LINKS -->

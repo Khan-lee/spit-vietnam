@@ -149,6 +149,13 @@ const router = createRouter({
       component: () => import('../views/admin/AdminAboutView.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      // ⚡ UPDATE MỚI: Trang quản lý người dùng
+      path: '/spit-system-manager/users',
+      name: 'AdminUsers',
+      component: () => import('../views/admin/AdminUsersView.vue'),
+      meta: { requiresAuth: true }
+    },
 
     // ⚡ UPDATE MỚI: Route BẮT-TẤT-CẢ (catch-all) cho URL không khớp -> trang 404.
     // Trước đây thiếu route này nên URL sai cho ra trang trắng (chỉ Header/Footer).

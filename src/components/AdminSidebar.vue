@@ -19,6 +19,11 @@
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Bảng điều khiển</span>
       </router-link>
 
+      <!-- ⚡ UPDATE MỚI: Quản lý người dùng -->
+      <router-link to="/spit-system-manager/users" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
+        <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý người dùng</span>
+      </router-link>
+
       <router-link to="/spit-system-manager" class="flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-slate-800 group" active-class="bg-blue-600">
         <span class="hidden md:block text-[10px] font-black uppercase tracking-widest">Quản lý sản phẩm</span>
       </router-link>

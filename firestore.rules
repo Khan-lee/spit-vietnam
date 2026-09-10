@@ -77,9 +77,16 @@ service cloud.firestore {
     }
 
     // === HỒ SƠ NGƯỜI DÙNG ===================================================
+    // - Mỗi người tự đọc/tạo/sửa hồ sơ của mình (KHÔNG tự đổi role/disabled).
+    // - Admin đọc tất cả + được cập nhật (đổi vai trò, khoá/mở tài khoản).
     match /users/{uid} {
-      allow read, write: if isSignedIn() && request.auth.uid == uid;
-      allow read: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isAdmin()
+                    || (isSignedIn() && request.auth.uid == uid
+                        && request.resource.data.role == resource.data.role
+                        && request.resource.data.disabled == resource.data.disabled);
+      allow delete: if isAdmin();
     }
 
     // === CÒN LẠI: KHOÁ =====================================================
