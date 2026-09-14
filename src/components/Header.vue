@@ -69,7 +69,9 @@ const formatPhoneLink = (phone) => {
 
 const userDisplayName = computed(() => {
   if (!user.value) return ''
-  return user.value.displayName || user.value.email?.split('@')[0] || 'Tài khoản'
+  // ⚡ UPDATE MỚI: nếu chưa có displayName, rơi về userContact (đã xử lý email "ảo" của
+  // đăng nhập-bằng-SĐT thành số điện thoại đẹp) thay vì email.split('@')[0] thô
+  return user.value.displayName || userContact.value || 'Tài khoản'
 })
 
 const userShortName = computed(() => {

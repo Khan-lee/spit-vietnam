@@ -36,7 +36,15 @@
                 {{ order.shippingAddress?.phone || order.customer?.phone || order.phone || 'Chưa có SĐT' }}
               </p>
             </div>
-            
+
+            <!-- ⚡ UPDATE MỚI: Số CCCD/CMND (chỉ hiện khi khách có cung cấp lúc Checkout) -->
+            <div v-if="order.customer?.citizenId || order.citizenId">
+              <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Số CCCD/CMND</p>
+              <p class="text-sm font-black text-slate-700 tracking-tighter select-all">
+                {{ order.customer?.citizenId || order.citizenId }}
+              </p>
+            </div>
+
 <!-- ĐỊA CHỈ GIAO HÀNG ĐẦY ĐỦ -->
 <div>
   <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Địa chỉ giao hàng</p>

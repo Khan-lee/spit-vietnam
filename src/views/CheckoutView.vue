@@ -65,10 +65,12 @@ const triggerToast = (message, type = 'error') => {
 }
 
 // Data form chính (Lưu code để query API, lưu name để gửi order)
-const customer = ref({ 
-  name: '', phone: '', address: '', 
-  provinceCode: '', province: '', 
-  districtCode: '', district: '', 
+// ⚡ UPDATE MỚI: thêm trường citizenId (Căn cước công dân/CMND) — KHÔNG bắt buộc
+const customer = ref({
+  name: '', phone: '', address: '',
+  citizenId: '',
+  provinceCode: '', province: '',
+  districtCode: '', district: '',
   note: ''
 })
 
@@ -289,7 +291,13 @@ const handleCheckout = async () => {
   if (!customer.value.name || !customer.value.phone) return triggerToast("Vui lòng nhập tên và số điện thoại liên hệ!")
   if (!customer.value.address) return triggerToast("Vui lòng nhập địa chỉ để chúng tôi giao hàng!")
   if (!customer.value.provinceCode || !customer.value.districtCode) return triggerToast("Vui lòng chọn đầy đủ Tỉnh/Thành phố và Quận/Huyện!")
-  
+
+  // ⚡ UPDATE MỚI: CCCD/CMND không bắt buộc — chỉ kiểm tra định dạng NẾU khách có nhập
+  const citizenIdInput = customer.value.citizenId.trim()
+  if (citizenIdInput && !/^\d{9}(\d{3})?$/.test(citizenIdInput)) {
+    return triggerToast("Số CCCD/CMND không hợp lệ (cần 9 hoặc 12 chữ số). Có thể bỏ trống nếu không muốn cung cấp.")
+  }
+
   if (shipToOtherAddress.value && (!otherAddress.value.name || !otherAddress.value.address || !otherAddress.value.provinceCode || !otherAddress.value.districtCode)) {
     return triggerToast("Vui lòng điền đủ thông tin và địa chỉ người nhận khác!")
   }
@@ -324,6 +332,7 @@ const handleCheckout = async () => {
       userId: auth.currentUser ? auth.currentUser.uid : null,
       customer: {
         ...customer.value,
+        citizenId: citizenIdInput, // ⚡ UPDATE MỚI: CCCD/CMND đã trim, rỗng nếu khách không nhập
         fullAddress: fullCustomerAddress // Thêm địa chỉ ghép đầy đủ
       },
       shippingAddress: fullShippingAddress,
@@ -402,6 +411,18 @@ const handleCheckout = async () => {
               <div class="md:col-span-2">
                 <input v-model="customer.phone" placeholder="Điện thoại *" class="v-input" />
               </div>
+
+              <!-- ⚡ UPDATE MỚI: Số CCCD/CMND — KHÔNG bắt buộc -->
+              <div class="md:col-span-2">
+                <input
+                  v-model="customer.citizenId"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="Số CCCD / CMND (không bắt buộc)"
+                  class="v-input"
+                />
+              </div>
+
               <div class="md:col-span-2">
                 <input v-model="customer.address" placeholder="Địa chỉ *" class="v-input" />
               </div>

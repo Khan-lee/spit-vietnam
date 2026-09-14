@@ -197,41 +197,102 @@ const topProducts = computed(() => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
 })
-// --- CÁC HÀNH ĐỘNG KHÁC (GIỮ NGUYÊN) ---
-const exportToExcel = (data, fileName) => {
-  if (data.length === 0) return showToast("Không có dữ liệu!", "error")
-  
-  const cleanData = data.map((item) => {
-    // 1. XỬ LÝ CỘT SẢN PHẨM (Hỗ trợ cả mảng items/products của Đơn hàng và chuỗi productName của Tư vấn)
-    let sanPhamText = item.productName || item.name || '';
-    
-    // Nếu là Đơn hàng và có chứa mảng danh sách sản phẩm (items hoặc products)
-    const productArray = item.items || item.products;
-    if (Array.isArray(productArray) && productArray.length > 0) {
-      sanPhamText = productArray
-        .map(p => `${p.name || p.productName || ''} (SL: ${p.quantity || p.sl || 1})`)
-        .join('\n'); // Xuống dòng nếu ô có nhiều sản phẩm
-    }
+// --- CÁC HÀNH ĐỘNG KHÁC ---
+// =========================================================================
+// ⚡ UPDATE MỚI: TÁCH RIÊNG 2 HÀM DỰNG DÒNG EXCEL CHO "ĐƠN HÀNG" VÀ "TƯ VẤN"
+// -------------------------------------------------------------------------
+// Trước đây 1 hàm dùng chung cho cả 2 tab, và cột "Sản phẩm" nhồi chung cả
+// tên + số lượng vào 1 chuỗi ("Tên SP (SL: 2)") -> không tách được số liệu,
+// và thiếu hẳn giá tiền / tổng tiền / CCCD / trạng thái thanh toán...
+// Giờ đơn hàng có ĐẦY ĐỦ: SĐT, CCCD/CMND, MST, Số lượng (cột riêng), Đơn giá,
+// Thành tiền từng sản phẩm, Tạm tính, Giảm giá, Phí ship, Tổng tiền, Hình thức
+// thanh toán, Trạng thái thanh toán, Trạng thái đơn, Ghi chú.
+// Đơn có NHIỀU sản phẩm: mỗi cột (Sản phẩm/Số lượng/Đơn giá/Thành tiền SP)
+// xuống dòng (\n) SONG SONG theo đúng thứ tự sản phẩm trong ô — dòng 1 của
+// "Sản phẩm" khớp dòng 1 của "Số lượng", "Đơn giá"... để đối chiếu bằng mắt.
+// =========================================================================
+const ORDER_STATUS_LABELS = { pending: 'Chờ duyệt', confirmed: 'Đã duyệt', shipping: 'Đang giao', completed: 'Hoàn tất' }
+const CONTACT_STATUS_LABELS = { new: 'Mới', processing: 'Đang xử lý', quoted: 'Đã báo giá', closed: 'Hoàn tất' }
+const fmtMoney = (n) => (n === undefined || n === null || n === '') ? '' : Number(n).toLocaleString('vi-VN')
 
-    // UPDATE: XỬ LÝ CỘT LẤY DỮ LIỆU TỪ OBJECT CUSTOMER VÀ VAT MỚI
-    const cName = item.customerName || item.customer?.name || item.name || '';
-    const cPhone = item.phone || item.customer?.phone || '';
-const cEmail = item.vatInfo?.email || item.vatInfo?.vatEmail || item.vatInfo?.companyEmail || item.customer?.email || item.email || item.contractEmail || '';
-const cAddress = item.shippingAddress?.fullAddress || item.customer?.fullAddress || item.companyAddress || item.address || item.customer?.address || item.shippingAddress?.address || item.diaChi || 'Chưa cập nhật';
-    const cCompany = item.companyName || item.vatInfo?.companyName || item.company || '';
+const buildOrderExportRow = (item) => {
+  // Hỗ trợ cả đơn có mảng sản phẩm (items/products) lẫn đơn cũ chỉ có 1 sản phẩm dạng phẳng
+  const productArray = item.items || item.products
+  const hasArray = Array.isArray(productArray) && productArray.length > 0
 
-    return {
-      'ID': item.id,
-      'Mã Đơn': item.id ? item.id.slice(-6).toUpperCase() : '',
-      'Ngày': item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '',
-      'Khách hàng': cName,
-      'SĐT': cPhone,
-      'Email': cEmail,
-      'Công ty': cCompany,
-      'Địa chỉ': cAddress,
-      'Sản phẩm': sanPhamText
-    }
-  })
+  let sanPhamText, slText, donGiaText, thanhTienSPText
+  if (hasArray) {
+    sanPhamText = productArray.map(p => p.name || p.productName || 'Sản phẩm').join('\n')
+    slText = productArray.map(p => String(p.quantity || p.sl || 1)).join('\n')
+    donGiaText = productArray.map(p => fmtMoney(p.finalPrice ?? p.price ?? 0)).join('\n')
+    thanhTienSPText = productArray
+      .map(p => fmtMoney((Number(p.finalPrice ?? p.price ?? 0)) * (Number(p.quantity || p.sl || 1))))
+      .join('\n')
+  } else {
+    // Đơn kiểu cũ / đơn lẻ không có mảng items
+    sanPhamText = item.productName || item.name || ''
+    slText = item.quantity != null ? String(item.quantity) : ''
+    const qty = Number(item.quantity) || 1
+    donGiaText = item.totalPrice != null ? fmtMoney(Number(item.totalPrice) / qty) : ''
+    thanhTienSPText = item.totalPrice != null ? fmtMoney(item.totalPrice) : ''
+  }
+
+  const cName = item.customerName || item.customer?.name || item.name || ''
+  const cPhone = item.phone || item.customer?.phone || ''
+  // ⚡ UPDATE MỚI: Số CCCD/CMND khách nhập lúc Checkout (không bắt buộc)
+  const cCitizenId = item.customer?.citizenId || item.citizenId || ''
+  const cEmail = item.vatInfo?.email || item.vatInfo?.vatEmail || item.vatInfo?.companyEmail || item.customer?.email || item.email || item.contractEmail || ''
+  const cAddress = item.shippingAddress?.fullAddress || item.customer?.fullAddress || item.companyAddress || item.address || item.customer?.address || item.shippingAddress?.address || item.diaChi || 'Chưa cập nhật'
+  const cCompany = item.companyName || item.vatInfo?.companyName || item.company || ''
+  const cTaxCode = item.vatInfo?.taxCode || item.taxCode || ''
+
+  return {
+    'ID': item.id,
+    'Mã Đơn': item.id ? item.id.slice(-6).toUpperCase() : '',
+    'Ngày': item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '',
+    'Khách hàng': cName,
+    'SĐT': cPhone,
+    'CCCD/CMND': cCitizenId,
+    'Email': cEmail,
+    'Công ty': cCompany,
+    'Mã số thuế': cTaxCode,
+    'Địa chỉ': cAddress,
+    'Sản phẩm': sanPhamText,
+    'Số lượng': slText,
+    'Đơn giá (đ)': donGiaText,
+    'Thành tiền SP (đ)': thanhTienSPText,
+    'Tạm tính (đ)': fmtMoney(item.subtotal),
+    'Giảm giá (đ)': fmtMoney(item.totalDiscount),
+    'Phí vận chuyển (đ)': fmtMoney(item.shippingFee),
+    'Tổng tiền (đ)': fmtMoney(item.totalPrice),
+    'Hình thức TT': item.paymentMethod === 'transfer' ? 'Chuyển khoản / QR' : 'Tiền mặt khi nhận (COD)',
+    'Trạng thái TT': isOrderPaid(item) ? 'Đã thanh toán' : 'Chưa thanh toán',
+    'Trạng thái đơn': ORDER_STATUS_LABELS[item.status] || item.status || '',
+    'Ghi chú': item.note || item.customer?.note || ''
+  }
+}
+
+const buildContactExportRow = (item) => ({
+  'ID': item.id,
+  'Ngày': item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : '',
+  'Khách hàng': item.name || '',
+  'SĐT': item.phone || '',
+  'Email': item.email || '',
+  'Công ty': item.companyName || '',
+  'Mã số thuế': item.taxCode || '',
+  'Địa chỉ công ty': item.companyAddress || '',
+  'Sản phẩm quan tâm': item.productName || '',
+  'Số lượng': item.quantity || '',
+  'Vật liệu': item.material || '',
+  'Thời hạn mong muốn': item.deadline || '',
+  'Nội dung yêu cầu': item.message || '',
+  'Trạng thái': CONTACT_STATUS_LABELS[item.status] || 'Mới'
+})
+
+const exportToExcel = (data, fileName, type) => {
+  if (!data || data.length === 0) return showToast("Không có dữ liệu!", "error")
+
+  const cleanData = type === 'orders' ? data.map(buildOrderExportRow) : data.map(buildContactExportRow)
 
   // Tiến hành tạo và tải file Excel
   const worksheet = XLSX.utils.json_to_sheet(cleanData)
@@ -482,7 +543,8 @@ onMounted(fetchData)
             </select>
 
             <input v-model="searchQuery" type="text" placeholder="Tìm kiếm nhanh..." class="text-[10px] font-bold px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 ring-blue-500 w-48 md:w-64 bg-white" />
-            <button @click="exportToExcel(activeTab === 'orders' ? filteredOrders : contacts, activeTab)" class="text-[9px] font-black text-emerald-600 uppercase italic bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 hover:bg-emerald-500 hover:text-white">📥 Xuất Excel</button>
+            <!-- ⚡ UPDATE MỚI: dùng filteredContacts (có lọc) thay vì contacts thô cho khớp với tab Đơn hàng; truyền thêm type để dựng đúng cột -->
+            <button @click="exportToExcel(activeTab === 'orders' ? filteredOrders : filteredContacts, activeTab, activeTab)" class="text-[9px] font-black text-emerald-600 uppercase italic bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 hover:bg-emerald-500 hover:text-white">📥 Xuất Excel</button>
             <button @click="handleClearData" class="text-[9px] font-black text-red-500 uppercase italic bg-red-50 px-4 py-2 rounded-full border border-red-100 hover:bg-red-500 hover:text-white">Dọn dẹp</button>
           </div>
         </div>
@@ -561,7 +623,10 @@ onMounted(fetchData)
                       
                       <!-- CHECK THÔNG TIN CÔNG TY DOANH NGHIỆP TỪ CẢ CẤU TRÚC MỚI VÀ CŨ -->
                       <span v-if="order.companyName || order.customer?.companyName || order.vatInfo?.companyName" class="text-[8px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-black italic">B2B</span>
-                      
+
+                      <!-- ⚡ UPDATE MỚI: Báo có CCCD/CMND để admin biết ngay không cần mở chi tiết -->
+                      <span v-if="order.customer?.citizenId || order.citizenId" class="text-[8px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded font-black italic" title="Khách đã cung cấp CCCD/CMND">CCCD</span>
+
                       <span v-if="order.paymentMethod" 
                             :class="['text-[8px] px-2 py-0.5 rounded font-black italic', 
                                      order.paymentMethod === 'transfer' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600']">
