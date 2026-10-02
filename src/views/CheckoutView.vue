@@ -5,45 +5,11 @@ import { db, auth } from '../firebase'
 import { collection, addDoc, doc, getDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import PaymentQR from '../components/PaymentQR.vue'
 
-// Bảng tra cứu phí vận chuyển dựa trên bảng giá 34 tỉnh thành
-const SHIPPING_RATES = {
-  // Nhóm D1 (Nội thành TP.HCM)
-  'Hồ Chí Minh': 32076,
-
-  // Nhóm D3
-  'Đồng Nai': 81972,
-  'Đồng Tháp': 81972,
-  'Tây Ninh': 81972,
-  'Vĩnh Long': 81972,
-
-  // Nhóm Hà Nội
-  'Hà Nội': 90526,
-
-  // Nhóm D4 (Mặc định cho tất cả các tỉnh thành còn lại)
-  DEFAULT_D4: 97654
-}
+// ⚡ UPDATE: đã bỏ phí vận chuyển ở Checkout (bảng cước SHIPPING_RATES + phụ phí giao nhanh)
 const router = useRouter()
 
 const rawCartItems = ref([])
 const promotions = ref([]) 
-
-// 1. Tự động lấy tên Tỉnh/Thành phố đang chọn (Khách hàng chính hoặc Địa chỉ khác)
-const activeProvince = computed(() => {
-  return shipToOtherAddress.value ? otherAddress.value.province : customer.value.province
-})
-
-// 2. Tra cứu cước phí tương ứng theo tỉnh thành
-const baseShippingFee = computed(() => {
-  if (!activeProvince.value) return 0
-
-  // Tìm tên tỉnh khớp trong SHIPPING_RATES
-  const matchedProvince = Object.keys(SHIPPING_RATES).find(key => 
-    activeProvince.value.includes(key)
-  )
-
-  // Nếu tìm thấy trả về giá tương ứng, nếu không tìm thấy trả về cước D4 mặc định
-  return matchedProvince ? SHIPPING_RATES[matchedProvince] : SHIPPING_RATES.DEFAULT_D4
-})
 const isProcessing = ref(false)
 const isLoadingSettings = ref(true)
 
@@ -181,10 +147,6 @@ watch(isExpressAvailable, (available) => {
   }
 })
 
-const shippingFee = computed(() => {
-  return shippingMethod.value === 'express' ? baseShippingFee.value + 100000 : baseShippingFee.value
-})
-
 const fetchActivePromotions = async () => {
   try {
     const now = new Date().getTime()
@@ -278,7 +240,7 @@ const cartItems = computed(() => {
 const cartOriginalSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemOriginalTotal, 0))
 const totalDiscountAmount = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemSavings, 0))
 const cartSubtotal = computed(() => cartItems.value.reduce((sum, item) => sum + item.itemTotal, 0))
-const finalTotal = computed(() => cartSubtotal.value + shippingFee.value)
+const finalTotal = computed(() => cartSubtotal.value) // ⚡ UPDATE: tổng = tiền hàng (đã bỏ cộng phí vận chuyển)
 
 onMounted(async () => {
   rawCartItems.value = JSON.parse(localStorage.getItem('spit_cart')) || []
@@ -350,7 +312,7 @@ const handleCheckout = async () => {
       originalSubtotal: cartOriginalSubtotal.value, // ⚡ UPDATE: Lưu tổng tiền gốc chưa giảm
       totalDiscount: totalDiscountAmount.value,     // ⚡ UPDATE: Lưu tổng số tiền đã giảm giá
       subtotal: cartSubtotal.value,
-      shippingFee: shippingFee.value,  
+      shippingFee: 0, // ⚡ UPDATE: đã bỏ phí vận chuyển (vẫn lưu 0 để Excel admin/PDF báo giá đọc được)
       totalPrice: finalTotal.value,  
       status: 'pending',
       createdAt: serverTimestamp()
@@ -538,7 +500,7 @@ const handleCheckout = async () => {
                 <span class="block text-xs text-gray-500 mt-1">Theo chính sách giao hàng của công ty.<br/></span>
               </div>
             </label>
-            <!-- GIAO HÀNG NHANH CÓ HIỂN THỊ +100.000đ -->
+            <!-- GIAO HÀNG NHANH (⚡ UPDATE: đã bỏ nhãn phụ phí +100.000đ) -->
             <label v-if="isExpressAvailable" 
                    class="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer"
                    :class="{'border-yellow-400 bg-yellow-50/30': shippingMethod === 'express'}">
@@ -546,7 +508,6 @@ const handleCheckout = async () => {
               <div class="flex-1">
                 <div class="flex justify-between items-center">
                    <span class="block text-sm font-bold">Giao hàng nhanh</span>
-                   <span class="text-sm font-bold text-red-600">+100.000 đ</span>
                 </div>
                 <span class="block text-xs text-gray-500 mt-1">Giao hàng nhanh trong 1-2 ngày khi đơn hàng của Quý khách được xác nhận<br/>Xem chính sách vận chuyển</span>
               </div>
@@ -644,11 +605,7 @@ const handleCheckout = async () => {
                 <span class="font-bold text-gray-900">{{ cartSubtotal.toLocaleString('vi-VN') }} đ</span>
               </div>
 
-              <div class="flex justify-between">
-                <span class="text-gray-600">Phí vận chuyển:</span>
-                <span class="font-medium text-gray-800">{{ shippingFee === 0 ? '0 đ' : `${shippingFee.toLocaleString('vi-VN')} đ` }}</span>
-              </div>
-              
+              <!-- ⚡ UPDATE: đã bỏ dòng "Phí vận chuyển" khỏi bảng tổng kết -->
               <div class="flex justify-between items-center pt-3 border-t border-gray-100">
                 <span class="font-bold uppercase text-gray-900">Tổng cộng:</span>
                 <span class="text-lg font-bold text-red-600">{{ finalTotal.toLocaleString('vi-VN') }} đ</span>
